@@ -1,0 +1,415 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Generic FSM Modules &mdash; FiniteStateMachine Basics 0.0.1 documentation</title>
+    
+    <link rel="stylesheet" href="_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '0.0.1',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="FiniteStateMachine Basics 0.0.1 documentation" href="index.html" />
+    <link rel="next" title="Westworld2 Specifics" href="westworld2.html" />
+    <link rel="prev" title="Documentation for FSM Examples" href="index.html" />
+   
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9">
+
+  </head>
+  <body role="document">  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="generic-fsm-modules">
+<h1>Generic FSM Modules<a class="headerlink" href="#generic-fsm-modules" title="Permalink to this headline">¶</a></h1>
+<p>Modules in this section are not specific to WestWorld2; they can be used anywhere we need an FSM.</p>
+<hr class="docutils" />
+<div class="section" id="module-base_entity">
+<span id="base-entity-py"></span><h2>base_entity.py:<a class="headerlink" href="#module-base_entity" title="Permalink to this headline">¶</a></h2>
+<p>Module for defining managing game-type entities.</p>
+<p>Use the BaseEntity class for agents that need a unique ID as well as
+periodic updating and messaging functionality. The EntityManager class
+provides a simple interface for automatic management.</p>
+<p>Messages are sent via an instance of the MessageDispatcher class. This
+works with an EntityManager in order to serve as a kind of post office.
+Both immediate and delayed messages are possible; see the class description.</p>
+<dl class="class">
+<dt id="base_entity.BaseEntity">
+<em class="property">class </em><code class="descclassname">base_entity.</code><code class="descname">BaseEntity</code><span class="sig-paren">(</span><em>myID</em>, <em>postoffice</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.BaseEntity" title="Permalink to this definition">¶</a></dt>
+<dd><p>Abstract Base Class for objects with an ID, update, and messaging.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>myID</strong> (<em>int</em>) &#8211; The unique ID assigned to this entity.</li>
+<li><strong>postoffice</strong> (<a class="reference internal" href="#base_entity.MessageDispatcher" title="base_entity.MessageDispatcher"><em>MessageDispatcher</em></a>) &#8211; Where this entity will send its messages.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Raises:</th><td class="field-body"><p class="first last"><code class="xref py py-exc docutils literal"><span class="pre">ValueError</span></code> &#8211;
+If the requested ID is invalid.</p>
+</td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Notes</p>
+<p>Because of how messaging is implemented, each entity needs a unique ID.
+We use a private class variable to make sure that ID&#8217;s are not repeated.
+Since ID&#8217;s aren&#8217;t recycled, we can&#8217;t accidentally send a message or
+otherwise refer to an entity that is no longer valid.</p>
+<dl class="method">
+<dt id="base_entity.BaseEntity.get_id">
+<code class="descname">get_id</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.BaseEntity.get_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the ID of this entity.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="base_entity.BaseEntity.update">
+<code class="descname">update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.BaseEntity.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Update method that will be called each step
+This must be implemented by subclasses.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="base_entity.BaseEntity.receive_msg">
+<code class="descname">receive_msg</code><span class="sig-paren">(</span><em>message</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.BaseEntity.receive_msg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Message handler; must be implemented my subclasses.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>message</strong> (<em>tuple</em>) &#8211; A message constructed using the telegram() function.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="base_entity.EntityManager">
+<em class="property">class </em><code class="descclassname">base_entity.</code><code class="descname">EntityManager</code><a class="headerlink" href="#base_entity.EntityManager" title="Permalink to this definition">¶</a></dt>
+<dd><p>Manager class for objects of type BaseEntity</p>
+<dl class="method">
+<dt id="base_entity.EntityManager.register">
+<code class="descname">register</code><span class="sig-paren">(</span><em>entity</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.EntityManager.register" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add an instance of BaseEntity to this manager.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>entity</strong> (<a class="reference internal" href="#base_entity.BaseEntity" title="base_entity.BaseEntity"><em>BaseEntity</em></a>) &#8211; An entity that has been instantiated outside of this class.</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="base_entity.EntityManager.remove">
+<code class="descname">remove</code><span class="sig-paren">(</span><em>entity</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.EntityManager.remove" title="Permalink to this definition">¶</a></dt>
+<dd><p>Remove an instance of BaseEntity from this manager.</p>
+<p class="rubric">Notes</p>
+<p>Since BaseEntity&#8217;s are instantiated/deleted outside of this class,
+removing only affects this manager&#8217;s behavior. This function checks
+whether entity has the correct type, so deleting entity before
+removing it from the manager shouldn&#8217;t be an issue.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="base_entity.EntityManager.get_entity_from_id">
+<code class="descname">get_entity_from_id</code><span class="sig-paren">(</span><em>ent_id</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.EntityManager.get_entity_from_id" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns an entity object from its ID.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">The entity corresponding to ent_id.
+If this ID isn&#8217;t registered, returns None.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Return type:</th><td class="field-body"><a class="reference internal" href="#base_entity.BaseEntity" title="base_entity.BaseEntity">BaseEntity</a></td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="base_entity.EntityManager.update">
+<code class="descname">update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.EntityManager.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Calls the update() method of all registered entities.</p>
+<p>Note: The order in which entities are called in not known.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="base_entity.MessageDispatcher">
+<em class="property">class </em><code class="descclassname">base_entity.</code><code class="descname">MessageDispatcher</code><span class="sig-paren">(</span><em>clock_now</em>, <em>ent_mgr</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.MessageDispatcher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for posting/handling messages between entities.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>clock_now</strong> (<em>function()</em>) &#8211; A function that returns a numerical value. This is used to represent
+the current time to control delivery of delayed messages.</li>
+<li><strong>ent_mgr</strong> (<a class="reference internal" href="#base_entity.EntityManager" title="base_entity.EntityManager"><em>EntityManager</em></a>) &#8211; Used by this class to lookup an entity, given its ID.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="base_entity.MessageDispatcher.discharge">
+<code class="descname">discharge</code><span class="sig-paren">(</span><em>receiver</em>, <em>message</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.MessageDispatcher.discharge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Passes a message to a given recipient.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="base_entity.MessageDispatcher.post_msg">
+<code class="descname">post_msg</code><span class="sig-paren">(</span><em>delay</em>, <em>send_id</em>, <em>rec_id</em>, <em>msg_type</em>, <em>extra=None</em><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.MessageDispatcher.post_msg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Add a message to the queue for immediate or delayed dispatch.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="base_entity.MessageDispatcher.dispatch_delayed">
+<code class="descname">dispatch_delayed</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#base_entity.MessageDispatcher.dispatch_delayed" title="Permalink to this definition">¶</a></dt>
+<dd><p>Dispatches messages from the delayed queue.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<hr class="docutils" />
+<div class="section" id="module-state_machine">
+<span id="state-machine-py"></span><h2>state_machine.py<a class="headerlink" href="#module-state_machine" title="Permalink to this headline">¶</a></h2>
+<p>Module containing basic FSM functionality.</p>
+<p>All states should be derived from the State class, see its documentation.</p>
+<p>Use STATE_NONE as a concrete null state. We need only a single instance.</p>
+<p>An instance of BaseEntity can be given FSM functionality as follows:</p>
+<ul class="simple">
+<li>fsm = StateMachine(entity)</li>
+<li>fsm.set_state(current, global, previous), the last two are optional</li>
+<li>entity.fsm = fsm</li>
+<li>In entity&#8217;s update() method, call self.fsm.update()</li>
+</ul>
+<p>In entity&#8217;s receive_msg() method, calling entity.fsm.handle_msg(message) will
+allow the FSM to route messages to the appropriate state logic: first to the
+current state, then to the global state.</p>
+<dl class="class">
+<dt id="state_machine.State">
+<em class="property">class </em><code class="descclassname">state_machine.</code><code class="descname">State</code><a class="headerlink" href="#state_machine.State" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base class for all states.</p>
+<p>States derived from this base class should override the methods below,
+though all of them are optional. Each method takes a parameter, agent,
+which is the BaseEntity that is using that state. This allows multiple
+entities to reuse the same state logic.</p>
+<dl class="method">
+<dt id="state_machine.State.enter">
+<code class="descname">enter</code><span class="sig-paren">(</span><em>agent</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.State.enter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Code to execute immediately when changing to this state.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="state_machine.State.execute">
+<code class="descname">execute</code><span class="sig-paren">(</span><em>agent</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.State.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Code to execute each time this state is executed.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="state_machine.State.leave">
+<code class="descname">leave</code><span class="sig-paren">(</span><em>agent</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.State.leave" title="Permalink to this definition">¶</a></dt>
+<dd><p>Code to execute just before changing from this state.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="state_machine.State.on_msg">
+<code class="descname">on_msg</code><span class="sig-paren">(</span><em>agent</em>, <em>message</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.State.on_msg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Code to execute when a message is received.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">When overriding this method, we need to return a boolean that
+indicates if the message was succesfully handled. The messaging
+functions use this boolean to redirect the message elsewhere if a
+given state is unable to handle it.</p>
+</div>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="state_machine.StateMachine">
+<em class="property">class </em><code class="descclassname">state_machine.</code><code class="descname">StateMachine</code><span class="sig-paren">(</span><em>owner</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.StateMachine" title="Permalink to this definition">¶</a></dt>
+<dd><p>Finite State Machine with messaging capability.</p>
+<p>After instantiating a new StateMachine, use the set_state() method below
+in order to explicity initialize the states. Otherwise, this FSM will sit
+around and do nothing on update.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>owner</strong> (<a class="reference internal" href="#base_entity.BaseEntity" title="base_entity.BaseEntity"><em>BaseEntity</em></a>) &#8211; The entity using this instance of the FSM.</td>
+</tr>
+</tbody>
+</table>
+<dl class="method">
+<dt id="state_machine.StateMachine.set_state">
+<code class="descname">set_state</code><span class="sig-paren">(</span><em>cur</em>, <em>glo=None</em>, <em>pre=None</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.StateMachine.set_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Manually set owner&#8217;s states without triggering state change logic.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>cur</strong> (<a class="reference internal" href="#state_machine.State" title="state_machine.State"><em>State</em></a>) &#8211; Current State of the FSM. Use NullState here if you don&#8217;t need
+to explictly set an actual State.</li>
+<li><strong>glo</strong> (<a class="reference internal" href="#state_machine.State" title="state_machine.State"><em>State</em></a>) &#8211; Global State (executed each update) of the FSM.</li>
+<li><strong>pre</strong> (<a class="reference internal" href="#state_machine.State" title="state_machine.State"><em>State</em></a>) &#8211; Previous State (used by revert_state) of the FSM. Defaults to
+NullState if not specified or invalid.</li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="state_machine.StateMachine.update">
+<code class="descname">update</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.StateMachine.update" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute the owner&#8217;s global state (if any), then current state.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="state_machine.StateMachine.change_state">
+<code class="descname">change_state</code><span class="sig-paren">(</span><em>newstate</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.StateMachine.change_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Switches owner to a new state, calling leave/enter methods.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first last simple">
+<li><strong>newstate</strong> (<a class="reference internal" href="#state_machine.State" title="state_machine.State"><em>State</em></a>) &#8211; The FSM will switch to this state.</li>
+<li><strong>Note</strong> (<em>Both the current and new states must be valid, otherwise nothing</em>) &#8211; </li>
+<li><strong>happen and we'll stay in the current state.</strong> (<em>will</em>) &#8211; </li>
+</ul>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="state_machine.StateMachine.revert_state">
+<code class="descname">revert_state</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.StateMachine.revert_state" title="Permalink to this definition">¶</a></dt>
+<dd><p>Reverts owner to its previous state; useful for state blips.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="state_machine.StateMachine.handle_msg">
+<code class="descname">handle_msg</code><span class="sig-paren">(</span><em>message</em><span class="sig-paren">)</span><a class="headerlink" href="#state_machine.StateMachine.handle_msg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Used by the FSM to route received messages.</p>
+<p>The message is first passed to the current state, which tries to
+handle it. If the current state fails to do so, the message is then
+passed to the global state, if one exists.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>message</strong> (<em>tuple</em>) &#8211; A message constructed using the telegram() function.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">True if the message was handled by either the current or global
+state; False otherwise.</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Return type:</th><td class="field-body">bool</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Generic FSM Modules</a><ul>
+<li><a class="reference internal" href="#module-base_entity">base_entity.py:</a></li>
+<li><a class="reference internal" href="#module-state_machine">state_machine.py</a></li>
+</ul>
+</li>
+</ul>
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+      <li>Previous: <a href="index.html" title="previous chapter">Documentation for FSM Examples</a></li>
+      <li>Next: <a href="westworld2.html" title="next chapter">Westworld2 Specifics</a></li>
+  </ul></li>
+</ul>
+</div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/fsm_basics.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2015, Michael J. Dancs.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 1.3.1</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.6</a>
+      
+      |
+      <a href="_sources/fsm_basics.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
