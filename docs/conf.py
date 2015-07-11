@@ -21,6 +21,7 @@ import shlex
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../fsm_ex'))
+sys.path.insert(0, os.path.abspath('../vpoints'))
 
 # -- General configuration ------------------------------------------------
 
@@ -50,7 +51,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'FiniteStateMachine Basics'
+project = u'Clayton RPI: Tactial Control'
 copyright = u'2015, Michael J. Dancs'
 author = u'Michael J. Dancs'
 
