@@ -28,6 +28,15 @@ Homegrown vector code for use in Python.
 .. toctree::
 
    vpoints.rst
+
+Documentation for BOID/Vehicle Code
+===================================
+
+Still working on this...
+
+.. toctree::
+
+   vehicle.rst
    
    
 Indices and tables

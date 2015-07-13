@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """Two-Dimensional Vehicles, using Pygame sprites.
 
-   This is a bare-bones module....finish documenation later.
+   This is still a work in progress....finish documenation later.
 """
 
 import os, sys, pygame
@@ -63,10 +63,10 @@ def load_image(name, colorkey=None):
     return image_surf, image_surf.get_rect()
 
 class PointMass2d(pygame.sprite.Sprite):
-    """A pygame.Sprite with some basic physics.
-
-    Paramters
-    ---------
+    """A pygame.Sprite with some basic physics, but no rotation.
+    
+    Parameters
+    ----------
     img_surf: pygame.Surface
         Contains the image of the sprite; used for blitting.
     img_rect: pygame.rect
@@ -96,6 +96,8 @@ class PointMass2d(pygame.sprite.Sprite):
         self.rect = img_rect
 
         # Basic object physics
+        # Note: We can't use self.pos = position here because of Point2d's
+        # __init__ method (and lack of __copy__), ditto for self.vel.
         self.pos = Point2d(position[0], position[1])  # Center of object
         self.radius = radius                          # Bounding radius
         self.vel = Point2d(velocity[0], velocity[1])  # Current Velocity
@@ -105,7 +107,8 @@ class PointMass2d(pygame.sprite.Sprite):
             self.front = velocity.unit()
         except ZeroDivisionError:
             # If velocity is <0,0>, set facing to screen upwards
-            self.front = Point2d(0,0)
+            self.front = Point2d(0,-1)
+        self._rotate_for_blit()
 
         # Movement constraints
         ## TODO: Put these in the function argument, perhaps as **kwargs
@@ -113,7 +116,7 @@ class PointMass2d(pygame.sprite.Sprite):
         self.maxspeed = float(5.0)
         self.maxforce = float(1.5)
 
-    def move(self, delta_t):
+    def move(self, delta_t, force_vector=None):
         """Update the position of this object, using its current velocity.
 
         Parameters
@@ -123,6 +126,21 @@ class PointMass2d(pygame.sprite.Sprite):
         """
         self.pos = self.pos + self.vel.scale(delta_t)
         self.rect.center = self.pos[0], self.pos[1]
+
+        if force_vector:
+            # Don't exceed our maximum force; compute acceleration/velocity
+            force_vector.truncate(self.maxforce)
+            accel = force_vector.scale(delta_t/self.mass)
+            self.vel = self.vel + accel
+
+        # Don't exceed our maximum speed
+        self.vel.truncate(self.maxspeed)
+
+        # A PointMass has heading aligned with velocity. However, if the
+        # velocity is very small, we skip alignment to avoid jittering.
+        if self.vel.sqnorm() > SPEED_EPSILON:
+            self.front = self.vel.unit()
+            #self.left = Point2d(-self.front[1],self.front[0])
 
     def _rotate_for_blit(self):
         """Used to rotate the object's image prior to blitting.
@@ -148,34 +166,56 @@ class PointMass2d(pygame.sprite.Sprite):
 
         Note
         ----
-        This is intended to be called by pygame.sprite.RenderPlain()'s update
+        This function is intended to be called by a pygame.Group.update()
         method each cycle. This passes the same arguments to each sprite, so
-        any object-specific behaviour must be computed within this function.
+        instance-specific behaviour must be computed within this function.
         Need to think of a clever way around this, otherwise we'd have to
         override this for each subclass, which defeats the point.
         """
-
-# This was the old code, when we could pass in a force to this function.
-#        if force_vector:
-#            # Don't exceed our maximum force; compute acceleration/velocity
-#            sforce.truncate(self.maxforce)
-#            accel = sforce.scale(1.0/self.mass)
-#            self.vel = self.vel + accel*dt
-
-        # Don't exceed our maximum speed
-        self.vel.truncate(self.maxspeed)
-
-        # A PointMass has heading aligned with velocity. However, if the
-        # velocity is very small, we skip alignment to avoid jittering.
-        if self.vel.sqnorm() > SPEED_EPSILON:
-            self.front = self.vel.unit()
-            #self.left = Point2d(-self.front[1],self.front[0])
 
         # Movement and image rotation:
         self.move(delta_t)
         self._rotate_for_blit()
 
+class RotatingMass2d(PointMass2d):
+    """A pygame.Sprite with rotational physics.
 
+    Note
+    ----
+    This inherits from PointMass2d to avoid duplicating the non-rotational
+    behaviour code. Angles are in degrees. Either may change in the future.
+    """
+
+    def __init__(self, *args):
+        PointMass2d.__init__(self,*args)
+
+        # Compute facing angle from front vector
+        self.theta = self.front.angle()*SCREEN_DEG
+        self.omega = 0.0    # Angular veloicty
+
+        # Rotation Constraints
+        ## TODO: Put these into __init__()
+        self.moment = 1.0   # Moment of inertia (angular mass)
+        self.maxomega = 60.0
+        self.maxtorque = 10.0
+
+    def rotate(self, delta_t):
+        """Updates the rotational physics of this object."""
+        # Rotation about image center
+        self.theta = (self.theta + self.omega*delta_t) % 360.0
+        self.image = pygame.transform.rotate(self.orig,self.theta)
+        self.rect = self.image.get_rect()
+        self.rect.center = self.pos[0], self.pos[1]
+
+    def update(self,delta_t=1.0):
+        """Update position and rotation.
+
+        Notes
+        -----
+        This uses PointMass2d.move() to handle the translational motion.
+        """
+        self.move(delta_t,Point2d(-0.02,0))
+        self.rotate(delta_t)
 
 if __name__ == "__main__":
     pygame.init()
@@ -198,8 +238,9 @@ if __name__ == "__main__":
     vel = Point2d(20,0)
 
     # Create any array of objects for pygame
-    obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numobj)]
+    obj = [RotatingMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numobj)]
     obj[0].maxspeed = 2.0
+    obj[1].omega = -1.0
 
     allsprites = pygame.sprite.RenderPlain(obj)
 
@@ -220,4 +261,3 @@ if __name__ == "__main__":
 
 
     pygame.time.delay(2000)
-    
