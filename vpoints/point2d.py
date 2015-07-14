@@ -28,7 +28,7 @@ class Point2d(object):
         return "Point2d: <%f, %f>" % (self.x, self.y)
 
     def __neg__(self):
-        """Negates each entry; overloads unary - operator.
+        """Negates each entry; overrides unary - operator.
 
         Example
         -------
@@ -40,7 +40,7 @@ class Point2d(object):
 
 
     def __add__(self, term):
-        """Coordinatewise addition; overloads the + operator.
+        """Coordinatewise addition; overrides the + operator.
 
         Example
         -------
@@ -54,7 +54,7 @@ class Point2d(object):
         return Point2d(x, y)
 
     def __sub__(self, term):
-        """Coordinatewise subtraction; overloads the - operator.
+        """Coordinatewise subtraction; overrides the - operator.
 
         Example
         -------
@@ -68,7 +68,7 @@ class Point2d(object):
         return Point2d(x, y)
 
     def __mul__(self, term):
-        """Dot product; overloads the \* operator.
+        """Dot product; overrides the \* operator.
 
         Example
         -------
@@ -224,7 +224,7 @@ class Point2d(object):
         return float(theta)
 
     def __div__(self, direction):
-        """Length of an orthogonal projection; overloads the / operator.
+        """Length of an orthogonal projection; overrides the / operator.
 
         Parameters
         ----------
@@ -317,6 +317,38 @@ class Point2d(object):
         parallel = self.proj(direction)
         perp = self - parallel
         return (parallel, perp)
+        
+    def left_normal(self):
+        """Returns the left-facing normal of this vector
+        
+        Example
+        -------
+        >>> a = Point2d(1, -2)
+        >>> print a.left_normal()
+        Point2d: <2.000000, 1.000000>
+        """
+        return Point2d(-self.y, self.x)
+    
+    def __setitem__(self, index, value):
+        """Allows a value to be assigned to each vector components; 
+        indexed starting at 0
+        
+        Example
+        -------
+        >>> a = Point2d(1, -2)
+        >>> print a
+        Point2d: <1.000000, -2.000000>
+        >>> a[0] = 3
+        >>> a[1] = 5
+        >>> print a
+        Point2d: <3.000000, 5.000000>
+        """
+        if index == 0:
+            self.x = value
+        elif index == 1:
+            self.y = value
+        else:
+            raise KeyError("Point2d %s has no component %s" % (self, str(index)))
 
 if __name__ == "__main__":
     a = Point2d(1, -2)
@@ -360,4 +392,4 @@ if __name__ == "__main__":
     print("Dot product of resolved vectors = %f" % (cframe[0]*cframe[1]))
     print("Dot product of b with perpendicular = %f" % (b*cframe[1]))
     print("Sum of resolved vectors = %s" % (cframe[0]+cframe[1]))
-
+    
