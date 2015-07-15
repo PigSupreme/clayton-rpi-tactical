@@ -253,9 +253,11 @@ if __name__ == "__main__":
     obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numobj)]
     obj[0].maxspeed = 2.0
     obj[0].omega = 3.0
-
+    obj[0].steering.set_target(ARRIVE = Point2d(500,300))
     obj[0].steering.fleeing = False
-        
+    
+    obj[1].steering.set_target(SEEK = Point2d(500,300)) 
+    obj[1].steering.set_target(FLEE = Point2d(500,400))
     obj[1].omega = -1.0
     obj[1].steering.fleeing = True
     obj[1].steering.avoid_this = obj[0]
