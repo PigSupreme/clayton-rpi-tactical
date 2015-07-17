@@ -5,9 +5,15 @@ Created on Sat Apr  4 19:14:57 2015
 @author: lothar
 """
 
+# for python3 compat
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import print_function
+
 import os, sys, pygame, random
 from pygame.locals import *
 from math import sqrt, atan, cos, sin, degrees
+
 random.seed()
 randint = random.randint
 

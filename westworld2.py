@@ -1,9 +1,14 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 Created on Fri Jun 12 16:57:26 2015
 
 @author: lothar
 """
+
+# for python3 compat
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import print_function
 
 from fsm_ex.gamedata import BOB, ELSA, GameOver
 

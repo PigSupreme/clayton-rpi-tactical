@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """A Two-Dimensional Point/Vector Class
 
 There are surely much better implementations of this sort of thing, for
@@ -6,6 +6,11 @@ various definitions of 'better.' This module is designed to by easily readable
 and portable, without having to fuss with installation/importing of modules
 such as numpy that would probably perform better.
 """
+
+# for python3 compat
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import print_function
 
 from math import sqrt, acos
 
