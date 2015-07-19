@@ -13,7 +13,10 @@ INF = float('inf')
 sys.path.insert(0, '../vpoints')
 from point2d import Point2d
 
-# Point2d functions return radians, but pygame wants SCREEN_DEGrees. The negative
+from steering import SteeringBehavior
+
+
+# Point2d functions return radians, but pygame wants degrees. The negative
 # is needed since y coordinates increase downwards on screen. Multiply a
 # math radians result by SCREEN_DEG to get pygame screen-appropriate degrees.
 SCREEN_DEG = -57.2957795131
@@ -64,7 +67,7 @@ def load_image(name, colorkey=None):
 
 class PointMass2d(pygame.sprite.Sprite):
     """A pygame.Sprite with some basic physics, but no rotation.
-    
+
     Parameters
     ----------
     img_surf: pygame.Surface
@@ -86,7 +89,12 @@ class PointMass2d(pygame.sprite.Sprite):
     to use the same image file.
     """
 
-    def __init__(self, img_surf, img_rect, position, radius, velocity):
+    def __init__(self,
+                 img_surf,
+                 img_rect,
+                 position,
+                 radius,
+                 velocity):
         # Must call pygame's Sprite.__init__ first!
         pygame.sprite.Sprite.__init__(self)
 
@@ -115,6 +123,9 @@ class PointMass2d(pygame.sprite.Sprite):
         self.mass = float(1.0)
         self.maxspeed = float(5.0)
         self.maxforce = float(1.5)
+
+        # Steering behavior
+        self.steering = SteeringBehavior(self)
 
     def move(self, delta_t, force_vector=None):
         """Update the position of this object, using its current velocity.
@@ -157,7 +168,7 @@ class PointMass2d(pygame.sprite.Sprite):
         self.rect.center = center
 
     def update(self, delta_t=1.0):
-        """Update the object's position. Update velocity/facing if needed.
+        """Update the object's position and autonomous steering force.
 
         Parameters
         ----------
@@ -169,13 +180,18 @@ class PointMass2d(pygame.sprite.Sprite):
         This function is intended to be called by a pygame.Group.update()
         method each cycle. This passes the same arguments to each sprite, so
         instance-specific behaviour must be computed within this function.
-        Need to think of a clever way around this, otherwise we'd have to
-        override this for each subclass, which defeats the point.
         """
 
+        # Autonomous steering behaviour computed here
+        force = self.steering.compute_force()
+
         # Movement and image rotation:
-        self.move(delta_t)
+        self.move(delta_t,force)
         self._rotate_for_blit()
+        
+        # Simple edge warping
+        self.pos = Point2d(self.pos[0] % sc_width, self.pos[1] % sc_height)
+        
 
 class RotatingMass2d(PointMass2d):
     """A pygame.Sprite with rotational physics.
@@ -187,7 +203,7 @@ class RotatingMass2d(PointMass2d):
     """
 
     def __init__(self, *args):
-        PointMass2d.__init__(self,*args)
+        PointMass2d.__init__(self, *args)
 
         # Compute facing angle from front vector
         self.theta = self.front.angle()*SCREEN_DEG
@@ -203,18 +219,18 @@ class RotatingMass2d(PointMass2d):
         """Updates the rotational physics of this object."""
         # Rotation about image center
         self.theta = (self.theta + self.omega*delta_t) % 360.0
-        self.image = pygame.transform.rotate(self.orig,self.theta)
+        self.image = pygame.transform.rotate(self.orig, self.theta)
         self.rect = self.image.get_rect()
         self.rect.center = self.pos[0], self.pos[1]
 
-    def update(self,delta_t=1.0):
+    def update(self, delta_t=1.0):
         """Update position and rotation.
 
         Notes
         -----
         This uses PointMass2d.move() to handle the translational motion.
         """
-        self.move(delta_t,Point2d(-0.02,0))
+        self.move(delta_t)
         self.rotate(delta_t)
 
 if __name__ == "__main__":
@@ -226,21 +242,39 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Sprite images and pygame rectangles
-    numobj = 2
+    numobj = 5
     img = list(range(numobj))
     rec = list(range(numobj))
     img[0], rec[0] = load_image('rpig.png', -1)
-    for i in range(1, numobj):
+    for i in range(1, 2):
         img[i], rec[i] = load_image('ypig.png', -1)
+    for i in range(2, numobj):
+        img[i], rec[i] = load_image('gpig.png', -1)
+
 
     # Object physics
-    pos = [Point2d(10, i*sc_height/(1+numobj)) for i in range(1, 1+numobj)]
+    pos = [Point2d(75+(i-1)*50, 150+(i-1)*40) for i in range(numobj)]
+    pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(20,0)
 
     # Create any array of objects for pygame
-    obj = [RotatingMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numobj)]
-    obj[0].maxspeed = 2.0
-    obj[1].omega = -1.0
+    obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numobj)]
+    obj[0].maxspeed = 5.0
+    obj[0].steering.set_target(WANDER = [250,60,10])
+    
+    #obj[1].steering.set_target(SEEK = Point2d(500,300)) 
+    #obj[1].steering.set_target(FLEE = Point2d(500,400))
+    obj[1].maxspeed = 4.0
+    obj[1].steering.set_target(PURSUE = obj[0])
+
+    obj[2].maxspeed = 2.0
+    obj[2].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
+
+    obj[3].maxspeed = 2.0
+    obj[3].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
+
+    obj[4].maxspeed = 2.0
+    obj[4].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
 
     allsprites = pygame.sprite.RenderPlain(obj)
 
@@ -252,7 +286,7 @@ if __name__ == "__main__":
 
         allsprites.update(0.1)
 
-        #pygame.time.delay(5)
+        # pygame.time.delay(2)
 
         # Render
         screen.fill(bgcolor)
