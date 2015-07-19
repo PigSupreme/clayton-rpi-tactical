@@ -10,6 +10,11 @@ works with an EntityManager in order to serve as a kind of post office.
 Both immediate and delayed messages are possible; see the class description.
 """
 
+# for python3 compat
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import print_function
+
 class BaseEntity(object):
     """Abstract Base Class for objects with an ID, update, and messaging.
     

@@ -1,8 +1,9 @@
-#!/usr/bin/python
-"""Two-Dimensional Vehicles, using Pygame sprites.
+#!/usr/bin/env python
 
-   This is still a work in progress....finish documenation later.
-"""
+# for python3 compat
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import print_function
 
 import os, sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
@@ -51,7 +52,7 @@ def load_image(name, colorkey=None):
     try:
         image_surf = pygame.image.load(imagefile)
     except pygame.error, message:
-        print 'Error: Cannot load image:', name
+        print('Error: Cannot load image: %s' % name)
         raise SystemExit(message)
 
     # This converts the surface for maximum blitting performance,
@@ -292,6 +293,5 @@ if __name__ == "__main__":
         screen.fill(bgcolor)
         allsprites.draw(screen)
         pygame.display.flip()
-
 
     pygame.time.delay(2000)
