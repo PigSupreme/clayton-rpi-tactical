@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """Simple pygame demo showing seek/flee steering behavior.
 
 The red boid seeks to randomly-generated point, ignoring other boids. Once it
@@ -7,6 +7,11 @@ gets close enough to this target point, a new one is generated.
 Yellow boids follow the same behavior, but also flee from the red boid if it
 gets too close. The jittering will be dealt with later.
 """
+
+# for python3 compat
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import print_function
 
 import os, sys, pygame
 from pygame.locals import *
