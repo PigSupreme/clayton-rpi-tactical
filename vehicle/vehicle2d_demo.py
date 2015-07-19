@@ -134,7 +134,7 @@ class MovingObject(pygame.sprite.Sprite):
         # Steering force calculated here (for now, demo seek/flee)
         # This should be done by SteeringBehaviors, once that's integrated.
         if self.flee:
-            sforce = flee_force(self,obj[0].pos,25000) + arrive_force(self,self.target,2.0)
+            sforce = flee_force(self,obj[0].pos,25000) + arrive_force(self,self.target, 0.2)
         else:
             sforce = seek_force(self,self.target)
         # End of steering behavior
@@ -196,11 +196,11 @@ def arrive_force(obj,tpos,hesitance=2.0):
     dist = target_offset.norm()
     if dist > 0:
         # The constant on the next line may need tweaking
-        speed = dist / (0.25 * hesitance)
+        speed = dist / (10.0 * hesitance)
         if speed > obj.maxspeed:
             speed = obj.maxspeed    
         targetvel = target_offset.scale(speed/dist)
-        return targetvel
+        return targetvel - obj.vel
     else:
         return Point2d(0,0)
 
