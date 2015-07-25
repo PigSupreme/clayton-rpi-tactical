@@ -43,7 +43,7 @@ class Sentry(BaseEntity):
         args = (args[0], args[1])
         super(Sentry, self).__init__(*args)
         self.name = "Sentry"
-        
+
         self.location = 0
         self.fatigue = 0
 
@@ -54,13 +54,12 @@ class Sentry(BaseEntity):
         # Queue to keep track of what ladders to knock down
         self.task_queue = []
         self.current_task = None
-        
+
         print("%s : Ready for battle!" % self.name)
 
         # Set up the FSM for this entity
         self.fsm = StateMachine(self)
-        self.fsm.set_state(STATE_NONE, GlobalSentryState(), None)
-        self.fsm.change_state(SentryPatrol())
+        self.fsm.set_state(SentryPatrol(), GlobalSentryState(), None)
 
 
     def update(self):
@@ -88,11 +87,14 @@ class Sentry(BaseEntity):
         new_location = min(max(0, new_location), WALL_MAX)
 
         cost = abs(self.location - new_location) * Sentry.FATIGUE_MOVE_COST
+        self.location = new_location
+        print("%s : Now at space %d." % (self.name, self.location))
         self.change_fatigue(cost)
 
     def about_face(self):
         """The sentry turns to face the opposite direction."""
         self.direction *= -1
+        print("%s : About face! Now facing %d" % (self.name, self.direction))
 
     def change_fatigue(self, amount):
         self.fatigue += amount
@@ -104,6 +106,7 @@ class Sentry(BaseEntity):
         to be knocked down), and sets the current_task."""
         try:
             space = self.task_queue.pop(0)
+            print("%s : There's a ladder at space %d." % (self.name, space))
         except IndexError:
             self.current_task = None
             return
@@ -127,24 +130,36 @@ class Sentry(BaseEntity):
         # In order to check for errors, LADDER_DISPLACED message will be sent
         # by the wall, which then notifies attackers and scores point.
         if self.wall.knockdown_ladder(self.location):
+            print("%s : Ladder down, huzzah!" % self.name)
             self.change_fatigue(Sentry.FATIGUE_KNOCKDOWN_COST)
+            self.get_task_from_queue()
+
 
 ##################### Start of Sentry states ##################
 
 class GlobalSentryState(State):
-    """Global state that just handles message.
-
-    Prints that a message was received, with no further details.
+    """Global state: document this!
     """
 
+    def execute(self, agent):
+        print("%s : Fatigue is now %d." % (agent.name, agent.fatigue))
+
+
     def on_msg(self, agent, message):
-        print("%s : A message! Have at ye!" % agent.name)
-        return True
+        if message[MSG_TYPE] == LADDER_PLACED:
+            print("%s : ...but I'm at space %d, too far away." % (agent.name, agent.location))
+            return True
+        else:
+            print("%s : A message! Have at ye!" % agent.name)
+            return False
 
 ##################### End of GlobalSentryState ##################
 
 class SentryPatrol(State):
     """Sentry is patrolling...for somebody to comment this!"""
+
+    def enter(self, agent):
+        print("%s : Now starting patrol from space %d." % (agent.name, agent.location))
 
     def execute(self, agent):
         # Check for fatigue first
@@ -175,9 +190,15 @@ class SentryPatrol(State):
         ########################################################
 
         # We do something different if within 1 space of end of wall:
-        if agent.location in [1, WALL_MAX-1]:
+        # PigSupreme cleaned this up to work with end-of-wall code above.
+        # TODO: Consider fixing this, sentries seem to linger too long.
+        if agent.location == 1:
             d4 = roll_int(1, 4)
-            if d4 > 1:
+            if d4 > 1 and agent.direction == -1:
+                agent.about_face()
+        elif agent.location == WALL_MAX - 1:
+            d4 = roll_int(1, 4)
+            if d4 > 1 and agent.direction == 1:
                 agent.about_face()
         else:
             d5 = roll_int(1, 5)
@@ -192,8 +213,10 @@ class SentryPatrol(State):
         be handled by a global state."""
         if message[MSG_TYPE] == LADDER_PLACED:
             ladder_loc = message[EXTRA]
+            print("%s : Ladder was placed at %d..." % (agent.name, ladder_loc))
             if abs(agent.location - ladder_loc) < Sentry.SIGHT_PATROL:
                 agent.add_task_to_queue(ladder_loc)
+                print("%s : ...going to repel it. Task queue is %s." % (agent.name, str(agent.task_queue)))
                 agent.fsm.change_state(SentryRepel())
                 return True
         return False
@@ -206,7 +229,13 @@ class SentryRepel(State):
     def enter(self, agent):
         # TODO: Spec says "Identify location of ladder." Which one?
         # Assuming the first ladder on this sentry's task_queue.
-        agent.current_task = agent.get_task_from_queue()
+        agent.get_task_from_queue()
+        if agent.current_task and agent.wall.is_ladder(agent.current_task):
+            print("%s : Repelling ladder at space %d, I'm at space %d." % (agent.name, agent.current_task, agent.location))
+        else:
+            # Ladder is gone...we must have reverted from resting, or somebody
+            # else took care of it
+            print("%s : No ladders to repel...")
 
     def execute(self, agent):
         ladder_loc = agent.current_task
@@ -229,22 +258,26 @@ class SentryRepel(State):
                 agent.direction = -1
                 agent.move(1)
 
-    def leave(self, agent):
-        agent.fsm.revert_state()
-
     def on_msg(self, agent, message):
         if message[MSG_TYPE] == LADDER_PLACED:
             ladder_loc = message[EXTRA]
+            print("%s : Ladder was placed at %d..." % (agent.name, ladder_loc))
             if abs(agent.location - ladder_loc) < Sentry.SIGHT_PATROL:
                 agent.add_task_to_queue(ladder_loc)
+                print("%s : ...and I'll get there. Task queue is %s." % (agent.name, str(agent.task_queue)))
                 return True
         return False
 
 ##################### End of SentryRepel State ##################
 
 class SentryRest(State):
+    """Sentry rest state...document this!"""
+
+    def enter(self, agent):
+        print("%s : Taking a break, fatigue is now %d" % (agent.name, agent.fatigue))
 
     def execute(self, agent):
+        print("%s : Resting..." % agent.name)
         agent.change_fatigue(-Sentry.FATIGUE_RECOVERY)
         # Since it was not specified how to come out of being immobilized,
         # I instead put an immobilization check into on_msg. If there is
@@ -267,5 +300,8 @@ class SentryRest(State):
                 agent.fsm.change_state(SentryRepel())
                 return True
         return False
+
+    def leave(self, agent):
+        print("%s: Returning to duty!" % agent.name)
 
 ##################### End of SentryRest State ##################

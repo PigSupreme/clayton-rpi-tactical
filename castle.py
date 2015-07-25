@@ -11,18 +11,18 @@ from __future__ import print_function
 from random import randint as roll_int
 
 # Game world constants
-from fsm_student.gamedata import WALL_MAX, LADDER_HEIGHT, WINNING_SCORES, GameOver
+from fsm_student.gamedata import WALL_MAX, LADDER_HEIGHT, WINNING_SCORES, MAX_TURNS, GameOver
 
 # Messaging
-from fsm_student.gamedata import LADDER_PLACED, LADDER_DOWN, LOOK_FOR_SPACE
+#from fsm_student.gamedata import LADDER_PLACED, LADDER_DOWN, LOOK_FOR_SPACE
 from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
 
 # Game Entities
-from fsm_ex.base_entity import BaseEntity
+#from fsm_ex.base_entity import BaseEntity
 from fsm_student.gamedata import CASTLE_WALL, ATTACKER, DEFENDER
 
 # State Machines
-from fsm_ex.state_machine import State, STATE_NONE, StateMachine
+#from fsm_ex.state_machine import State, STATE_NONE, StateMachine
 
 ##############################################################################
 
@@ -63,25 +63,30 @@ from fsm_student.ent_wall import Wall
 if __name__ == "__main__":
 
     # Initialize Manager-type objects:
-    MASTER_CLOCK = GameClock() 
-    ENTITY_MGR = EntityManager()    
+    MASTER_CLOCK = GameClock()
+    ENTITY_MGR = EntityManager()
     MSG_DISPATCHER = MessageDispatcher(MASTER_CLOCK.now, ENTITY_MGR)
 
     # Create and register entities
-    castle = Wall(CASTLE_WALL, MSG_DISPATCHER)
-    ENTITY_MGR.register(castle)
-    
+
+    # Wall must be initialized first
+    WALLS = Wall(CASTLE_WALL, MSG_DISPATCHER)
+    ENTITY_MGR.register(WALLS)
+
     # Sentries and attackers must be assigned to a wall
     ent_list = [(ATTACKER, Attacker), (DEFENDER, Sentry)]
     for (ename, etype) in ent_list:
-        new_entity = etype(ename, MSG_DISPATCHER, castle)
+        new_entity = etype(ename, MSG_DISPATCHER, WALLS)
         ENTITY_MGR.register(new_entity)
 
+    # Start FSM logic: Must be done AFTER all entities are registered.
+    ENTITY_MGR.start_all_fsms()
+
     # Main Loop
-    while MASTER_CLOCK.since(0) < 20:
+    while MASTER_CLOCK.since(0) < MAX_TURNS:
         try:
-            print(" *** Game Turn %d ***" % MASTER_CLOCK.since(0))
             MASTER_CLOCK.update()
+            print("\n *** Game Turn %d ***" % MASTER_CLOCK.since(0))
             ENTITY_MGR.update()
             MSG_DISPATCHER.dispatch_delayed()
         except GameOver:

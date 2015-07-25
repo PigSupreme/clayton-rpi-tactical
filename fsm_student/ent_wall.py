@@ -40,7 +40,7 @@ class Wall(BaseEntity):
         # Int
         self.spaces = [Wall.SPC_READY for x in range(WALL_MAX)]
         # Ladders are permitted on odd spaces only
-        self.ladders_allowed = [x for x in self.spaces if x % 2 == 1]
+        self.ladders_allowed = [x for x in range(WALL_MAX) if x % 2 == 1]
         self.scores = {'ATTACKERS': 0, 'DEFENDERS': 0}
         print("%s : Ready for battle!" % self.name)
 
@@ -51,59 +51,62 @@ class Wall(BaseEntity):
                 self.spaces[spc] = Wall.SPC_READY
 
     def receive_msg(self, message):
-        # TODO: Write me
+        """Needed for BaseEntity, but not currently used."""
         pass
 
     def is_ladder(self, space):
         """Returns True if space contains a ladder."""
-        if self.spaces[space] is Wall.SPC_LADDER:
+        if self.spaces[space] == Wall.SPC_LADDER:
             return True
         else:
             return False
 
-    def get_nearest_ladder(self, space, dist=WALL_MAX):
+    def get_nearest_ladder(self, space=WALL_MAX/2, dist=WALL_MAX):
         """Location of the nearest ladder, optionally within some distance."""
-        spc_range = max(0, space - dist), 1 + min(WALL_MAX, space + dist)
-        ladders = filter(lambda x: self.spaces[x] is Wall.SPC_LADDER, spc_range)
-        if ladders == ():
+        spc_range = range(max(0, space - dist), min(WALL_MAX, space + dist))
+        ladders = filter(lambda x: self.spaces[x] == Wall.SPC_LADDER, spc_range)
+        if ladders == []:
             return None
         else:
             return min(ladders, key=lambda x: abs(x - space))
-            
-    def get_empty_ladder_space(self, space, dist=WALL_MAX):
+
+    def get_empty_ladder_space(self): #, space=WALL_MAX/2, dist=WALL_MAX):
         """Location of the nearest space that can hold a ladder,
         optionally within some distance."""
-        spc_range = max(0, space - dist), 1 + min(WALL_MAX, space + dist)
-        empties = filter(lambda x: self.ladders_allowed[x] is Wall.SPC_READY, spc_range)
-        if empties == ():
+        empties = [x for x in self.ladders_allowed if self.spaces[x] == Wall.SPC_READY]
+        print("%s : Empty spaces are %s" % (self.name, str(empties)))
+        if empties == []:
             return None
         else:
-            return min(empties, key=lambda x: abs(x - space))
-            
+            return empties[roll_int(0,len(empties)-1)]
+
     def place_ladder(self, space):
         """Attempt to place a ladder on this wall."""
-        if space in self.ladders_allowed and self.spaces[space] is Wall.SPC_READY:
+        if space in self.ladders_allowed and self.spaces[space] == Wall.SPC_READY:
             self.spaces[space] = Wall.SPC_LADDER
-            print("%s : Ladder places at space %d." % (self.name, space))
+            print("%s : Ladder placed at space %d." % (self.name, space))
+            ladders = [x for x in range(WALL_MAX) if self.spaces[x] == Wall.SPC_LADDER]
+            print("%s : Ladders are now at %s." % (self.name, ladders))
             return True
         else:
             return False
 
     def knockdown_ladder(self, space):
         """Attempt to knockdown a ladder on this wall."""
+        print("%s : Knockdown request at space %d." % (self.name, space))
         if self.spaces[space] is Wall.SPC_LADDER:
-            self.postoffice.post_msg(0,CASTLE_WALL,ATTACKER,LADDER_DOWN,space)
+            self.postoffice.post_msg(0, CASTLE_WALL, ATTACKER, LADDER_DOWN, space)
             self.spaces[space] = Wall.SPC_BLOCKED
-            self.score_points('DEFENDERS')
             print("%s : Ladder knocked down at space %d." % (self.name, space))
+            self.score_points('DEFENDERS')
             return True
         else:
             return False
 
     def score_points(self, team, points=1):
+        """Score points and check for victory conditions."""
         current = self.scores[team] + points
         self.scores[team] = current
-        print("%s : Team %s scored; current score is %d" % (self.name, team, current))
+        print("%s : Team %s scored; current score is %d." % (self.name, team, current))
         if current >= WINNING_SCORES[team]:
-            raise GameOver(team)
-        
+            raise GameOver(team, self.scores)

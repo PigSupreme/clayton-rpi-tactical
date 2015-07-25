@@ -20,7 +20,7 @@ current state, then to the global state.
 
 class State(object):
     """Base class for all states.
-    
+
     States derived from this base class should override the methods below,
     though all of them are optional. Each method takes a parameter, agent,
     which is the BaseEntity that is using that state. This allows multiple
@@ -40,7 +40,7 @@ class State(object):
 
     def on_msg(self, agent, message):
         """Code to execute when a message is received.
-        
+
             Note
             ----
             When overriding this method, we need to return a boolean that
@@ -59,7 +59,7 @@ class StateMachine(object):
     After instantiating a new StateMachine, use the set_state() method below
     in order to explicity initialize the states. Otherwise, this FSM will sit
     around and do nothing on update.
-    
+
     Parameters
     ----------
     owner: BaseEntity
@@ -74,7 +74,7 @@ class StateMachine(object):
 
     def set_state(self, cur, glo=None, pre=None):
         """Manually set owner's states without triggering state change logic.
-        
+
         Parameters
         ----------
         cur : State
@@ -118,14 +118,14 @@ class StateMachine(object):
 
     def change_state(self, newstate):
         """Switches owner to a new state, calling leave/enter methods.
-        
+
         Parameters
         ----------
         newstate: State
-            The FSM will switch to this state.        
-        
+            The FSM will switch to this state.
+
         Note: Both the current and new states must be valid, otherwise nothing
-        will happen and we'll stay in the current state.        
+        will happen and we'll stay in the current state.
         """
         if self.cur_state and newstate:
             self.pre_state = self.cur_state
@@ -139,7 +139,7 @@ class StateMachine(object):
 
     def handle_msg(self, message):
         """Used by the FSM to route received messages.
-        
+
         The message is first passed to the current state, which tries to
         handle it. If the current state fails to do so, the message is then
         passed to the global state, if one exists.
