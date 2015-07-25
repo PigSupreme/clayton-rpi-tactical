@@ -37,8 +37,8 @@ class Miner(BaseEntity):
 
         # Set up the FSM for this entity
         self.fsm = StateMachine(self)
-        self.fsm.set_state(STATE_NONE,GlobalMinerState(),None)
-        self.fsm.change_state(DigInMine())
+        self.fsm.set_state(DigInMine(),GlobalMinerState(),None)
+        #self.fsm.change_state(DigInMine())
 
     def update(self):
         """Increases thirst and updates the FSM logic."""

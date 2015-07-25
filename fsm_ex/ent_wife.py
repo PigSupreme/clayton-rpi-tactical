@@ -37,8 +37,7 @@ class Wife(BaseEntity):
 
         # Set up the FSM for this entity
         self.fsm = StateMachine(self)
-        self.fsm.set_state(STATE_NONE,GlobalWifeState(),None)
-        self.fsm.change_state(DoHouseWork())
+        self.fsm.set_state(DoHouseWork(),GlobalWifeState(),None)
 
     def update(self):
         """Updates the FSM logic, and nothing else."""

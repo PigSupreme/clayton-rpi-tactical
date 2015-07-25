@@ -59,6 +59,9 @@ if __name__ == "__main__":
         new_entity = etype(ename,MSG_DISPATCHER)
         ENTITY_MGR.register(new_entity)
 
+    # Start FSM logic: Must be done AFTER all entities are registered.
+    ENTITY_MGR.start_all_fsms()
+
     # Main Loop
     while 1:
         try:

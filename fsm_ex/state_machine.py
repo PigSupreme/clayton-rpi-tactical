@@ -50,11 +50,8 @@ class State(object):
         """
         return False # This means the message wasn't handled
 
-#This should be used as the initial state for a given agent, if we don't
-#want to explictly set a different state, since the change_state() method
-#of the StateMachine class requires a valid current state.
 STATE_NONE = State()
-
+"""Use this as a concrete null state; we need only a single instance."""
 
 class StateMachine(object):
     """Finite State Machine with messaging capability.
@@ -95,6 +92,20 @@ class StateMachine(object):
             self.pre_state = pre
         else:
             self.pre_state = STATE_NONE
+
+    def start(self):
+        """Start the FSM by executing global & current state's enter() methods.
+
+        Note
+        ----
+        This is an attempt to fix the issue of BaseEntities not having access
+        to messaging during their __init__() functions. This calls the enter()
+        methods of the global state first, then the FSM's current state.
+        """
+        if self.glo_state:
+            self.glo_state.enter(self.owner)
+        if self.cur_state:
+            self.cur_state.enter(self.owner)
 
     def update(self):
         """Execute the owner's global state (if any), then current state."""
