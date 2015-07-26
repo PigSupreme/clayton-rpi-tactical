@@ -11,7 +11,7 @@ from __future__ import print_function
 from random import randint as roll_int
 
 # Game world constants
-from fsm_student.gamedata import WALL_MAX, LADDER_HEIGHT, WINNING_SCORES, MAX_TURNS, GameOver
+from fsm_student01.gamedata import WALL_MAX, LADDER_HEIGHT, WINNING_SCORES, MAX_TURNS, GameOver
 
 # Messaging
 #from fsm_student.gamedata import LADDER_PLACED, LADDER_DOWN, LOOK_FOR_SPACE
@@ -19,7 +19,7 @@ from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
 
 # Game Entities
 #from fsm_ex.base_entity import BaseEntity
-from fsm_student.gamedata import CASTLE_WALL, ATTACKER, DEFENDER
+from fsm_student01.gamedata import CASTLE_WALL, ATTACKER, DEFENDER
 
 # State Machines
 #from fsm_ex.state_machine import State, STATE_NONE, StateMachine
@@ -54,9 +54,9 @@ class GameClock(object):
 
 from fsm_ex.base_entity import EntityManager, MessageDispatcher
 
-from fsm_student.ent_attacker import Attacker
-from fsm_student.ent_sentry import Sentry
-from fsm_student.ent_wall import Wall
+from fsm_student01.ent_attacker import Attacker
+from fsm_student01.ent_sentry import Sentry
+from fsm_student01.ent_wall import Wall
 
 ##############################################################################
 

@@ -7,15 +7,15 @@ from __future__ import print_function
 from random import randint as roll_int
 
 # Game world constants
-from fsm_student.gamedata import WALL_MAX, LADDER_HEIGHT, WINNING_SCORES, GameOver
+from fsm_student01.gamedata import WALL_MAX, LADDER_HEIGHT, WINNING_SCORES, GameOver
 
 # Messaging
-from fsm_student.gamedata import LADDER_PLACED, LADDER_DOWN, LOOK_FOR_SPACE
+from fsm_student01.gamedata import LADDER_PLACED, LADDER_DOWN, LOOK_FOR_SPACE
 from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
 
 # Game Entities
 from fsm_ex.base_entity import BaseEntity
-from fsm_student.gamedata import CASTLE_WALL, ATTACKER, DEFENDER
+from fsm_student01.gamedata import CASTLE_WALL, ATTACKER, DEFENDER
 
 # State Machines
 from fsm_ex.state_machine import State, STATE_NONE, StateMachine
