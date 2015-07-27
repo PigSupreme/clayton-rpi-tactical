@@ -23,7 +23,7 @@ from __future__ import print_function
 CASTLE_WALL, ATTACKER, DEFENDER = range(1, 3+1)
 
 # Castle wall data
-WALL_MAX = 8
+WALL_MAX = 12
 LADDER_HEIGHT = 2
 
 # Fake enumeration of message types
