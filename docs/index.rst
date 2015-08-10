@@ -29,6 +29,15 @@ Homegrown vector code for use in Python.
 
    vpoints.rst
 
+Documentation for Graph-Theoretic Code
+======================================
+
+Homegrown graph theory code for use in Python.
+
+.. toctree::
+
+   graph.rst
+   
 Documentation for BOID/Vehicle Code
 ===================================
 

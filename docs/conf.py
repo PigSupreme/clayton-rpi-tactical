@@ -22,6 +22,7 @@ import shlex
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../fsm_ex'))
 sys.path.insert(0, os.path.abspath('../vpoints'))
+sys.path.insert(0, os.path.abspath('../graph'))
 sys.path.insert(0, os.path.abspath('../vehicle'))
 
 # -- General configuration ------------------------------------------------
