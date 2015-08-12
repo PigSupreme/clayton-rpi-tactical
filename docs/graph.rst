@@ -11,3 +11,8 @@ base_graph.py
 
 .. automodule:: base_graph
 
+
+base_gridgraph.py
+==========
+
+.. automodule:: base_gridgraph
