@@ -20,7 +20,7 @@ current state, then to the global state.
 
 class State(object):
     """Base class for all states.
-    
+
     States derived from this base class should override the methods below,
     though all of them are optional. Each method takes a parameter, agent,
     which is the BaseEntity that is using that state. This allows multiple
@@ -40,7 +40,7 @@ class State(object):
 
     def on_msg(self, agent, message):
         """Code to execute when a message is received.
-        
+
             Note
             ----
             When overriding this method, we need to return a boolean that
@@ -50,11 +50,8 @@ class State(object):
         """
         return False # This means the message wasn't handled
 
-#This should be used as the initial state for a given agent, if we don't
-#want to explictly set a different state, since the change_state() method
-#of the StateMachine class requires a valid current state.
 STATE_NONE = State()
-
+"""Use this as a concrete null state; we need only a single instance."""
 
 class StateMachine(object):
     """Finite State Machine with messaging capability.
@@ -62,7 +59,7 @@ class StateMachine(object):
     After instantiating a new StateMachine, use the set_state() method below
     in order to explicity initialize the states. Otherwise, this FSM will sit
     around and do nothing on update.
-    
+
     Parameters
     ----------
     owner: BaseEntity
@@ -77,7 +74,7 @@ class StateMachine(object):
 
     def set_state(self, cur, glo=None, pre=None):
         """Manually set owner's states without triggering state change logic.
-        
+
         Parameters
         ----------
         cur : State
@@ -96,6 +93,20 @@ class StateMachine(object):
         else:
             self.pre_state = STATE_NONE
 
+    def start(self):
+        """Start the FSM by executing global & current state's enter() methods.
+
+        Note
+        ----
+        This is an attempt to fix the issue of BaseEntities not having access
+        to messaging during their __init__() functions. This calls the enter()
+        methods of the global state first, then the FSM's current state.
+        """
+        if self.glo_state:
+            self.glo_state.enter(self.owner)
+        if self.cur_state:
+            self.cur_state.enter(self.owner)
+
     def update(self):
         """Execute the owner's global state (if any), then current state."""
         # First execute a global state if it exists
@@ -107,14 +118,14 @@ class StateMachine(object):
 
     def change_state(self, newstate):
         """Switches owner to a new state, calling leave/enter methods.
-        
+
         Parameters
         ----------
         newstate: State
-            The FSM will switch to this state.        
-        
+            The FSM will switch to this state.
+
         Note: Both the current and new states must be valid, otherwise nothing
-        will happen and we'll stay in the current state.        
+        will happen and we'll stay in the current state.
         """
         if self.cur_state and newstate:
             self.pre_state = self.cur_state
@@ -128,7 +139,7 @@ class StateMachine(object):
 
     def handle_msg(self, message):
         """Used by the FSM to route received messages.
-        
+
         The message is first passed to the current state, which tries to
         handle it. If the current state fails to do so, the message is then
         passed to the global state, if one exists.

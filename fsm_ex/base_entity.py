@@ -123,6 +123,16 @@ class EntityManager(object):
         """        
         for entity in self._directory.values():
             entity.update()
+            
+    def start_all_fsms(self):
+        """Starts the FSM for each entity that has one."""
+        
+        for entity in self._directory.values():
+            try:
+                entity.fsm.start()
+            except AttributeError:
+                print("Note: Entity %s has no FSM: ignoring" % entity.name)
+                
 
 # Fake enumeration of telegram info fields
 DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA = range(5)

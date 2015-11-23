@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 """
-Created on Fri Jun 12 16:57:26 2015
-
-@author: lothar
+Student-designed FSM
 """
 
 # for python3 compat
@@ -10,7 +8,18 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 
-from fsm_ex.gamedata import BOB, ELSA, GameOver
+# Game world constants
+from fsm_student02.gamedata import WALL_MAX, LADDER_HEIGHT, WINNING_SCORES, MAX_TURNS, GameOver
+
+# Messaging
+from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
+
+# Game Entities
+#from fsm_ex.base_entity import BaseEntity
+from fsm_student02.gamedata import CASTLE_WALL, ATTACKER, DEFENDER
+
+# State Machines
+#from fsm_ex.state_machine import State, STATE_NONE, StateMachine
 
 ##############################################################################
 
@@ -42,30 +51,39 @@ class GameClock(object):
 
 from fsm_ex.base_entity import EntityManager, MessageDispatcher
 
-from fsm_ex.ent_miner import Miner
-from fsm_ex.ent_wife import Wife
+from fsm_student02.ent_attacker import Attacker
+from fsm_student02.ent_sentry import Sentry
+from fsm_student02.ent_wall import Wall
 
 ##############################################################################
 
 if __name__ == "__main__":
 
     # Initialize Manager-type objects:
-    MASTER_CLOCK = GameClock() 
-    ENTITY_MGR = EntityManager()    
+    MASTER_CLOCK = GameClock()
+    ENTITY_MGR = EntityManager()
     MSG_DISPATCHER = MessageDispatcher(MASTER_CLOCK.now, ENTITY_MGR)
 
-    # Create and register entities (Miner Bob and Wife Elsa)
-    for (ename, etype) in [(BOB, Miner), (ELSA, Wife)]:
-        new_entity = etype(ename,MSG_DISPATCHER)
+    # Create and register entities
+
+    # Wall must be initialized first
+    WALLS = Wall(CASTLE_WALL, MSG_DISPATCHER)
+    ENTITY_MGR.register(WALLS)
+
+    # Sentries and attackers must be assigned to a wall
+    ent_list = [(ATTACKER, Attacker), (DEFENDER, Sentry)]
+    for (ename, etype) in ent_list:
+        new_entity = etype(ename, MSG_DISPATCHER, WALLS)
         ENTITY_MGR.register(new_entity)
 
     # Start FSM logic: Must be done AFTER all entities are registered.
     ENTITY_MGR.start_all_fsms()
 
     # Main Loop
-    while 1:
+    while MASTER_CLOCK.since(0) < MAX_TURNS:
         try:
             MASTER_CLOCK.update()
+            print("\n *** Game Turn %d ***" % MASTER_CLOCK.since(0))
             ENTITY_MGR.update()
             MSG_DISPATCHER.dispatch_delayed()
         except GameOver:
