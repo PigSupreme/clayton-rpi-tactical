@@ -13,6 +13,11 @@ base_graph_simple.py
 
 ------------
 
+base_gridgraph.py
+==========
+
+.. automodule:: base_gridgraph
+
 base_graph.py
 ==========
 
