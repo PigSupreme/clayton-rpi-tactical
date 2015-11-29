@@ -6,7 +6,8 @@ Created on Sat Nov 28 17:17:34 2015
 """
 
 from random import randint
-from base_graph_simple import Simple2DNode, Simple2DGraph
+from base_graph_simple import Simple2DNode, Simple2DGraph, SimpleGraphNode
+from base_graph_simple import BFS_SimpleSearch
 
 import pygame
 
@@ -48,7 +49,7 @@ class TileMaze2DGraph(Simple2DGraph):
         for i in range(rows):
             row = []
             for j in range(cols):
-                row.append(MazeTile(randint(0,3),randint(0,3)))
+                row.append(MazeTile(randint(1,3),randint(0,3)))
             self.mazedata.append(row)
         print("...maze complete.")
 
@@ -145,7 +146,47 @@ class TileMaze2DGraph(Simple2DGraph):
         """Draw connecting corridors for this maze."""
         self.draw(self.surface)
 
+
+class bfs_search(object):
+    
+    def __init__(self, start_id, target_id):
+        if start_id == target_id:
+            raise ValueError("Start_id == target_id == %d" % start_id)
+        self.start_id = start_id
+        self.target_id = target_id
+        self.marked = [SimpleGraphNode.node_from_id[start_id]]
+        self.index = 0
+        targ = SimpleGraphNode.node_from_id[target_id]
+        targ.color = pygame.Color('#ff0000')
+        
+    def visit_next(self):
+        try:
+            new_node = self.marked[self.index]
+            new_node.color = pygame.Color('#ffffff')
+        except IndexError:
+            print("Target node ID %d was not found." % self.target_id)
+            return None
+            
+        for node in new_node.get_neighbors():
+            if node not in self.marked:
+                if node.get_id() == self.target_id:
+                    print('Target node %d was found.' % self.target_id)
+                    self.index = -1
+                    return [node.get_id() for node in self.marked]
+                else:
+                    self.marked.append(node)
+                    node.color = pygame.Color('#ee22ee')
+
+        print([node.get_id() for node in self.marked[self.index:]])
+        self.index = self.index + 1
+        return [node.get_id() for node in self.marked]
+
+                
+            
+
 if __name__=="__main__":
+    import pygame
+    
     mrow, mcol = 8, 12
     screen = pygame.display.set_mode((640,400))
     a = TileMaze2DGraph(mrow,mcol,screen)
@@ -154,17 +195,20 @@ if __name__=="__main__":
     pygame.display.update()
     
     print "Testing code...right-click to exit."
-    clicks, clickmax = 0, 100 
-    while clicks < clickmax:
+    search = BFS_SimpleSearch(0,15)
+
+    b_done = False
+    while not b_done:
         try:
             for event in pygame.event.get():
                 if event.type in [pygame.MOUSEBUTTONDOWN]:
                     if event.button == 3:
-                        clicks = clickmax
+                        b_done = True
                         break
                     try:
                         col, row = a.nearest_node(*event.pos)
-                        a.tile_at(row, col).rotate()
+                        #a.tile_at(row, col).rotate()
+                        b = search.visit_next()
                         screen.fill(pygame.Color(0,0,0))
                         a.update_edges()
                         a.draw_tiles()
@@ -172,11 +216,8 @@ if __name__=="__main__":
                         pygame.display.update()
                     except IndexError:
                         pass
-                    finally:
-                        clicks = clicks + 1
                     
         except pygame.error:
-            pygame.quit()
-            break
+            b_done = True
     
     pygame.quit()

@@ -2,6 +2,7 @@
 """
 Lightweight classes for graphs with anonymous edges.
 """
+import pygame
 
 class SimpleGraphNode(object):
     """Base class for nodes in a simple, undirected graph.
@@ -195,7 +196,10 @@ class Simple2DGraph(object):
             node_color = Color('#00bb00')
         if edge_color == None:
             edge_color = Color('#0000ee')
-        self.colors = {'bg': bg_color, 'node': node_color, 'edge': edge_color}
+        self.colors = {'bg': bg_color,
+                      'node': node_color,
+                      'edge': edge_color
+                      }
          
         # Nodes (and edges, since this uses SimpleGraphNode)
         self.node_ids = set()
@@ -221,20 +225,60 @@ class Simple2DGraph(object):
                 for neigh in node.get_neighbors():
                     draw_line(self.surface, edge_color, center, (neigh.x, neigh.y), edge_width)
             # Info for this node to be rendered later
-            node_info.append((center,node.radius))
+            try:
+                thiscolor = node.color
+            except AttributeError:
+                thiscolor = node_color
+            node_info.append((thiscolor, center,node.radius))
 
         # Now draw all of the nodes (on top of the edges)
         for args in node_info:
-            draw_circle(self.surface, node_color, *args)
+            draw_circle(self.surface, *args)
 
         # And blit the entire graph to the destination surface
         dest.blit(self.surface, (0,0))
         
 ######################### End of Simple2DGraph class ######################        
 
+class BFS_SimpleSearch(object):
+    
+    def __init__(self, start_id, target_id):
+        if start_id == target_id:
+            raise ValueError("Start_id == target_id == %d" % start_id)
+        self.start_id = start_id
+        self.target_id = target_id
+        self.marked = [SimpleGraphNode.node_from_id[start_id]]
+        self.index = 0
+        targ = SimpleGraphNode.node_from_id[target_id]
+        targ.color = pygame.Color('#ff0000')
+        
+    def visit_next(self):
+        try:
+            new_node = self.marked[self.index]
+            new_node.color = pygame.Color('#ffffff')
+        except IndexError:
+            print("Target node ID %d was not found." % self.target_id)
+            return None
+        except TypeError:
+            print("Target node ID %d has already been found!" % self.target_id)
+            return [node.get_id() for node in self.marked]
+        for node in new_node.get_neighbors():
+            if node not in self.marked:
+                if node.get_id() == self.target_id:
+                    print('Target node %d was found.' % self.target_id)
+                    self.index = None
+                    return [node.get_id() for node in self.marked]
+                else:
+                    self.marked.append(node)
+                    node.color = pygame.Color('#ee22ee')
+
+        print([node.get_id() for node in self.marked[self.index:]])
+        self.index = self.index + 1
+        return [node.get_id() for node in self.marked]
+
 if __name__=="__main__":
     print('Sample code for testing...click mouse to quit.')
-    import pygame
+
     scr_w, scr_h = 640, 480
     pygame.init()
     screen = pygame.display.set_mode((scr_w, scr_h))
