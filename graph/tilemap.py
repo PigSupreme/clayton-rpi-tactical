@@ -8,7 +8,6 @@ Created on Sat Nov 28 17:17:34 2015
 from random import randint
 from base_graph_simple import Simple2DNode, Simple2DGraph
 
-
 import pygame
 
 class MazeTile(object):
@@ -23,7 +22,6 @@ class MazeTile(object):
             TEE: [1,1,1,0],
             CROSS: [1,1,1,1]}
 
-
     def __init__(self, tile_type = None, rotation = 0):
         if tile_type == None:
             tile_type = randint(0,MazeTile.MAX_TYPE)
@@ -32,7 +30,12 @@ class MazeTile(object):
         if rotation == 0:
             self.exits = exits
         else:
-            self.exits = exits[:-rotation] + exits[:rotation]
+            self.exits = exits[-rotation:] + exits[:-rotation]
+            
+    def rotate(self, rotation = 1):
+        rotation = rotation % 4
+        if rotation > 0:
+            self.exits = self.exits[-rotation:] + self.exits[:-rotation]
 
 class TileMaze2DGraph(Simple2DGraph):
     """Four-directional tile maze."""
@@ -50,10 +53,12 @@ class TileMaze2DGraph(Simple2DGraph):
         print("...maze complete.")
 
         # Convert maze data into a graph
-        self.make_Simple2Dgraph(surface)
+        self.make_Simple2DNodes(surface)
+        self.update_edges()
         print("...surface graph complete.")
         
-    def make_Simple2Dgraph(self, surface):
+    def make_Simple2DNodes(self, surface):
+        """Creates the graph nodes for this maze."""
         width, height = surface.get_size()
         maze = self.mazedata
         rows = len(maze)
@@ -63,7 +68,7 @@ class TileMaze2DGraph(Simple2DGraph):
         self.surface = surface
         #self.graph = Simple2DGraph(surface)
     
-        # First pass adds the nodes to the graph
+        # Add the nodes to the graph
         self.node_array = []
         nid = 0
         for i in range(rows):
@@ -74,33 +79,53 @@ class TileMaze2DGraph(Simple2DGraph):
                 self.add_node(nid)
                 nid = nid + 1
             self.node_array.append(row)
-    
-        def node_id(row, col):
-            return row*cols + col
-    
-        # Check for vertical edges
-        for i in range(rows - 1):
-            for j in range(cols):
-                if maze[i][j].exits[3] and maze[i+1][j].exits[1]:
-                    Simple2DNode.node_from_id[node_id(i,j)].connect_to(node_id(i+1,j))
-    
-        # Check for horizontal edges
-        for j in range(cols - 1):
-            for i in range(rows):
-                if maze[i][j].exits[0] and maze[i][j+1].exits[2]:
-                    Simple2DNode.node_from_id[node_id(i,j)].connect_to(node_id(i,j+1))
-                    
+            
         # Update instance variables and exit
         self.width, self.height = width, height
         self.rows, self.cols = rows, cols
         self.dx, self.dy = dx, dy
     
-    def draw_maze(self):
+    def node_at(self, row, col):
+        return self.node_array[row][col]
+        
+    def tile_at(self, row, col):
+        return self.mazedata[row][col]
+
+    def nearest_node(self, x, y):
+        return (x - self.dx/2) // self.dx, (y-self.dy/2) // self.dy
+    
+    def update_edges(self):
+        """Update graph edges based on underlying maze data."""
+        maze = self.mazedata        
+        
+        def node_id(row, col):
+            return row*self.cols + col
+    
+        # Check for vertical edges
+        for i in range(self.rows - 1):
+            for j in range(self.cols):
+                node = Simple2DNode.node_from_id[node_id(i,j)]
+                if maze[i][j].exits[3] and maze[i+1][j].exits[1]:
+                    node.connect_to(node_id(i+1,j))
+                else:
+                    node.disconnect_from(node_id(i+1,j))
+    
+        # Check for horizontal edges
+        for j in range(self.cols - 1):
+            for i in range(self.rows):
+                node = Simple2DNode.node_from_id[node_id(i,j)]
+                if maze[i][j].exits[0] and maze[i][j+1].exits[2]:
+                    node.connect_to(node_id(i,j+1))
+                else:
+                    node.disconnect_from(node_id(i,j+1))
+                     
+    def draw_tiles(self):
+        """Draw tiles and exits for this maze, but no graph connections."""
         width, height = self.surface.get_size()
         node_color = pygame.Color('#ffffff')
         edge_color = pygame.Color('#ff4444')
         radius = 10
-        spoke = 20
+        spoke = 15
         for i in range(self.rows):
             for j in range(self.cols):
                 center_x = (j+1)*self.dx
@@ -117,23 +142,41 @@ class TileMaze2DGraph(Simple2DGraph):
                     pygame.draw.line(self.surface, edge_color, center, (center_x, center_y + spoke),8)
 
     def draw_graph(self):
+        """Draw connecting corridors for this maze."""
         self.draw(self.surface)
 
 if __name__=="__main__":
-    mrow, mcol = 6, 8
-    screen = pygame.display.set_mode((640,480))
+    mrow, mcol = 8, 12
+    screen = pygame.display.set_mode((640,400))
     a = TileMaze2DGraph(mrow,mcol,screen)
+    a.draw_tiles()
     a.draw_graph()
-    a.draw_maze()
     pygame.display.update()
     
-    print "Testing code...click mouse to exit."
-    while 1:
+    print "Testing code...right-click to exit."
+    clicks, clickmax = 0, 100 
+    while clicks < clickmax:
         try:
             for event in pygame.event.get():
                 if event.type in [pygame.MOUSEBUTTONDOWN]:
-                    pygame.quit()
-                    break
+                    if event.button == 3:
+                        clicks = clickmax
+                        break
+                    try:
+                        col, row = a.nearest_node(*event.pos)
+                        a.tile_at(row, col).rotate()
+                        screen.fill(pygame.Color(0,0,0))
+                        a.update_edges()
+                        a.draw_tiles()
+                        a.draw_graph()
+                        pygame.display.update()
+                    except IndexError:
+                        pass
+                    finally:
+                        clicks = clicks + 1
+                    
         except pygame.error:
             pygame.quit()
             break
+    
+    pygame.quit()

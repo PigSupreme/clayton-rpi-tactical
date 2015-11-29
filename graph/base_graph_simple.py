@@ -123,13 +123,16 @@ class SimpleGraphNode(object):
         Note
         ----
         
-        This doesn't check if the neighbor_ids were previously adjacent.
+        If any neighbor is not adjacent, ignore and continue.
         """
         for neigh_id in neighbor_ids:
             neigh = SimpleGraphNode.node_from_id[neigh_id]
             if neigh is not None:
-                self._adjacent.remove(neigh_id)
-                neigh._adjacent.remove(self._node_id)
+                try:
+                    self._adjacent.remove(neigh_id)
+                    neigh._adjacent.remove(self._node_id)
+                except KeyError:
+                    pass # Node was not adjacent
 
 ######################### End of SimpleGraphNode class ###################
 
@@ -204,8 +207,7 @@ class Simple2DGraph(object):
         
     def draw(self, dest):
         """Renders this graph onto the given surface."""
-        #self.surface.fill(self.colors['bg'])
-        
+
         node_color = self.colors['node']
         edge_color = self.colors['edge']
         node_info = []
