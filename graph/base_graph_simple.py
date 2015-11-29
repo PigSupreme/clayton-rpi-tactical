@@ -10,9 +10,15 @@ class SimpleGraphNode(object):
     ----------
     node_id: int
         ID to assign this node. Allow consistency with external information.
+        See below for further information.
 
     Notes
     -----
+    The class itself keeps a master dictionary (node_from_id), that can be
+    used to obtain a reference to the node with a given id. The implementation
+    requires that ID's are nonnegative integers and are used in increasing
+    order. ID's that are skipped over cannot be used later.
+    
     Additional attributes can be set using optional keyword arguments. Each
     key (except node_id) sets an instance variable with the same name. There
     is no error-checking, but subclasses may override this.
@@ -22,8 +28,6 @@ class SimpleGraphNode(object):
     This class is intended for graphs with no edge information. Each node will
     keep track of its neighbors (using an adjacency set, no duplicates), so we
     do not need any other classes to manage the graph topology.
-
-    Notes
     """
 
     INVALID_NODE_ID = -1
@@ -33,17 +37,11 @@ class SimpleGraphNode(object):
     _NEXT_NODE_ID = 0
 
     # This is the directory of nodes by index, without needing a manager.
-    # To invalidate node n, use SimpleGraphNode.node_from_id[n] = None
-    # TODO: For clarity, INVALID_NODE_ID should probably be INVALID_NODE
+    # To invalidate ID n, use SimpleGraphNode.node_from_id[n] = None
     node_from_id = {INVALID_NODE_ID: None}
 
     def __init__(self, node_id, **kwargs):
-        """Creates a graph node, sets its ID and any extra information.
-
-        Note
-        ----
-        Functions that modify adjacency are expected to update _adjacent.
-        """
+        """Creates a graph node, sets its ID and any extra information."""
         if node_id >= SimpleGraphNode._NEXT_NODE_ID:
             self._node_id = node_id
             SimpleGraphNode.node_from_id[node_id] = self
@@ -57,13 +55,14 @@ class SimpleGraphNode(object):
                 self.key = kwargs[key]
 
     def get_id(self):
-        """Returns the ID of this node.
-
-        TODO: Modify to use getattr??"""
+        """Returns the ID of this node."""
         return self._node_id
 
     def get_neighbors(self):
-        """Returns the list of neighbors of this node."""
+        """Returns a list of nodes (not ID's!) adjacent to this one."""
+        
+        # Because the neighbors might become invalid without this node knowing,
+        # we really do need to use node_from_id[] below
         result = []
         for neigh_id in self._adjacent:
             node = SimpleGraphNode.node_from_id[neigh_id]
@@ -73,22 +72,26 @@ class SimpleGraphNode(object):
 
     def ignore_me(self):
         """Sets this node to be treated as temporarily inactive.
+        
         Note
         ----
+        
         After calling this, existing references to this node will remain valid,
         but any future queries to node_from_id[] will return None. This gives
         the ability to temporarily ignore nodes without the overhead of
         deleting them. Provided that we keep an external reference, we can
-        reactivate this node later, using make_valid() below.
+        reactivate this node later, using unignore_me() below.
         """
         SimpleGraphNode.node_from_id[self._node_id] = None
 
     def unignore_me(self):
         """Restore this node to being treated as active.
+        
         Note
         ----
+        
         After calling this, any information about this node (including edges
-        to/from adjancent nodes) that existed before make_invalid() will once
+        to/from adjacent nodes) that existed before make_invalid() will once
         again be available.
         """
         SimpleGraphNode.node_from_id[self._node_id] = self
@@ -98,6 +101,7 @@ class SimpleGraphNode(object):
 
         Parameters
         ----------
+        
         *neighbor_ids : int or sequence of int
             ID(s) of node(s) to make adjacent to this one, possibly empty.
         """
@@ -106,18 +110,19 @@ class SimpleGraphNode(object):
             if neigh is not None:
                 self._adjacent.add(neigh_id)
                 neigh._adjacent.add(self._node_id)
-                #neigh.connect_to(self._node_id)
 
     def disconnect_from(self, *neighbor_ids):
         """Removes edges from this node to/from its neighbors.
 
         Parameters
         ----------
+        
         *neighbor_ids : int or sequence of int
             ID(s) of nodes to disconnect from this one, possibly empty.
 
         Note
         ----
+        
         This doesn't check if the neighbor_ids were previously adjacent.
         """
         for neigh_id in neighbor_ids:
@@ -125,7 +130,6 @@ class SimpleGraphNode(object):
             if neigh is not None:
                 self._adjacent.remove(neigh_id)
                 neigh._adjacent.remove(self._node_id)
-                #neigh.disconnect_from(self._node_id)
 
 ######################### End of SimpleGraphNode class ###################
 
@@ -134,6 +138,7 @@ class Simple2DNode(SimpleGraphNode):
 
     Parameters
     ----------
+    
     x : int or float
         x-coordinate of the center
     y : int or float
@@ -172,6 +177,7 @@ class Simple2DNode(SimpleGraphNode):
 from pygame.draw import circle as draw_circle
 from pygame.draw import line as draw_line
 from pygame import Color
+
 class Simple2DGraph(object):
     """Graph container for Simple2DNode; for rendering with Pygame."""
     
@@ -187,8 +193,7 @@ class Simple2DGraph(object):
         if edge_color == None:
             edge_color = Color('#0000ee')
         self.colors = {'bg': bg_color, 'node': node_color, 'edge': edge_color}
-        
-        
+         
         # Nodes (and edges, since this uses SimpleGraphNode)
         self.node_ids = set()
         
@@ -199,7 +204,7 @@ class Simple2DGraph(object):
         
     def draw(self, dest):
         """Renders this graph onto the given surface."""
-        self.surface.fill(self.colors['bg'])
+        #self.surface.fill(self.colors['bg'])
         
         node_color = self.colors['node']
         edge_color = self.colors['edge']
