@@ -185,7 +185,6 @@ class bfs_search(object):
             
 
 if __name__=="__main__":
-    import pygame
     
     mrow, mcol = 8, 12
     screen = pygame.display.set_mode((640,400))
