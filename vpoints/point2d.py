@@ -348,10 +348,10 @@ class Point2d(object):
         parallel = self.proj(direction)
         perp = self - parallel
         return (parallel, perp)
-        
+
     def left_normal(self):
         """Returns the left-facing normal of this vector
-        
+
         Example
         -------
         >>> a = Point2d(1, -2)
@@ -359,11 +359,11 @@ class Point2d(object):
         Point2d: <2.000000, 1.000000>
         """
         return Point2d(-self.y, self.x)
-    
+
     def __setitem__(self, index, value):
-        """Allows a value to be assigned to each vector components; 
+        """Allows a value to be assigned to each vector components;
         indexed starting at 0
-        
+
         Example
         -------
         >>> a = Point2d(1, -2)
@@ -398,7 +398,7 @@ if __name__ == "__main__":
     na = a.norm()
     print("||a|| = %s" % na)
     print("||a||^2 = %s" % a.sqnorm())
-    print("Unit vector in direction of a: %s, which has norm %s" % (a.unit(),a.unit().norm()))
+    print("Unit vector in direction of a: %s, which has norm %s" % (a.unit(), a.unit().norm()))
 
     a.normalize()
     print("Normalized a = %s" % a)
@@ -406,7 +406,7 @@ if __name__ == "__main__":
     aa = a.angle()
     print("Angle of a = %f radians" % aa)
     from math import cos, sin
-    print("Rebuilding vector a from norm and angle: <%f,%f>" % (na*cos(aa),na*sin(aa)))
+    print("Rebuilding vector a from norm and angle: <%f,%f>" % (na*cos(aa), na*sin(aa)))
 
     b.truncate(1)
     print("Truncated b to norm 1: %s" % b)
@@ -414,7 +414,7 @@ if __name__ == "__main__":
     projab = a/b
     print("Signed length of projection of a onto b = %f" % projab)
     c = a.proj(b)
-    print("Projection of a onto b is %s with length %f" % (c,c.norm()))
+    print("Projection of a onto b is %s with length %f" % (c, c.norm()))
 
     print("Signed length of projection of a onto c = %f" % (a/c))
 
@@ -426,4 +426,4 @@ if __name__ == "__main__":
     print("Dot product of resolved vectors = %f" % (cframe[0]*cframe[1]))
     print("Dot product of b with perpendicular = %f" % (b*cframe[1]))
     print("Sum of resolved vectors = %s" % (cframe[0]+cframe[1]))
-    
+

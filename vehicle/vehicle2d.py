@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Module containing Vehicle class, for use with Pygame."""
 
 # for python3 compat
 from __future__ import unicode_literals
@@ -7,6 +8,7 @@ from __future__ import print_function
 
 import os, sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
+from random import randint, shuffle
 
 INF = float('inf')
 
@@ -67,7 +69,7 @@ def load_image(name, colorkey=None):
     return image_surf, image_surf.get_rect()
 
 class PointMass2d(pygame.sprite.Sprite):
-    """A pygame.Sprite with some basic physics, but no rotation.
+    """A pygame.Sprite with rectilnear motion.
 
     Parameters
     ----------
@@ -80,7 +82,7 @@ class PointMass2d(pygame.sprite.Sprite):
     radius: float
         Bounding radius of the object.
     velocity: Point2d
-        Velocity vector, in screen coordinates.
+        Velocity vector, in screen coordinates. Facing will match this.
 
     Notes
     -----
@@ -111,12 +113,14 @@ class PointMass2d(pygame.sprite.Sprite):
         self.radius = radius                          # Bounding radius
         self.vel = Point2d(velocity[0], velocity[1])  # Current Velocity
 
-        # Normalized front/left vector in world coordinates
+        # Normalized front vector in world coordinates.
+        # This stays aligned with the object's velocity.
         try:
             self.front = velocity.unit()
         except ZeroDivisionError:
             # If velocity is <0,0>, set facing to screen upwards
             self.front = Point2d(0,-1)
+        self.left = Point2d(-self.front[1], self.front[0])
         self._rotate_for_blit()
 
         # Movement constraints
@@ -125,7 +129,7 @@ class PointMass2d(pygame.sprite.Sprite):
         self.maxspeed = float(5.0)
         self.maxforce = float(1.5)
 
-        # Steering behavior
+        # Steering behavior class for this object.
         self.steering = SteeringBehavior(self)
 
     def move(self, delta_t, force_vector=None):
@@ -148,11 +152,10 @@ class PointMass2d(pygame.sprite.Sprite):
         # Don't exceed our maximum speed
         self.vel.truncate(self.maxspeed)
 
-        # A PointMass has heading aligned with velocity. However, if the
-        # velocity is very small, we skip alignment to avoid jittering.
+        # If velocity is very small, skip alignment to avoid jittering.
         if self.vel.sqnorm() > SPEED_EPSILON:
             self.front = self.vel.unit()
-            #self.left = Point2d(-self.front[1],self.front[0])
+            self.left = Point2d(-self.front[1], self.front[0])
 
     def _rotate_for_blit(self):
         """Used to rotate the object's image prior to blitting.
@@ -187,12 +190,39 @@ class PointMass2d(pygame.sprite.Sprite):
         force = self.steering.compute_force()
 
         # Movement and image rotation:
-        self.move(delta_t,force)
+        self.move(delta_t, force)
         self._rotate_for_blit()
-        
+
         # Simple edge warping
         self.pos = Point2d(self.pos[0] % sc_width, self.pos[1] % sc_height)
-        
+
+class StaticMass2d(PointMass2d):
+    """A stationary pygame.Sprite. Use for fixed obstacles.
+
+    Parameters
+    ----------
+    img_surf: pygame.Surface
+        Contains the image of the sprite; used for blitting.
+    img_rect: pygame.rect
+        Pygame rectangle with sprite information; used for blitting.
+    position: Point2d
+        Center of mass, in screen coordinates.
+    radius: float
+        Bounding radius of the object.
+    """
+
+    def __init__(self, *args):
+        PointMass2d.__init__(self, *args)
+        self.move(0.0)
+        self.tagged = False
+
+    def update(self, delta_t=1.0):
+#        if self.tagged is True:
+#            self.image = StaticMass2d.tagged_image
+#        else:
+#            self.image = self.orig
+#        self.tagged = False
+        pass
 
 class RotatingMass2d(PointMass2d):
     """A pygame.Sprite with rotational physics.
@@ -211,7 +241,7 @@ class RotatingMass2d(PointMass2d):
         self.omega = 0.0    # Angular veloicty
 
         # Rotation Constraints
-        ## TODO: Put these into __init__()
+        # TODO: Put these into the function arguments, perhaps as **kwargs
         self.moment = 1.0   # Moment of inertia (angular mass)
         self.maxomega = 60.0
         self.maxtorque = 10.0
@@ -238,46 +268,82 @@ if __name__ == "__main__":
     pygame.init()
 
     # Display constants
-    size = sc_width, sc_height = 640, 480
+    size = sc_width, sc_height = 1080, 960
     screen = pygame.display.set_mode(size)
     bgcolor = 111, 145, 192
 
     # Sprite images and pygame rectangles
-    numobj = 5
-    img = list(range(numobj))
-    rec = list(range(numobj))
+    numveh = 5
+    numobs = 25
+
+    img = list(range(numveh+numobs))
+    rec = list(range(numveh+numobs))
     img[0], rec[0] = load_image('rpig.png', -1)
     for i in range(1, 2):
         img[i], rec[i] = load_image('ypig.png', -1)
-    for i in range(2, numobj):
+    for i in range(2, numveh):
         img[i], rec[i] = load_image('gpig.png', -1)
 
+    # Static obstacles
+    for i in range(numveh, numveh + numobs):
+        img[i], rec[i] = load_image('circle.png', -1)
 
-    # Object physics
-    pos = [Point2d(75+(i-1)*50, 150+(i-1)*40) for i in range(numobj)]
+    StaticMass2d.tagged_image = load_image('circle_tag.png', -1)[0]
+
+    # Object physics for vehicles
+    pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(20,0)
 
-    # Create any array of objects for pygame
-    obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numobj)]
-    obj[0].maxspeed = 5.0
-    obj[0].steering.set_target(WANDER = [250,60,10])
-    
-    #obj[1].steering.set_target(SEEK = Point2d(500,300)) 
-    #obj[1].steering.set_target(FLEE = Point2d(500,400))
-    obj[1].maxspeed = 4.0
-    obj[1].steering.set_target(PURSUE = obj[0])
+    # Array of vehicles for pygame
+    obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numveh)]
 
-    obj[2].maxspeed = 2.0
-    obj[2].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
+    # Static obstacles for pygame
+    yoffset = sc_height/(numobs+1)
+    yvals = list(range(yoffset, sc_height-yoffset, yoffset))
+    shuffle(yvals)
+    for i in range(numveh, numveh + numobs):
+        offset = (i+1.0-numveh)/(numobs+1)
+        rany = yvals[i-numveh]
+        pos.append(Point2d(offset*sc_width, rany))
+        obj.append(StaticMass2d(img[i], rec[i], pos[i], 20, vel))
+    # This gives a convenient list of obstacles for later use
+    obslist = obj[numveh:]
 
-    obj[3].maxspeed = 2.0
-    obj[3].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
-
-    obj[4].maxspeed = 2.0
-    obj[4].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
-
+    # Set-up pygame rendering
     allsprites = pygame.sprite.RenderPlain(obj)
+
+
+    ### Vehicle behavior defined below ###
+
+    # Big red arrow: Wander and Avoid obstacles
+    obj[0].maxspeed = 4.0
+    obj[0].steering.set_target(WANDER=[250, 50, 10])
+    obj[0].raduis = 100
+
+    #Old examples
+    #obj[1].steering.set_target(SEEK = Point2d(500,300))
+    #obj[1].steering.set_target(FLEE = Point2d(500,400))
+
+    # Yellow arrow: Guard RED from GREEN leader
+    obj[1].maxspeed = 5.0
+    obj[1].steering.set_target(GUARD=[obj[0], obj[2], 0.65])
+
+    # Green arrow leader; Pursue RED while evading YELLOW
+    obj[2].maxspeed = 3.0
+    obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1])
+
+    # Green arrow followers: Follow GREEN leader and evade YELLOW
+    obj[3].maxspeed = 3.0
+    obj[3].steering.set_target(FOLLOW=[obj[2], Point2d(-20,20)], EVADE=obj[1])
+    obj[4].maxspeed = 3.0
+    obj[4].steering.set_target(FOLLOW=[obj[2], Point2d(-20,-20)], EVADE=obj[1])
+
+    # All vehicles will avoid obstacles
+    for i in range(numveh):
+        obj[i].steering.set_target(AVOID=obslist)
+
+    ### End of vehicle behavior ###
 
     while 1:
         for event in pygame.event.get():
@@ -285,7 +351,7 @@ if __name__ == "__main__":
                 pygame.quit()
                 sys.exit()
 
-        allsprites.update(0.1)
+        allsprites.update(0.4)
 
         # pygame.time.delay(2)
 
