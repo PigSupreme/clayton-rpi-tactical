@@ -119,6 +119,7 @@ class PointMass2d(pygame.sprite.Sprite):
         except ZeroDivisionError:
             # If velocity is <0,0>, set facing to screen upwards
             self.front = Point2d(0,-1)
+        self.left = Point2d(-self.front[1],self.front[0])
         self._rotate_for_blit()
 
         # Movement constraints
@@ -153,7 +154,7 @@ class PointMass2d(pygame.sprite.Sprite):
         # I velocity is very small, skip alignment to avoid jittering.
         if self.vel.sqnorm() > SPEED_EPSILON:
             self.front = self.vel.unit()
-            #self.left = Point2d(-self.front[1],self.front[0])
+            self.left = Point2d(-self.front[1],self.front[0])
 
     def _rotate_for_blit(self):
         """Used to rotate the object's image prior to blitting.
@@ -215,11 +216,12 @@ class StaticMass2d(PointMass2d):
         self.tagged = False
 
     def update(self, delta_t=1.0):
-        if self.tagged is True:
-            self.image = StaticMass2d.tagged_image
-        else:
-            self.image = self.orig
-        self.tagged = False
+#        if self.tagged is True:
+#            self.image = StaticMass2d.tagged_image
+#        else:
+#            self.image = self.orig
+#        self.tagged = False
+        pass
 
 class RotatingMass2d(PointMass2d):
     """A pygame.Sprite with rotational physics.
@@ -288,29 +290,12 @@ if __name__ == "__main__":
     StaticMass2d.tagged_image = load_image('circle_tag.png', -1)[0]
 
     # Object physics for vehicles
-    pos = [Point2d(75+(i-1)*160, 150+(i-1)*185) for i in range(numveh)]
+    pos = [Point2d(randint(30,sc_width-30), randint(30,sc_height-30)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(20,0)
 
-    # Create any array of vehicles for pygame
+    # Array of vehicles for pygame
     obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numveh)]
-    obj[0].maxspeed = 4.0
-    obj[0].steering.set_target(WANDER = [250,50,10])
-    obj[0].raduis = 100
-
-    #obj[1].steering.set_target(SEEK = Point2d(500,300))
-    #obj[1].steering.set_target(FLEE = Point2d(500,400))
-    obj[1].maxspeed = 3.0
-    obj[1].steering.set_target(PURSUE = obj[0])
-
-    obj[2].maxspeed = 2.0
-    obj[2].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
-
-    obj[3].maxspeed = 2.0
-    obj[3].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
-
-    obj[4].maxspeed = 2.0
-    obj[4].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
 
     # Static obstacles for pygame
     yoffset = sc_height/(numobs+1)
@@ -319,18 +304,45 @@ if __name__ == "__main__":
     for i in range(numveh, numveh + numobs):
         offset = (i+1.0-numveh)/(numobs+1)
         rany = yvals[i-numveh]
-        #rany = randint(30,sc_height-30)
         pos.append(Point2d(offset*sc_width,rany))
         obj.append(StaticMass2d(img[i], rec[i], pos[i], 20, vel))
-
     # This gives a convenient list of obstacles for later use
     obslist = obj[numveh:]
 
+    # Set-up pygame rendering
     allsprites = pygame.sprite.RenderPlain(obj)
 
+
+    ### Vehicle behavior defined below ###
+
+    # Big red arrow: Wander and Avoid obstacles
+    obj[0].maxspeed = 4.0
+    obj[0].steering.set_target(WANDER = [250,50,10])
+    obj[0].raduis = 100
+
+    #Old examples
+    #obj[1].steering.set_target(SEEK = Point2d(500,300))
+    #obj[1].steering.set_target(FLEE = Point2d(500,400))
+
+    # Yellow arrow: Guard RED from GREEN leader
+    obj[1].maxspeed = 5.0
+    obj[1].steering.set_target(GUARD = [obj[0], obj[2], 0.65])
+
+    # Green arrow leader; Pursue RED while evading YELLOW
+    obj[2].maxspeed = 3.0
+    obj[2].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
+
+    # Green arrow followers: Follow GREEN leader and evade YELLOW
+    obj[3].maxspeed = 3.0
+    obj[3].steering.set_target(FOLLOW = [obj[2],Point2d(-20,20)], EVADE = obj[1])
+    obj[4].maxspeed = 3.0
+    obj[4].steering.set_target(FOLLOW = [obj[2],Point2d(-20,-20)], EVADE = obj[1])
+
+    # All vehicles will avoid obstacles
     for i in range(numveh):
         obj[i].steering.set_target(AVOID = obslist)
 
+    ### End of vehicle behavior ###
 
     while 1:
         for event in pygame.event.get():

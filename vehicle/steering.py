@@ -154,9 +154,8 @@ def force_avoid(steer):
     """
 
     owner = steer.vehicle
-    left = owner.front.left_normal()
     # Obstacles closer than this distance will be avoided
-    front_d = (1 + owner.vel.sqnorm()/owner.maxspeed)*AVOID_MIN_LENGTH
+    front_d = (1 + owner.vel.norm()/owner.maxspeed)*AVOID_MIN_LENGTH
     front_sq = front_d * front_d
 
     # Find the closest obstacle within the detection box
@@ -171,23 +170,73 @@ def force_avoid(steer):
             local_x = diff / owner.front # This is an Orthogonal projection
             # Only consider objects in front
             if local_x > 0:
-                obstacle.tagged = True
                 # Find nearest x-intercept of extended bounding circle
-                local_y = diff / left
+                local_y = diff / owner.left
                 expr = owner.radius + obstacle.radius
                 xval = local_x - sqrt(expr*expr + local_y*local_y)
                 if xval < xmin:
                     xmin, lx, ly = xval, local_x, local_y
                     obs_closest = obstacle
-
     if obs_closest:
         lr = obs_closest.radius
         lat_scale = (lr - ly)*(2.0 - lr / front_d)
         brake_scale = (lr - lx)*AVOID_BRAKE_WEIGHT
-        result = owner.front.scale(brake_scale) + left.scale(lat_scale)
+        result = owner.front.scale(brake_scale) + owner.left.scale(lat_scale)
         return result
     else:
         return Point2d(0,0)
+
+def force_guard(steer, owner):
+    """Steering force for GUARD behavior.
+
+    Parameters
+    ----------
+    steer: SteeringBehavior
+        Comment here.
+        
+    Notes
+    -----    
+    
+    This is a more general version of INTERPOSE. The vehicle will attempt
+    to position itself between objects guard_target and guard_from. 
+    guard_aggr can be set from 0.0 (guard_target) to 1.0 (guard_from) or
+    anywhere in-between to determine where to aim. The math will allow other
+    values of guard_aggr, try experminenting!
+    """
+    
+    owner = steer.vehicle
+    # Find the desired position between the two objects as of now:
+    target_pos = steer.guard_target.pos
+    from_pos = steer.guard_from.pos
+    want_pos = target_pos + (from_pos - target_pos).scale(steer.guard_aggr)
+
+    # Predict future positions based on owner's distance/maxspeed to now_pos
+    est_time = (want_pos - owner.pos).norm()/owner.maxspeed
+    target_pos += steer.guard_target.vel.scale(est_time)
+    from_pos += steer.guard_from.vel.scale(est_time)    
+    want_pos = target_pos + (from_pos - target_pos).scale(steer.guard_aggr)
+    
+    return force_arrive(owner, want_pos, 0.2)
+    
+def force_follow(owner, leader, offset):
+    """Steerring force for FOLLOW the leader at some offset.
+    
+    Parameters
+    ----------
+    owner: Vehicle
+        The vehicle computing this force.
+    leader: Vehicle
+        The lead vehicle that the owner is following.
+    offset: Point2d
+        Offset from leader (in leader's local coordinates, front = +x)
+    """
+    
+    target_pos = leader.pos + leader.front.scale(offset.x) + leader.left.scale(offset.y)
+    diff = target_pos - owner.pos
+    ptime = diff.norm() / (owner.maxspeed + leader.vel.norm())
+    target_pos += leader.vel.scale(ptime)
+    return force_arrive(owner, target_pos, 1.5)
+
 
 
 class SteeringBehavior(object):
@@ -212,7 +261,9 @@ class SteeringBehavior(object):
                        'PURSUE': False,
                        'EVADE': False,
                        'WANDER': False,
-                       'AVOID': False
+                       'AVOID': False,
+                       'GUARD': False,
+                       'FOLLOW': False
                        }
         self.targets = dict()
 
@@ -229,8 +280,16 @@ class SteeringBehavior(object):
             If given, the vehicle will begin ARRIVEing towards this point.
         PURSUE: PointMass2d, optional
             If given, the vehicle will begin PURSUEing the prey.
-        WANDER: list
+        EVADE: PointMass2d, optional
+        WANDER: list of int or float, optional
             [Distance, Radius, Jitter]
+        AVOID: list of PointMass2d, optional
+            List of obstacles to be avoided.
+        GUARD: [Vehicle, Vehicle, float], optional
+            [GuardTarget, GuardFrom, AggressivePercent]
+        FOLLOW: [Vehicle, Point2d], optional
+            [Leader, OffsetFromLeader]
+            
         """
         keylist = kwargs.keys()
         if 'SEEK' in keylist:
@@ -283,7 +342,23 @@ class SteeringBehavior(object):
             self.obstacles = obstacle_list
             self.status['AVOID'] = True
             print "AVOID obstacles active."
-
+            
+        if 'GUARD' in keylist:
+            info = kwargs['GUARD']
+            # TODO: Check for errors
+            self.guard_target = info[0]
+            self.guard_from = info[1]
+            self.guard_aggr = info[2]
+            self.status['GUARD'] = True
+            print "GUARD active."
+            
+        if 'FOLLOW' in keylist:
+            info = kwargs['FOLLOW']
+            # TODO: Check for errors
+            self.leader = info[0]
+            self.leader_offset = info[1]
+            self.status['FOLLOW'] = True
+            print "FOLLOW leader active."
 
     def compute_force(self):
         """Find the required steering force based on current behaviors.
@@ -310,6 +385,10 @@ class SteeringBehavior(object):
             force += force_wander(self)
         if self.status['AVOID'] is True:
             force += force_avoid(self)
+        if self.status['GUARD'] is True:
+            force += force_guard(self, self.vehicle)
+        if self.status['FOLLOW'] is True:
+            force += force_follow(self.vehicle, self.leader, self.leader_offset)
         return force
 
 
