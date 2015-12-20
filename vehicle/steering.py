@@ -102,17 +102,17 @@ def force_pursue(owner, prey):
     # Compute this using dot products; constant below is cos(10 degrees)
     if prey_offset * prey.vel < -0.966:
         return force_seek(owner, prey.pos)
-    
+
     # Otherwise, predict the future position of prey, assuming it has a
     # constant velocity. Prediction time is the distance to prey, divided
     # by the sum of our max speed and prey's current speed.
     ptime = prey_offset.norm()/(owner.maxspeed + prey.vel.norm())
     return force_seek(owner, prey.vel.scale(ptime) + prey.pos)
 
-def force_evade(owner, predator):    
+def force_evade(owner, predator):
     """Steering force for EVADE behaviour."""
 
-    predator_offset = predator.pos - owner.pos    
+    predator_offset = predator.pos - owner.pos
     # Predict the future position of predator, assuming it has a constant
     # velocity. Prediction time is the distance to predator divided
     # by the sum of our max speed and predator's current speed.
@@ -121,12 +121,12 @@ def force_evade(owner, predator):
 
 def force_wander(steer):
     """Steering force for WANDER behavior.
-    
+
     Parameters
     ----------
     steer: SteeringBehavior
         Comment here.
-        
+
     Note
     ----
     Since the more complex behaviors might need persistant data (in this case,
@@ -134,9 +134,9 @@ def force_wander(steer):
     simple behaviors to use an instance of SteeringBehavior as their first
     parameter, rather than an instance of vehicle. Ponder this.
     """
-    owner = steer.vehicle        
-    target, dist, rad, jitter = steer.targets['WANDER']    
-    
+    owner = steer.vehicle
+    target, dist, rad, jitter = steer.targets['WANDER']
+
     # Add a random displacement to previous target and reproject
     target += Point2d(rand_uni(jitter),rand_uni(jitter))
     target.normalize()
@@ -158,12 +158,11 @@ def force_avoid(steer):
     # Obstacles closer than this distance will be avoided
     front_d = (1 + owner.vel.sqnorm()/owner.maxspeed)*AVOID_MIN_LENGTH
     front_sq = front_d * front_d
-    
+
     # Find the closest obstacle within the detection box
     xmin = 1 + front_d
     obs_closest = None
     for obstacle in steer.obstacles:
-        obstacle.tagged = False
         # Consider only obstacles that are nearby
         target = obstacle.pos
         diff = target - owner.pos
@@ -180,7 +179,7 @@ def force_avoid(steer):
                 if xval < xmin:
                     xmin, lx, ly = xval, local_x, local_y
                     obs_closest = obstacle
-    
+
     if obs_closest:
         lr = obs_closest.radius
         lat_scale = (lr - ly)*(2.0 - lr / front_d)
@@ -254,21 +253,21 @@ class SteeringBehavior(object):
             self.targets['ARRIVE'] = target
             self.status['ARRIVE'] = True
             print "ARRIVE active."
-            
+
         if 'PURSUE' in keylist:
             prey = kwargs['PURSUE']
             # TODO: Error checking here.
             self.targets['PURSUE'] = prey
             self.status['PURSUE'] = True
             print "PURSUE active."
-            
+
         if 'EVADE' in keylist:
             predator = kwargs['EVADE']
             # TODO: Error checking here.
             self.targets['EVADE'] = predator
             self.status['EVADE'] = True
             print "EVADE active."
-            
+
         if 'WANDER' in keylist:
             wander_params = kwargs['WANDER']
             # TODO: Fix arguments, check errors
@@ -276,7 +275,7 @@ class SteeringBehavior(object):
             self.targets['WANDER'] = wander_params
             self.status['WANDER'] = True
             print "WANDER active."
-            
+
         if 'AVOID' in keylist:
             obstacle_list = kwargs['AVOID']
             # TODO: Fix arguments, check errors
@@ -284,7 +283,7 @@ class SteeringBehavior(object):
             self.obstacles = obstacle_list
             self.status['AVOID'] = True
             print "AVOID obstacles active."
-            
+
 
     def compute_force(self):
         """Find the required steering force based on current behaviors.

@@ -7,7 +7,7 @@ from __future__ import print_function
 
 import os, sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
-from random import randint
+from random import randint, shuffle
 
 INF = float('inf')
 
@@ -190,7 +190,7 @@ class PointMass2d(pygame.sprite.Sprite):
         # Movement and image rotation:
         self.move(delta_t,force)
         self._rotate_for_blit()
-        
+
         # Simple edge warping
         self.pos = Point2d(self.pos[0] % sc_width, self.pos[1] % sc_height)
 
@@ -213,12 +213,13 @@ class StaticMass2d(PointMass2d):
         PointMass2d.__init__(self, *args)
         self.move(0.0)
         self.tagged = False
-        
+
     def update(self, delta_t=1.0):
         if self.tagged is True:
             self.image = StaticMass2d.tagged_image
         else:
             self.image = self.orig
+        self.tagged = False
 
 class RotatingMass2d(PointMass2d):
     """A pygame.Sprite with rotational physics.
@@ -264,14 +265,14 @@ if __name__ == "__main__":
     pygame.init()
 
     # Display constants
-    size = sc_width, sc_height = 640, 480
+    size = sc_width, sc_height = 1080, 960
     screen = pygame.display.set_mode(size)
     bgcolor = 111, 145, 192
 
     # Sprite images and pygame rectangles
     numveh = 5
-    numobs = 8
-    
+    numobs = 25
+
     img = list(range(numveh+numobs))
     rec = list(range(numveh+numobs))
     img[0], rec[0] = load_image('rpig.png', -1)
@@ -279,27 +280,27 @@ if __name__ == "__main__":
         img[i], rec[i] = load_image('ypig.png', -1)
     for i in range(2, numveh):
         img[i], rec[i] = load_image('gpig.png', -1)
-    
+
     # Static obstacles
     for i in range(numveh, numveh + numobs):
         img[i], rec[i] = load_image('circle.png', -1)
-        
+
     StaticMass2d.tagged_image = load_image('circle_tag.png', -1)[0]
-    
+
     # Object physics for vehicles
-    pos = [Point2d(75+(i-1)*50, 150+(i-1)*40) for i in range(numveh)]
+    pos = [Point2d(75+(i-1)*160, 150+(i-1)*185) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(20,0)
 
     # Create any array of vehicles for pygame
     obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numveh)]
-    obj[0].maxspeed = 5.0
+    obj[0].maxspeed = 4.0
     obj[0].steering.set_target(WANDER = [250,50,10])
     obj[0].raduis = 100
-    
-    #obj[1].steering.set_target(SEEK = Point2d(500,300)) 
+
+    #obj[1].steering.set_target(SEEK = Point2d(500,300))
     #obj[1].steering.set_target(FLEE = Point2d(500,400))
-    obj[1].maxspeed = 4.0
+    obj[1].maxspeed = 3.0
     obj[1].steering.set_target(PURSUE = obj[0])
 
     obj[2].maxspeed = 2.0
@@ -310,14 +311,18 @@ if __name__ == "__main__":
 
     obj[4].maxspeed = 2.0
     obj[4].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
-    
+
     # Static obstacles for pygame
+    yoffset = sc_height/(numobs+1)
+    yvals = list(range(yoffset,sc_height-yoffset,yoffset))
+    shuffle(yvals)
     for i in range(numveh, numveh + numobs):
         offset = (i+1.0-numveh)/(numobs+1)
-        rany = randint(30,sc_height-30)
+        rany = yvals[i-numveh]
+        #rany = randint(30,sc_height-30)
         pos.append(Point2d(offset*sc_width,rany))
         obj.append(StaticMass2d(img[i], rec[i], pos[i], 20, vel))
-    
+
     # This gives a convenient list of obstacles for later use
     obslist = obj[numveh:]
 
@@ -333,7 +338,7 @@ if __name__ == "__main__":
                 pygame.quit()
                 sys.exit()
 
-        allsprites.update(0.1)
+        allsprites.update(0.4)
 
         # pygame.time.delay(2)
 
