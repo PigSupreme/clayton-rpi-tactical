@@ -10,10 +10,17 @@ from sys import path
 path.insert(0, '../vpoints')
 from point2d import Point2d
 INF = float('inf')
+from math import sqrt
 
 # This contols the gradual deceleration for ARRIVE behavior.
 # Larger values will cause more gradual deceleration
 ARRIVE_DECEL_TWEAK = 10.0
+
+# This controls the size of an object detection box for AVOID obstacles
+# Length in front of vehicle is 100%-200% of this
+AVOID_MIN_LENGTH = 25.0
+AVOID_BRAKE_WEIGHT = 2.0
+
 
 # Random number generator
 from random import Random
@@ -137,6 +144,53 @@ def force_wander(steer):
     steer.targets['WANDER'][0] = target
     return force_seek(owner, owner.pos + target + owner.front.scale(dist))
 
+def force_avoid(steer):
+    """Steering force for AVOID obstacle behavior.
+
+    Parameters
+    ----------
+    steer: SteeringBehavior
+        Comment here.
+    """
+
+    owner = steer.vehicle
+    left = owner.front.left_normal()
+    # Obstacles closer than this distance will be avoided
+    front_d = (1 + owner.vel.sqnorm()/owner.maxspeed)*AVOID_MIN_LENGTH
+    front_sq = front_d * front_d
+    
+    # Find the closest obstacle within the detection box
+    xmin = 1 + front_d
+    obs_closest = None
+    for obstacle in steer.obstacles:
+        obstacle.tagged = False
+        # Consider only obstacles that are nearby
+        target = obstacle.pos
+        diff = target - owner.pos
+        if diff.sqnorm() < front_sq:
+            # Convert to local coordinates
+            local_x = diff / owner.front # This is an Orthogonal projection
+            # Only consider objects in front
+            if local_x > 0:
+                obstacle.tagged = True
+                # Find nearest x-intercept of extended bounding circle
+                local_y = diff / left
+                expr = owner.radius + obstacle.radius
+                xval = local_x - sqrt(expr*expr + local_y*local_y)
+                if xval < xmin:
+                    xmin, lx, ly = xval, local_x, local_y
+                    obs_closest = obstacle
+    
+    if obs_closest:
+        lr = obs_closest.radius
+        lat_scale = (lr - ly)*(2.0 - lr / front_d)
+        brake_scale = (lr - lx)*AVOID_BRAKE_WEIGHT
+        result = owner.front.scale(brake_scale) + left.scale(lat_scale)
+        return result
+    else:
+        return Point2d(0,0)
+
+
 class SteeringBehavior(object):
     """Help class for managing a vehicle's autonomous steering.
 
@@ -153,7 +207,14 @@ class SteeringBehavior(object):
 
     def __init__(self, vehicle):
         self.vehicle = vehicle
-        self.status = {'SEEK': False, 'FLEE': False, 'ARRIVE': False, 'PURSUE': False, 'EVADE': False, 'WANDER': False}
+        self.status = {'SEEK': False,
+                       'FLEE': False,
+                       'ARRIVE': False,
+                       'PURSUE': False,
+                       'EVADE': False,
+                       'WANDER': False,
+                       'AVOID': False
+                       }
         self.targets = dict()
 
     def set_target(self, **kwargs):
@@ -215,6 +276,15 @@ class SteeringBehavior(object):
             self.targets['WANDER'] = wander_params
             self.status['WANDER'] = True
             print "WANDER active."
+            
+        if 'AVOID' in keylist:
+            obstacle_list = kwargs['AVOID']
+            # TODO: Fix arguments, check errors
+            # Currently we're passing a list of PointMass2d's
+            self.obstacles = obstacle_list
+            self.status['AVOID'] = True
+            print "AVOID obstacles active."
+            
 
     def compute_force(self):
         """Find the required steering force based on current behaviors.
@@ -224,6 +294,7 @@ class SteeringBehavior(object):
         Point2d: Steering force.
         """
         # TODO: Add behaviours below
+        # TODO: Iterate over self.status instead of using lots of if's
         force = Point2d(0,0)
         if self.status['SEEK'] is True:
             force += force_seek(self.vehicle, self.targets['SEEK'])
@@ -238,6 +309,8 @@ class SteeringBehavior(object):
             force += force_evade(self.vehicle, self.targets['EVADE'])
         if self.status['WANDER'] is True:
             force += force_wander(self)
+        if self.status['AVOID'] is True:
+            force += force_avoid(self)
         return force
 
 
