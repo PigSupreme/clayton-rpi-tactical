@@ -114,6 +114,32 @@ class Point2d(object):
         y = scalar * self.y
         return Point2d(x, y)
 
+    def rotated_by(self, angle, use_deg = False):
+        """Get this vector rotated anticlockwise.
+        
+        Parameters
+        ----------
+        angle: int or float
+            Directed anticlockwise angle to rotate by,
+        degrees: boolean
+            If True, angle is in degrees. Otherwise radians (default)
+        
+        
+        Example
+        -------
+        >>> a = Point2d(2,-2)
+        >>> print(a.rotated_by(3.14159))
+        Point2d: <-1.999995, 2.000005>
+        >>> print(a.rotated_by(90,True))
+        Point2d: <2.000000, 2.000000>
+        """
+        if use_deg is True:
+            angle = angle / 57.2957795131
+        
+        c = cos(angle)
+        s = sin(angle)
+        return Point2d(c*self.x - s*self.y, s*self.x + c*self.y)
+
     def norm(self):
         """Get the norm (length) of this vector.
 
@@ -365,6 +391,9 @@ if __name__ == "__main__":
     print("a-b = %s" % str(a-b))
     print("a*b = %s" % str(a*b))
     print("sqrt(2)a = %s" % a.scale(sqrt(2)))
+    
+    print("a rotated by 90 degrees = %s" % a.rotated_by(90,True))
+    print("b rotated by -pi/3 radians = %s" % b.rotated_by(-1.0471975511965976))
 
     na = a.norm()
     print("||a|| = %s" % na)
