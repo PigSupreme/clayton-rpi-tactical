@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+"""Module containing Vehicle class, for use with Pygame."""
 
 # for python3 compat
 from __future__ import unicode_literals
@@ -119,7 +120,7 @@ class PointMass2d(pygame.sprite.Sprite):
         except ZeroDivisionError:
             # If velocity is <0,0>, set facing to screen upwards
             self.front = Point2d(0,-1)
-        self.left = Point2d(-self.front[1],self.front[0])
+        self.left = Point2d(-self.front[1], self.front[0])
         self._rotate_for_blit()
 
         # Movement constraints
@@ -151,10 +152,10 @@ class PointMass2d(pygame.sprite.Sprite):
         # Don't exceed our maximum speed
         self.vel.truncate(self.maxspeed)
 
-        # I velocity is very small, skip alignment to avoid jittering.
+        # If velocity is very small, skip alignment to avoid jittering.
         if self.vel.sqnorm() > SPEED_EPSILON:
             self.front = self.vel.unit()
-            self.left = Point2d(-self.front[1],self.front[0])
+            self.left = Point2d(-self.front[1], self.front[0])
 
     def _rotate_for_blit(self):
         """Used to rotate the object's image prior to blitting.
@@ -189,7 +190,7 @@ class PointMass2d(pygame.sprite.Sprite):
         force = self.steering.compute_force()
 
         # Movement and image rotation:
-        self.move(delta_t,force)
+        self.move(delta_t, force)
         self._rotate_for_blit()
 
         # Simple edge warping
@@ -240,7 +241,7 @@ class RotatingMass2d(PointMass2d):
         self.omega = 0.0    # Angular veloicty
 
         # Rotation Constraints
-        ## TODO: Put these into __init__()
+        # TODO: Put these into the function arguments, perhaps as **kwargs
         self.moment = 1.0   # Moment of inertia (angular mass)
         self.maxomega = 60.0
         self.maxtorque = 10.0
@@ -290,7 +291,7 @@ if __name__ == "__main__":
     StaticMass2d.tagged_image = load_image('circle_tag.png', -1)[0]
 
     # Object physics for vehicles
-    pos = [Point2d(randint(30,sc_width-30), randint(30,sc_height-30)) for i in range(numveh)]
+    pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(20,0)
 
@@ -299,12 +300,12 @@ if __name__ == "__main__":
 
     # Static obstacles for pygame
     yoffset = sc_height/(numobs+1)
-    yvals = list(range(yoffset,sc_height-yoffset,yoffset))
+    yvals = list(range(yoffset, sc_height-yoffset, yoffset))
     shuffle(yvals)
     for i in range(numveh, numveh + numobs):
         offset = (i+1.0-numveh)/(numobs+1)
         rany = yvals[i-numveh]
-        pos.append(Point2d(offset*sc_width,rany))
+        pos.append(Point2d(offset*sc_width, rany))
         obj.append(StaticMass2d(img[i], rec[i], pos[i], 20, vel))
     # This gives a convenient list of obstacles for later use
     obslist = obj[numveh:]
@@ -317,7 +318,7 @@ if __name__ == "__main__":
 
     # Big red arrow: Wander and Avoid obstacles
     obj[0].maxspeed = 4.0
-    obj[0].steering.set_target(WANDER = [250,50,10])
+    obj[0].steering.set_target(WANDER=[250, 50, 10])
     obj[0].raduis = 100
 
     #Old examples
@@ -326,21 +327,21 @@ if __name__ == "__main__":
 
     # Yellow arrow: Guard RED from GREEN leader
     obj[1].maxspeed = 5.0
-    obj[1].steering.set_target(GUARD = [obj[0], obj[2], 0.65])
+    obj[1].steering.set_target(GUARD=[obj[0], obj[2], 0.65])
 
     # Green arrow leader; Pursue RED while evading YELLOW
     obj[2].maxspeed = 3.0
-    obj[2].steering.set_target(PURSUE = obj[0], EVADE = obj[1])
+    obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1])
 
     # Green arrow followers: Follow GREEN leader and evade YELLOW
     obj[3].maxspeed = 3.0
-    obj[3].steering.set_target(FOLLOW = [obj[2],Point2d(-20,20)], EVADE = obj[1])
+    obj[3].steering.set_target(FOLLOW=[obj[2], Point2d(-20,20)], EVADE=obj[1])
     obj[4].maxspeed = 3.0
-    obj[4].steering.set_target(FOLLOW = [obj[2],Point2d(-20,-20)], EVADE = obj[1])
+    obj[4].steering.set_target(FOLLOW=[obj[2], Point2d(-20,-20)], EVADE=obj[1])
 
     # All vehicles will avoid obstacles
     for i in range(numveh):
-        obj[i].steering.set_target(AVOID = obslist)
+        obj[i].steering.set_target(AVOID=obslist)
 
     ### End of vehicle behavior ###
 

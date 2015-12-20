@@ -369,7 +369,7 @@ if __name__ == "__main__":
     na = a.norm()
     print("||a|| = %s" % na)
     print("||a||^2 = %s" % a.sqnorm())
-    print("Unit vector in direction of a: %s, which has norm %s" % (a.unit(),a.unit().norm()))
+    print("Unit vector in direction of a: %s, which has norm %s" % (a.unit(), a.unit().norm()))
 
     a.normalize()
     print("Normalized a = %s" % a)
@@ -377,7 +377,7 @@ if __name__ == "__main__":
     aa = a.angle()
     print("Angle of a = %f radians" % aa)
     from math import cos, sin
-    print("Rebuilding vector a from norm and angle: <%f,%f>" % (na*cos(aa),na*sin(aa)))
+    print("Rebuilding vector a from norm and angle: <%f,%f>" % (na*cos(aa), na*sin(aa)))
 
     b.truncate(1)
     print("Truncated b to norm 1: %s" % b)
@@ -385,7 +385,7 @@ if __name__ == "__main__":
     projab = a/b
     print("Signed length of projection of a onto b = %f" % projab)
     c = a.proj(b)
-    print("Projection of a onto b is %s with length %f" % (c,c.norm()))
+    print("Projection of a onto b is %s with length %f" % (c, c.norm()))
 
     print("Signed length of projection of a onto c = %f" % (a/c))
 

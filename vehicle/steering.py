@@ -16,9 +16,13 @@ from math import sqrt
 # Larger values will cause more gradual deceleration
 ARRIVE_DECEL_TWEAK = 10.0
 
+# Used by EVADE; we ignore the predator if it is too far away.
+EVADE_PANIC_SQ = 160**2
+
 # This controls the size of an object detection box for AVOID obstacles
 # Length in front of vehicle is 100%-200% of this
 AVOID_MIN_LENGTH = 25.0
+# Tweaking constant for braking force of AVOID obstacles
 AVOID_BRAKE_WEIGHT = 2.0
 
 
@@ -26,12 +30,14 @@ AVOID_BRAKE_WEIGHT = 2.0
 from random import Random
 rand_gen = Random()
 rand_gen.seed()
-rand_uni = lambda x: rand_gen.uniform(-x,x)
-
+rand_uni = lambda x: rand_gen.uniform(-x, x)
 
 
 def force_seek(owner, target):
-    """Steering force for Seek behaviour.
+    """Steering force for SEEK behaviour.
+
+    This is a simple behaviour that directs the owner towards a given point.
+    Other, more complex behaviours make use of this.
 
     Parameters
     ----------
@@ -45,7 +51,9 @@ def force_seek(owner, target):
     return targetvel - owner.vel
 
 def force_flee(owner, target, panic_squared=INF):
-    """Steering force for Flee behaviour,
+    """Steering force for FLEE behaviour.
+
+    Another simple behaviour that directs the owner away from a given point.
 
     Parameters
     ----------
@@ -55,7 +63,7 @@ def force_flee(owner, target, panic_squared=INF):
         The target point that owner is fleeing from.
     panic_squared: float
         If specified, only compute a flee_force if squared distance
-        to the target is less than this value. Otherwise
+        to the target is less than this value.
     """
     targetvel = (owner.pos - target)
     if 1 < targetvel.sqnorm() < panic_squared:
@@ -65,9 +73,9 @@ def force_flee(owner, target, panic_squared=INF):
         return Point2d(0,0)
 
 def force_arrive(owner, target, hesitance=2.0):
-    """Steering force for Arrive behaviour.
+    """Steering force for ARRIVE behaviour.
 
-    This works like Seek, except the vehicle gradually deccelerates as it
+    This works like SEEK, except the vehicle gradually deccelerates as it
     nears the target position. The optional third parameter controls the
     amount of decceleration.
 
@@ -95,8 +103,18 @@ def force_arrive(owner, target, hesitance=2.0):
         return Point2d(0,0)
 
 def force_pursue(owner, prey):
-    """Steering force for PURSUE behaviour."""
+    """Steering force for PURSUE behaviour.
 
+    Similar to SEEK, but lead the prey by estimating its future location,
+    based on current velocities.
+
+    Parameters
+    ----------
+    owner: Vehicle
+        The vehicle computing this force.
+    prey: Vehicle
+        The vehicle that owner will pursue.
+    """
     prey_offset = prey.pos - owner.pos
     # If prey is in front and moving our way, SEEK to prey's position
     # Compute this using dot products; constant below is cos(10 degrees)
@@ -110,50 +128,65 @@ def force_pursue(owner, prey):
     return force_seek(owner, prey.vel.scale(ptime) + prey.pos)
 
 def force_evade(owner, predator):
-    """Steering force for EVADE behaviour."""
+    """Steering force for EVADE behaviour.
 
+    Similar to FLEE, but try to get away from the predicted future position
+    of the predator. Predators far away are ignored, EVADE_PANIC_SQ is used
+    to control the panic distance passed to FLEE.
+
+    Parameters
+    ----------
+    owner: Vehicle
+        The vehicle computing this force.
+    predator: Vehicle
+        The vehicle that owner will pursue.
+    """
     predator_offset = predator.pos - owner.pos
     # Predict the future position of predator, assuming it has a constant
     # velocity. Prediction time is the distance to predator divided
     # by the sum of our max speed and predator's current speed.
     ptime = predator_offset.norm()/(owner.maxspeed + predator.vel.norm())
-    return force_flee(owner, predator.vel.scale(ptime) + predator.pos, 10000)
+    return force_flee(owner, predator.vel.scale(ptime) + predator.pos, EVADE_PANIC_SQ)
 
-def force_wander(steer):
+def force_wander(steering):
     """Steering force for WANDER behavior.
 
     Parameters
     ----------
-    steer: SteeringBehavior
-        Comment here.
+    steering: SteeringBehavior
+        An instance of SteeringBehavior (*not* a Vehicle, see note below)
 
     Note
     ----
-    Since the more complex behaviors might need persistant data (in this case,
-    values related to the wander circle), it might be better to rework the
-    simple behaviors to use an instance of SteeringBehavior as their first
-    parameter, rather than an instance of vehicle. Ponder this.
+    WANDER requires persistant data (specifically, the target of the wander
+    circle), so we need access to the SteeringBehavior itself instead of the
+    vehicle that owns it.
     """
-    owner = steer.vehicle
-    target, dist, rad, jitter = steer.targets['WANDER']
+    owner = steering.vehicle
+    target, dist, rad, jitter = steering.targets['WANDER']
 
     # Add a random displacement to previous target and reproject
-    target += Point2d(rand_uni(jitter),rand_uni(jitter))
+    target += Point2d(rand_uni(jitter), rand_uni(jitter))
     target.normalize()
     target = target.scale(rad)
-    steer.targets['WANDER'][0] = target
+    steering.targets['WANDER'][0] = target
     return force_seek(owner, owner.pos + target + owner.front.scale(dist))
 
-def force_avoid(steer):
-    """Steering force for AVOID obstacle behavior.
+def force_avoid(owner, obs_list):
+    """Steering force for AVOID stationary obstacles behaviour.
+
+    This projects a box in front of the owner and tries to find an obstacle
+    for which collision is imminent (not always the closest obstacle). The
+    owner will attempt to steer around that obstacle.
 
     Parameters
     ----------
-    steer: SteeringBehavior
-        Comment here.
+    owner: Vehicle
+        The vehicle computing this force.
+    obs_list: list of PointMass2d
+        List of obstacles to check for avoidance.
     """
 
-    owner = steer.vehicle
     # Obstacles closer than this distance will be avoided
     front_d = (1 + owner.vel.norm()/owner.maxspeed)*AVOID_MIN_LENGTH
     front_sq = front_d * front_d
@@ -161,12 +194,12 @@ def force_avoid(steer):
     # Find the closest obstacle within the detection box
     xmin = 1 + front_d
     obs_closest = None
-    for obstacle in steer.obstacles:
+    for obstacle in obs_list:
         # Consider only obstacles that are nearby
         target = obstacle.pos
         diff = target - owner.pos
         if diff.sqnorm() < front_sq:
-            # Convert to local coordinates
+            # Convert to local coordinates of the owner
             local_x = diff / owner.front # This is an Orthogonal projection
             # Only consider objects in front
             if local_x > 0:
@@ -174,9 +207,12 @@ def force_avoid(steer):
                 local_y = diff / owner.left
                 expr = owner.radius + obstacle.radius
                 xval = local_x - sqrt(expr*expr + local_y*local_y)
+                # If this obstacle is closer, update minimum values
                 if xval < xmin:
                     xmin, lx, ly = xval, local_x, local_y
                     obs_closest = obstacle
+
+    # If there is a closest obstacle, avoid it
     if obs_closest:
         lr = obs_closest.radius
         lat_scale = (lr - ly)*(2.0 - lr / front_d)
@@ -186,41 +222,47 @@ def force_avoid(steer):
     else:
         return Point2d(0,0)
 
-def force_guard(steer, owner):
+def force_guard(owner, guard_this, guard_from, aggro):
     """Steering force for GUARD behavior.
 
     Parameters
     ----------
-    steer: SteeringBehavior
-        Comment here.
-        
-    Notes
-    -----    
-    
-    This is a more general version of INTERPOSE. The vehicle will attempt
-    to position itself between objects guard_target and guard_from. 
-    guard_aggr can be set from 0.0 (guard_target) to 1.0 (guard_from) or
-    anywhere in-between to determine where to aim. The math will allow other
-    values of guard_aggr, try experminenting!
-    """
-    
-    owner = steer.vehicle
-    # Find the desired position between the two objects as of now:
-    target_pos = steer.guard_target.pos
-    from_pos = steer.guard_from.pos
-    want_pos = target_pos + (from_pos - target_pos).scale(steer.guard_aggr)
+    owner: Vehicle
+        The vehicle computing this force.
+    guard_this: Vehicle
+        The Vehicle that owner is guarding.
+    guard_from: Vehicle
+        The Vehicle that owner is guarding against.
+    aggro: float
+        Value from 0 to 1; controls aggressiveness (see notes below)
 
-    # Predict future positions based on owner's distance/maxspeed to now_pos
+    Notes
+    -----
+    This is a more general version of INTERPOSE. The vehicle will attempt
+    to position itself between guard_this and guard_from, at a relative
+    distance controlled by aggro. Setting aggro near zero will position near
+    guard_this; aggro near 1.0 will position near guard_from.
+
+    The formula is the standard parameterization of a line segment, so we can
+    actually set aggro outside of the unit interval.
+    """
+
+    # Find the desired position between the two objects as of now:
+    target_pos = guard_this.pos
+    from_pos = guard_from.pos
+    want_pos = target_pos + (from_pos - target_pos).scale(aggro)
+
+    # Predict future positions based on owner's distance/maxspeed to want_pos
     est_time = (want_pos - owner.pos).norm()/owner.maxspeed
-    target_pos += steer.guard_target.vel.scale(est_time)
-    from_pos += steer.guard_from.vel.scale(est_time)    
-    want_pos = target_pos + (from_pos - target_pos).scale(steer.guard_aggr)
-    
-    return force_arrive(owner, want_pos, 0.2)
-    
+    target_pos += guard_this.vel.scale(est_time)
+    from_pos += guard_from.vel.scale(est_time)
+    want_pos = target_pos + (from_pos - target_pos).scale(aggro)
+
+    return force_arrive(owner, want_pos, 1.0)
+
 def force_follow(owner, leader, offset):
-    """Steerring force for FOLLOW the leader at some offset.
-    
+    """Steering force for FOLLOW the leader at some offset.
+
     Parameters
     ----------
     owner: Vehicle
@@ -230,7 +272,7 @@ def force_follow(owner, leader, offset):
     offset: Point2d
         Offset from leader (in leader's local coordinates, front = +x)
     """
-    
+
     target_pos = leader.pos + leader.front.scale(offset.x) + leader.left.scale(offset.y)
     diff = target_pos - owner.pos
     ptime = diff.norm() / (owner.maxspeed + leader.vel.norm())
@@ -240,7 +282,7 @@ def force_follow(owner, leader, offset):
 
 
 class SteeringBehavior(object):
-    """Help class for managing a vehicle's autonomous steering.
+    """Helper class for managing a vehicle's autonomous steering.
 
     Each vehicle should maintain a reference to an instance of this class,
     and call compute_force() when an update is needed.
@@ -289,7 +331,7 @@ class SteeringBehavior(object):
             [GuardTarget, GuardFrom, AggressivePercent]
         FOLLOW: [Vehicle, Point2d], optional
             [Leader, OffsetFromLeader]
-            
+
         """
         keylist = kwargs.keys()
         if 'SEEK' in keylist:
@@ -330,7 +372,7 @@ class SteeringBehavior(object):
         if 'WANDER' in keylist:
             wander_params = kwargs['WANDER']
             # TODO: Fix arguments, check errors
-            wander_params.insert(0,self.vehicle.front)
+            wander_params.insert(0, self.vehicle.front)
             self.targets['WANDER'] = wander_params
             self.status['WANDER'] = True
             print "WANDER active."
@@ -342,16 +384,16 @@ class SteeringBehavior(object):
             self.obstacles = obstacle_list
             self.status['AVOID'] = True
             print "AVOID obstacles active."
-            
+
         if 'GUARD' in keylist:
             info = kwargs['GUARD']
             # TODO: Check for errors
-            self.guard_target = info[0]
+            self.guard_this = info[0]
             self.guard_from = info[1]
             self.guard_aggr = info[2]
             self.status['GUARD'] = True
             print "GUARD active."
-            
+
         if 'FOLLOW' in keylist:
             info = kwargs['FOLLOW']
             # TODO: Check for errors
@@ -384,9 +426,9 @@ class SteeringBehavior(object):
         if self.status['WANDER'] is True:
             force += force_wander(self)
         if self.status['AVOID'] is True:
-            force += force_avoid(self)
+            force += force_avoid(self.vehicle, self.obstacles)
         if self.status['GUARD'] is True:
-            force += force_guard(self, self.vehicle)
+            force += force_guard(self.vehicle, self.guard_this, self.guard_from, self.guard_aggr)
         if self.status['FOLLOW'] is True:
             force += force_follow(self.vehicle, self.leader, self.leader_offset)
         return force
@@ -395,5 +437,5 @@ class SteeringBehavior(object):
 
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     print "Steering behavior functions. Import this elsewhere."
