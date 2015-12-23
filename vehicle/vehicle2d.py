@@ -68,6 +68,67 @@ def load_image(name, colorkey=None):
         image_surf.set_colorkey(colorkey, RLEACCEL)
     return image_surf, image_surf.get_rect()
 
+class SimpleWall2d(pygame.sprite.Sprite):
+    """A simple wall for use in Pygame.
+    
+    Parameters
+    ----------
+    
+    center: tuple or Point2d
+        The center of the wall in screen coordinates.
+    length: int
+        Length of the wall.
+    thick: int
+        Thickness of the wall.
+    f_normal: Point2d
+        Normal vector out from the front of the wall.
+    color: 3-tuple or pygame.Color, optional
+        Color for rendering. Defaults to (0,0,0)    
+    """
+    
+    def __init__(self, center, length, thick, f_normal, color=None):
+        # Must call pygame's Sprite.__init__ first!
+        pygame.sprite.Sprite.__init__(self)
+        
+        # Set-up original image for rendering
+        self.orig = pygame.Surface((length,thick))            
+        self.orig.set_colorkey((255,0,255))
+        if color == None:
+            self.color = (0,0,0)
+        self.orig.fill(self.color)
+        self.rect = self.orig.get_rect()
+
+        # Positional data
+        self.pos = Point2d(center[0], center[1])
+        self.theta = f_normal.angle()*SCREEN_DEG -90
+        self.front = f_normal.unit()
+        self.left = self.front.left_normal()
+        self.rsq = (length/2)**2
+        #print("Wall normal = %s, Wall left = %s" % (self.front, self.left))
+        
+        # Put into place for rendering
+        self.image = pygame.transform.rotate(self.orig, self.theta)
+        self.rect = self.image.get_rect()
+        self.rect.center = center[0], center[1]
+        self.center = center
+        self.tagged = False
+        
+    def update(self, delta_t=1.0):
+        if self.tagged is True:
+            color = (255,255,255)
+        else:
+            color = (0,0,0)
+
+        # Set-up original image for rendering
+        self.orig.fill(color)
+        self.rect = self.orig.get_rect()
+
+        # Put into place for rendering
+        self.image = pygame.transform.rotate(self.orig, self.theta)
+        self.rect = self.image.get_rect()
+        self.rect.center = self.center[0], self.center[1]
+            
+
 class PointMass2d(pygame.sprite.Sprite):
     """A pygame.Sprite with rectilnear motion.
 
@@ -310,6 +371,20 @@ if __name__ == "__main__":
     # This gives a convenient list of obstacles for later use
     obslist = obj[numveh:]
 
+    # Static Walls for pygame: TESTING
+    wall_list = [SimpleWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
+                 SimpleWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
+                 SimpleWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
+                 SimpleWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0))]
+                 
+#                 SimpleWall2d((sc_width//2, sc_height//2), min(sc_width,sc_height), 4, Point2d(1,1)),
+#                 SimpleWall2d((sc_width//2, sc_height//2), min(sc_width,sc_height), 4, Point2d(-1,-1))
+#                 ]
+    
+    obj.extend(wall_list)
+        
+    
+
     # Set-up pygame rendering
     allsprites = pygame.sprite.RenderPlain(obj)
 
@@ -339,9 +414,9 @@ if __name__ == "__main__":
     obj[4].maxspeed = 3.0
     obj[4].steering.set_target(FOLLOW=[obj[2], Point2d(-20,-20)], EVADE=obj[1])
 
-    # All vehicles will avoid obstacles
+    # All vehicles will avoid obstacles and walls
     for i in range(numveh):
-        obj[i].steering.set_target(AVOID=obslist)
+        obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[100,wall_list])
 
     ### End of vehicle behavior ###
 
@@ -350,6 +425,9 @@ if __name__ == "__main__":
             if event.type in [QUIT, MOUSEBUTTONDOWN]:
                 pygame.quit()
                 sys.exit()
+        
+        for wall in wall_list:
+            wall.tagged = False
 
         allsprites.update(0.4)
 

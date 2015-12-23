@@ -222,6 +222,37 @@ def force_avoid(owner, obs_list):
     else:
         return Point2d(0,0)
 
+def force_wallavoid(owner, whisk_len, wall_list):
+    """Steering force for WALLAVOID behaviour, one front whisker"""
+
+    closest_wall = None
+    # Front whisker
+    fr_min = whisk_len
+    
+    # Find the closest wall intersecting the foward whisker
+    for wall in wall_list:
+        # Is vehicle in front and whisker tip behind wall's infinite line?
+        try:
+            t = (wall.front * (wall.pos - owner.pos))/(wall.front * owner.front)
+        except ZeroDivisionError:
+            # Vehicle is facing parallel to wall in this case
+            continue  
+        if 0 < t < fr_min:
+            # Is the point of intersection actually on the wall segment?
+            poi = owner.pos + owner.front.scale(t)
+            if (wall.pos - poi).sqnorm() < wall.rsq:
+                # This is the closest intersecting wall so far
+                closest_wall = wall
+                closest_poi = poi
+                fr_min = t
+                
+    if closest_wall is not None:
+        target = closest_poi + closest_wall.front.scale((whisk_len - fr_min/2)*owner.vel.sqnorm())
+        closest_wall.tagged = True
+        return force_seek(owner, target)
+    else:
+        return Point2d(0,0)
+        
 def force_guard(owner, guard_this, guard_from, aggro):
     """Steering force for GUARD behavior.
 
@@ -304,6 +335,7 @@ class SteeringBehavior(object):
                        'EVADE': False,
                        'WANDER': False,
                        'AVOID': False,
+                       'WALLAVOID': False,
                        'GUARD': False,
                        'FOLLOW': False
                        }
@@ -323,10 +355,13 @@ class SteeringBehavior(object):
         PURSUE: PointMass2d, optional
             If given, the vehicle will begin PURSUEing the prey.
         EVADE: PointMass2d, optional
+            If given, the vehicle will begin EVADEing the predator
         WANDER: list of int or float, optional
             [Distance, Radius, Jitter]
         AVOID: list of PointMass2d, optional
             List of obstacles to be avoided.
+        WALLAVOID: list of SimpleWall2d, optional
+            List of walls to be avoided
         GUARD: [Vehicle, Vehicle, float], optional
             [GuardTarget, GuardFrom, AggressivePercent]
         FOLLOW: [Vehicle, Point2d], optional
@@ -385,6 +420,14 @@ class SteeringBehavior(object):
             self.status['AVOID'] = True
             print "AVOID obstacles active."
 
+        if 'WALLAVOID' in keylist:
+            info = kwargs['WALLAVOID']
+            # TODO: Fix arguments, check errors
+            self.front_whisker= info[0]
+            self.walls = info[1]
+            self.status['WALLAVOID'] = True
+            print "WALLAVOID active."
+            
         if 'GUARD' in keylist:
             info = kwargs['GUARD']
             # TODO: Check for errors
@@ -427,6 +470,8 @@ class SteeringBehavior(object):
             force += force_wander(self)
         if self.status['AVOID'] is True:
             force += force_avoid(self.vehicle, self.obstacles)
+        if self.status['WALLAVOID'] is True:
+            force += force_wallavoid(self.vehicle, self.front_whisker, self.walls)
         if self.status['GUARD'] is True:
             force += force_guard(self.vehicle, self.guard_this, self.guard_from, self.guard_aggr)
         if self.status['FOLLOW'] is True:
