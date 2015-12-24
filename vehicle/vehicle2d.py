@@ -367,7 +367,7 @@ if __name__ == "__main__":
         offset = (i+1.0-numveh)/(numobs+1)
         rany = yvals[i-numveh]
         pos.append(Point2d(offset*sc_width, rany))
-        obj.append(StaticMass2d(img[i], rec[i], pos[i], 20, vel))
+        obj.append(StaticMass2d(img[i], rec[i], pos[i], 10, vel))
     # This gives a convenient list of obstacles for later use
     obslist = obj[numveh:]
 
@@ -405,9 +405,11 @@ if __name__ == "__main__":
     obj[1].maxspeed = 5.0
     obj[1].steering.set_target(GUARD=[obj[0], obj[2], 0.65])
 
-    # Green arrow leader; Pursue RED while evading YELLOW
+    # Green arrow leader; TAKECOVER from YELLOW
     obj[2].maxspeed = 3.0
-    obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1])
+    obj[2].steering.set_target(TAKECOVER=[obj[1], obslist, 200])   
+    # This was old demo:    
+    #obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1]) 
 
     # Green arrow followers: Follow GREEN leader and evade YELLOW
     obj[3].maxspeed = 3.0
@@ -417,7 +419,7 @@ if __name__ == "__main__":
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
-        obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[50,wall_list])
+        obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[50, wall_list])
 
     ### End of vehicle behavior ###
 

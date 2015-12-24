@@ -225,6 +225,33 @@ def force_avoid(owner, obs_list):
     else:
         return Point2d(0,0)
 
+def force_takecover(owner, predator, obs_list, max_range):
+    """Steering force for TAKECOVER behind obstacle.
+    
+    Owner attempts to move to the nearest position that will put an obstacle
+    between itself and the predator. If no such points are within max_range,
+    EVADE the predator instead.
+    
+    MOAR COMMENTS HERE.
+    """
+    
+    best_dsq = max_range*max_range
+    best_pos = None
+    for obs in obs_list:
+        # Find the hiding point for this obstacle
+        hide_dir = (obs.pos - predator.pos).unit()
+        hide_pos = obs.pos + hide_dir.scale(obs.radius + owner.radius)
+        hide_dsq = (hide_pos - owner.pos).sqnorm()
+        # Update distance and position if this obstacle is better
+        if hide_dsq < best_dsq:
+            best_pos = hide_pos
+            best_dsq = hide_dsq
+    
+    if best_pos is None:
+        return force_evade(owner, predator)
+    else:
+        return force_arrive(owner, best_pos, 1.0)
+
 def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
     """Steering force for WALLAVOID behaviour with aribtrary whiskers.
     
@@ -367,6 +394,7 @@ class SteeringBehavior(object):
                        'ARRIVE': False,
                        'PURSUE': False,
                        'EVADE': False,
+                       'TAKECOVER': False,
                        'WANDER': False,
                        'AVOID': False,
                        'WALLAVOID': False,
@@ -390,6 +418,8 @@ class SteeringBehavior(object):
             If given, the vehicle will begin PURSUEing the prey.
         EVADE: PointMass2d, optional
             If given, the vehicle will begin EVADEing the predator
+        TAKECOVER: PointMass2d, optional
+            If given, the vehicle will try to TAKECOVER from the predator.
         WANDER: list of int or float, optional
             [Distance, Radius, Jitter]
         AVOID: list of PointMass2d, optional
@@ -437,7 +467,15 @@ class SteeringBehavior(object):
             self.targets['EVADE'] = predator
             self.status['EVADE'] = True
             print "EVADE active."
-
+            
+        if 'TAKECOVER' in keylist:
+            info = kwargs['TAKECOVER']
+            self.sniper = info[0]
+            self.coverlist = info[1]
+            self.cover_dist = info[2]
+            self.status['TAKECOVER'] = True
+            print "TAKECOVER active."
+            
         if 'WANDER' in keylist:
             wander_params = kwargs['WANDER']
             # TODO: Fix arguments, check errors
@@ -490,11 +528,11 @@ class SteeringBehavior(object):
         """
         # TODO: Add behaviours below
         # TODO: Iterate over self.status instead of using lots of if's
+        # TODO: Fix parameters to use self. targets instead of ad-hoc locals
         force = Point2d(0,0)
         if self.status['SEEK'] is True:
             force += force_seek(self.vehicle, self.targets['SEEK'])
         if self.status['FLEE'] is True:
-            #flee_from = self.avoid_this.pos
             force += force_flee(self.vehicle, self.targets['FLEE'])
         if self.status['ARRIVE'] is True:
             force += force_arrive(self.vehicle, self.targets['ARRIVE'])
@@ -502,6 +540,8 @@ class SteeringBehavior(object):
             force += force_pursue(self.vehicle, self.targets['PURSUE'])
         if self.status['EVADE'] is True:
             force += force_evade(self.vehicle, self.targets['EVADE'])
+        if self.status['TAKECOVER'] is True:
+            force += force_takecover(self.vehicle, self.sniper, self.coverlist, self.cover_dist)
         if self.status['WANDER'] is True:
             force += force_wander(self)
         if self.status['AVOID'] is True:
@@ -512,6 +552,7 @@ class SteeringBehavior(object):
             force += force_guard(self.vehicle, self.guard_this, self.guard_from, self.guard_aggr)
         if self.status['FOLLOW'] is True:
             force += force_follow(self.vehicle, self.leader, self.leader_offset)
+
         return force
 
 
