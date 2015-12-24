@@ -11,6 +11,7 @@ path.insert(0, '../vpoints')
 from point2d import Point2d
 INF = float('inf')
 from math import sqrt
+SQRT_HALF = sqrt(0.5)
 
 # This contols the gradual deceleration for ARRIVE behavior.
 # Larger values will cause more gradual deceleration
@@ -26,7 +27,7 @@ AVOID_MIN_LENGTH = 25.0
 AVOID_BRAKE_WEIGHT = 2.0
 
 # Avoid Walls: Percentage length of side whiskers relative to front whisker
-WALLAVOID_WHISKER_SCALE = 0.6
+WALLAVOID_WHISKER_SCALE = 0.8
 
 # Random number generator
 from random import Random
@@ -224,44 +225,54 @@ def force_avoid(owner, obs_list):
     else:
         return Point2d(0,0)
 
-def force_wallavoid(owner, whisk_list, wall_list):
-    """Steering force for WALLAVOID behaviour, dynamic list of whiskers.
+def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
+    """Steering force for WALLAVOID behaviour with aribtrary whiskers.
     
-    Comment me!
+    For each whisker, we find the wall with point of intersection closest
+    to the base of the whisker. If such a wall is detected, it contributes a
+    force in the direction of the wall normal proportional to the penetration
+    depth of the whisker. Total force is the resultant vector sum.
+    
+    Parameters
+    ----------
+    owner: Vehicle
+        The vehicle computing this force.
+    whisk_units: list of Point2d or 2-tuple
+        Whisker UNIT vectors in owner's local coordinates (forward is x+).
+    whisk_lens: list of ositive int or float
+        Lengths of whiskers, in same order as whisk_units above.
+    wall_list: list of SimpleWall2d
+        Walls to test for avoidance.        
     """
 
-    n = len(whisk_list)
-    whisk_front = []
-    whisk_len = []
-    t_min = []
-    closest_wall = []
+    n = len(whisk_units)
+    whisk_front = n*[Point2d(0,0)]
+    closest_wall = n*[None]
     
-    # Vector information for each whisker
-    for whisker in whisk_list:
-        front = owner.front.scale(whisker[0]) + owner.left.scale(whisker[1])
-        flen = front.norm()
-        whisk_front.append(front.scale(1/flen))
-        whisk_len.append(flen)
-        t_min.append(flen)
-        closest_wall.append(None)
+    # Covert unit vectors for each whisker to global coordinates
+    for i in range(n):
+        whisker = whisk_units[i]
+        unit_whisker = owner.front.scale(whisker[0]) + owner.left.scale(whisker[1])
+        whisk_front[i] = unit_whisker
+        t_min = whisk_lens[:]
     
     # Find the closest wall intersecting each whisker
     for wall in wall_list:
         # TODO: Check against wall radius for better efficiency??        
         
-        # Numerator of intersection test is the same for each whisker
-        tnum = wall.front * (wall.pos - owner.pos)
+        # Numerator of intersection test is the same for all whiskers
+        t_numer = wall.front * (wall.pos - owner.pos)
         for i in range(n):
             # Is vehicle in front and whisker tip behind wall's infinite line?
             try:
-                t = tnum / (wall.front * whisk_front[i])
+                t = t_numer / (wall.front * whisk_front[i])
             except ZeroDivisionError:
-                # Whisker is facing parallel to wall in this case
+                # Whisker is parallel to wall in this case, no intersection
                 continue  
             if 0 < t < t_min[i]:
                 # Is the point of intersection actually on the wall segment?
                 poi = owner.pos + whisk_front[i].scale(t)
-                if (wall.pos - poi).sqnorm() < wall.rsq:
+                if (wall.pos - poi).sqnorm() <= wall.rsq:
                     # This is the closest intersecting wall so far
                     closest_wall[i] = wall
                     t_min[i] = t
@@ -270,11 +281,11 @@ def force_wallavoid(owner, whisk_list, wall_list):
     result = Point2d(0,0)
     for i in range(n):
         if closest_wall[i] is not None:
-            depth = whisk_len[i] - t_min[i]
+            depth = whisk_lens[i] - t_min[i]
             result += closest_wall[i].front.scale(depth)
 
     # Scale by onwer radius; bigger objects should tend to stay away
-    return result.scale(owner.radius)
+    return result#.scale(owner.radius)
         
 def force_guard(owner, guard_this, guard_from, aggro):
     """Steering force for GUARD behavior.
@@ -446,8 +457,9 @@ class SteeringBehavior(object):
         if 'WALLAVOID' in keylist:
             info = kwargs['WALLAVOID']
             # TODO: Fix arguments, check errors
-            fl = info[0]
-            self.whiskers = [(fl,0), (fl*0.6, fl*0.6), (fl*0.6, -fl*0.6)]
+            # Three whiskers: Front and left/right by 45 degrees
+            self.whiskers = [Point2d(1,0), Point2d(SQRT_HALF, SQRT_HALF), Point2d(SQRT_HALF, -SQRT_HALF)]
+            self.whisker_lengths = [info[0]] + 2*[info[0]*WALLAVOID_WHISKER_SCALE]
             self.walls = info[1]
             self.status['WALLAVOID'] = True
             print "WALLAVOID active"
@@ -495,7 +507,7 @@ class SteeringBehavior(object):
         if self.status['AVOID'] is True:
             force += force_avoid(self.vehicle, self.obstacles)
         if self.status['WALLAVOID'] is True:
-            force += force_wallavoid(self.vehicle, self.whiskers, self.walls)
+            force += force_wallavoid(self.vehicle, self.whiskers, self.whisker_lengths, self.walls)
         if self.status['GUARD'] is True:
             force += force_guard(self.vehicle, self.guard_this, self.guard_from, self.guard_aggr)
         if self.status['FOLLOW'] is True:

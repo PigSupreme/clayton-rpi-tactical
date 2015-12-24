@@ -330,8 +330,8 @@ class Point2d(object):
 
         Returns
         -------
-        (Point2d, Point2d):
-            (v2,v3) such that self = q*v2 + v3, where v2 is in the
+        Point2d, Point2d:
+            v2,v3 such that self = q*v2 + v3, where v2 is in the
             span of direction and v2 and v3 are orthogonal.
 
         Example
@@ -347,7 +347,7 @@ class Point2d(object):
         """
         parallel = self.proj(direction)
         perp = self - parallel
-        return (parallel, perp)
+        return parallel, perp
 
     def left_normal(self):
         """Returns the left-facing normal of this vector

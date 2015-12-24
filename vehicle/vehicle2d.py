@@ -375,11 +375,12 @@ if __name__ == "__main__":
     wall_list = [SimpleWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
                  SimpleWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
                  SimpleWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
-                 SimpleWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0))]
-                 
-#                 SimpleWall2d((sc_width//2, sc_height//2), min(sc_width,sc_height), 4, Point2d(1,1)),
-#                 SimpleWall2d((sc_width//2, sc_height//2), min(sc_width,sc_height), 4, Point2d(-1,-1))
-#                 ]
+                 SimpleWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0)),
+#                 SimpleWall2d((2+sc_width//2, 2+sc_height//2), min(sc_width,sc_height), 4, Point2d(1,1)),
+#                 SimpleWall2d((sc_width//2, sc_height//2), min(sc_width,sc_height), 4, Point2d(-1,-1)),
+                 SimpleWall2d((sc_width//3, sc_height//2), sc_height//3, 4, Point2d(1,0)),
+                 SimpleWall2d((sc_width//3-2, sc_height//2), sc_height//3, 4, Point2d(-1,0))
+                 ]
     
     obj.extend(wall_list)
         
