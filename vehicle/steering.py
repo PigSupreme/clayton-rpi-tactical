@@ -25,6 +25,8 @@ AVOID_MIN_LENGTH = 25.0
 # Tweaking constant for braking force of AVOID obstacles
 AVOID_BRAKE_WEIGHT = 2.0
 
+# Avoid Walls: Percentage length of side whiskers relative to front whisker
+WALLAVOID_WHISKER_SCALE = 0.6
 
 # Random number generator
 from random import Random
@@ -222,36 +224,57 @@ def force_avoid(owner, obs_list):
     else:
         return Point2d(0,0)
 
-def force_wallavoid(owner, whisk_len, wall_list):
-    """Steering force for WALLAVOID behaviour, one front whisker"""
-
-    closest_wall = None
-    # Front whisker
-    fr_min = whisk_len
+def force_wallavoid(owner, whisk_list, wall_list):
+    """Steering force for WALLAVOID behaviour, dynamic list of whiskers.
     
-    # Find the closest wall intersecting the foward whisker
+    Comment me!
+    """
+
+    n = len(whisk_list)
+    whisk_front = []
+    whisk_len = []
+    t_min = []
+    closest_wall = []
+    
+    # Vector information for each whisker
+    for whisker in whisk_list:
+        front = owner.front.scale(whisker[0]) + owner.left.scale(whisker[1])
+        flen = front.norm()
+        whisk_front.append(front.scale(1/flen))
+        whisk_len.append(flen)
+        t_min.append(flen)
+        closest_wall.append(None)
+    
+    # Find the closest wall intersecting each whisker
     for wall in wall_list:
-        # Is vehicle in front and whisker tip behind wall's infinite line?
-        try:
-            t = (wall.front * (wall.pos - owner.pos))/(wall.front * owner.front)
-        except ZeroDivisionError:
-            # Vehicle is facing parallel to wall in this case
-            continue  
-        if 0 < t < fr_min:
-            # Is the point of intersection actually on the wall segment?
-            poi = owner.pos + owner.front.scale(t)
-            if (wall.pos - poi).sqnorm() < wall.rsq:
-                # This is the closest intersecting wall so far
-                closest_wall = wall
-                closest_poi = poi
-                fr_min = t
-                
-    if closest_wall is not None:
-        target = closest_poi + closest_wall.front.scale((whisk_len - fr_min/2)*owner.vel.sqnorm())
-        closest_wall.tagged = True
-        return force_seek(owner, target)
-    else:
-        return Point2d(0,0)
+        # TODO: Check against wall radius for better efficiency??        
+        
+        # Numerator of intersection test is the same for each whisker
+        tnum = wall.front * (wall.pos - owner.pos)
+        for i in range(n):
+            # Is vehicle in front and whisker tip behind wall's infinite line?
+            try:
+                t = tnum / (wall.front * whisk_front[i])
+            except ZeroDivisionError:
+                # Whisker is facing parallel to wall in this case
+                continue  
+            if 0 < t < t_min[i]:
+                # Is the point of intersection actually on the wall segment?
+                poi = owner.pos + whisk_front[i].scale(t)
+                if (wall.pos - poi).sqnorm() < wall.rsq:
+                    # This is the closest intersecting wall so far
+                    closest_wall[i] = wall
+                    t_min[i] = t
+                    
+    # For each whisker, add the force away from the closest wall (if any)
+    result = Point2d(0,0)
+    for i in range(n):
+        if closest_wall[i] is not None:
+            depth = whisk_len[i] - t_min[i]
+            result += closest_wall[i].front.scale(depth)
+
+    # Scale by onwer radius; bigger objects should tend to stay away
+    return result.scale(owner.radius)
         
 def force_guard(owner, guard_this, guard_from, aggro):
     """Steering force for GUARD behavior.
@@ -423,10 +446,11 @@ class SteeringBehavior(object):
         if 'WALLAVOID' in keylist:
             info = kwargs['WALLAVOID']
             # TODO: Fix arguments, check errors
-            self.front_whisker= info[0]
+            fl = info[0]
+            self.whiskers = [(fl,0), (fl*0.6, fl*0.6), (fl*0.6, -fl*0.6)]
             self.walls = info[1]
             self.status['WALLAVOID'] = True
-            print "WALLAVOID active."
+            print "WALLAVOID active"
             
         if 'GUARD' in keylist:
             info = kwargs['GUARD']
@@ -471,7 +495,7 @@ class SteeringBehavior(object):
         if self.status['AVOID'] is True:
             force += force_avoid(self.vehicle, self.obstacles)
         if self.status['WALLAVOID'] is True:
-            force += force_wallavoid(self.vehicle, self.front_whisker, self.walls)
+            force += force_wallavoid(self.vehicle, self.whiskers, self.walls)
         if self.status['GUARD'] is True:
             force += force_guard(self.vehicle, self.guard_this, self.guard_from, self.guard_aggr)
         if self.status['FOLLOW'] is True:

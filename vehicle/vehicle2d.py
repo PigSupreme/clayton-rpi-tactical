@@ -357,7 +357,7 @@ if __name__ == "__main__":
     vel = Point2d(20,0)
 
     # Array of vehicles for pygame
-    obj = [PointMass2d(img[i], rec[i], pos[i], 20, vel) for i in range(numveh)]
+    obj = [PointMass2d(img[i], rec[i], pos[i], 50, vel) for i in range(numveh)]
 
     # Static obstacles for pygame
     yoffset = sc_height/(numobs+1)
@@ -394,7 +394,7 @@ if __name__ == "__main__":
     # Big red arrow: Wander and Avoid obstacles
     obj[0].maxspeed = 4.0
     obj[0].steering.set_target(WANDER=[250, 50, 10])
-    obj[0].raduis = 100
+    obj[0].radius = 100
 
     #Old examples
     #obj[1].steering.set_target(SEEK = Point2d(500,300))
@@ -416,7 +416,7 @@ if __name__ == "__main__":
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
-        obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[100,wall_list])
+        obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[50,wall_list])
 
     ### End of vehicle behavior ###
 
