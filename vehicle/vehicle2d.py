@@ -403,11 +403,11 @@ if __name__ == "__main__":
 
     # Yellow arrow: Guard RED from GREEN leader
     obj[1].maxspeed = 5.0
-    obj[1].steering.set_target(GUARD=[obj[0], obj[2], 0.65])
+    obj[1].steering.set_target(GUARD=[obj[0], obj[2], 0.2])
 
     # Green arrow leader; TAKECOVER from YELLOW
     obj[2].maxspeed = 3.0
-    obj[2].steering.set_target(TAKECOVER=[obj[1], obslist, 200])   
+    obj[2].steering.set_target(PURSUE=obj[0], TAKECOVER=[obj[1], obslist, 200, True])   
     # This was old demo:    
     #obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1]) 
 

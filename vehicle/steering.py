@@ -29,6 +29,11 @@ AVOID_BRAKE_WEIGHT = 2.0
 # Avoid Walls: Percentage length of side whiskers relative to front whisker
 WALLAVOID_WHISKER_SCALE = 0.8
 
+# Take cover: For stalking, set this to cos^2(theta), where theta is the max
+# angle from predator's front vector. The stalker will not hide unless within
+# this angle of view.
+TAKECOVER_STALK_T = 0.1 
+
 # Random number generator
 from random import Random
 rand_gen = Random()
@@ -225,7 +230,7 @@ def force_avoid(owner, obs_list):
     else:
         return Point2d(0,0)
 
-def force_takecover(owner, predator, obs_list, max_range):
+def force_takecover(owner, predator, obs_list, max_range, stalk=False):
     """Steering force for TAKECOVER behind obstacle.
     
     Owner attempts to move to the nearest position that will put an obstacle
@@ -234,6 +239,13 @@ def force_takecover(owner, predator, obs_list, max_range):
     
     MOAR COMMENTS HERE.
     """
+    
+    # If owner is stalking, don't hide unless in front of predator 
+    if stalk:
+        hide_dir = (owner.pos - predator.pos)
+        if (hide_dir * predator.front)**2 < hide_dir.sqnorm()*TAKECOVER_STALK_T:
+            return Point2d(0,0)
+        
     
     best_dsq = max_range*max_range
     best_pos = None
@@ -473,6 +485,7 @@ class SteeringBehavior(object):
             self.sniper = info[0]
             self.coverlist = info[1]
             self.cover_dist = info[2]
+            self.stalk = info[3]
             self.status['TAKECOVER'] = True
             print "TAKECOVER active."
             
@@ -541,7 +554,7 @@ class SteeringBehavior(object):
         if self.status['EVADE'] is True:
             force += force_evade(self.vehicle, self.targets['EVADE'])
         if self.status['TAKECOVER'] is True:
-            force += force_takecover(self.vehicle, self.sniper, self.coverlist, self.cover_dist)
+            force += force_takecover(self.vehicle, self.sniper, self.coverlist, self.cover_dist, self.stalk)
         if self.status['WANDER'] is True:
             force += force_wander(self)
         if self.status['AVOID'] is True:
