@@ -156,11 +156,13 @@ def force_evade(owner, predator):
     ptime = predator_offset.norm()/(owner.maxspeed + predator.vel.norm())
     return force_flee(owner, predator.vel.scale(ptime) + predator.pos, EVADE_PANIC_SQ)
 
-def force_wander(steering):
+def force_wander(owner, steering):
     """Steering force for WANDER behavior.
 
     Parameters
     ----------
+    owner: Vehicle
+        The vehicle computing this force
     steering: SteeringBehavior
         An instance of SteeringBehavior (*not* a Vehicle, see note below)
 
@@ -170,15 +172,15 @@ def force_wander(steering):
     circle), so we need access to the SteeringBehavior itself instead of the
     vehicle that owns it.
     """
-    owner = steering.vehicle
-    target, dist, rad, jitter = steering.targets['WANDER']
+    params = steering.wander_params
+    jitter = params[2]
 
     # Add a random displacement to previous target and reproject
-    target += Point2d(rand_uni(jitter), rand_uni(jitter))
+    target = steering.wander_target + Point2d(rand_uni(jitter), rand_uni(jitter))
     target.normalize()
-    target = target.scale(rad)
-    steering.targets['WANDER'][0] = target
-    return force_seek(owner, owner.pos + target + owner.front.scale(dist))
+    target = target.scale(params[1])
+    steering.wander_target = target
+    return force_seek(owner, owner.pos + target + owner.front.scale(params[0]))
 
 def force_avoid(owner, obs_list):
     """Steering force for AVOID stationary obstacles behaviour.
@@ -420,11 +422,11 @@ class SteeringBehavior(object):
 
         Parameters
         ----------
-        SEEK: Point2d, optional
+        SEEK: (float, float), optional
             If given, the vehicle will begin SEEKing towards this point.
-        FLEE: Point2d, optional
+        FLEE: (float, float), optional
             If given, the vehicle will begin FLEEing towards this point.
-        ARRIVE: Point2d, optional
+        ARRIVE: (float, float), optional
             If given, the vehicle will begin ARRIVEing towards this point.
         PURSUE: PointMass2d, optional
             If given, the vehicle will begin PURSUEing the prey.
@@ -432,74 +434,75 @@ class SteeringBehavior(object):
             If given, the vehicle will begin EVADEing the predator
         TAKECOVER: PointMass2d, optional
             If given, the vehicle will try to TAKECOVER from the predator.
-        WANDER: list of int or float, optional
-            [Distance, Radius, Jitter]
-        AVOID: list of PointMass2d, optional
-            List of obstacles to be avoided.
-        WALLAVOID: list of SimpleWall2d, optional
+        WANDER: tuple of int or float, optional
+            (Distance, Radius, Jitter) for WANDER behaviour
+        AVOID: tuple of PointMass2d, optional
+            Tuple (iterable ok?) of obstacles to be avoided.
+        WALLAVOID: tuple of SimpleWall2d, optional
             List of walls to be avoided
-        GUARD: [Vehicle, Vehicle, float], optional
-            [GuardTarget, GuardFrom, AggressivePercent]
-        FOLLOW: [Vehicle, Point2d], optional
-            [Leader, OffsetFromLeader]
+        GUARD: (Vehicle, Vehicle, float), optional
+            (GuardTarget, GuardFrom, AggressivePercent)
+        FOLLOW: (Vehicle, Point2d), optional
+            (Leader, OffsetFromLeader)
+            
+        Note
+        ----
+        Except for SEEK, FLEE, and ARRIVE, it might be possible to give
+        the parameters for some behaviours as lists or sets. Test this.
 
         """
         keylist = kwargs.keys()
         if 'SEEK' in keylist:
             target = kwargs['SEEK']
             # TODO: Error checking here.
-            self.targets['SEEK'] = target
+            self.targets[force_seek] = (Point2d(*target),)
             self.status['SEEK'] = True
             print "SEEK active."
 
         if 'FLEE' in keylist:
             target = kwargs['FLEE']
             # TODO: Error checking here.
-            self.targets['FLEE'] = target
+            self.targets[force_flee] = (Point2d(*target),)
             self.status['FLEE'] = True
             print "FLEE active."
 
         if 'ARRIVE' in keylist:
             target = kwargs['ARRIVE']
             # TODO: Error checking here.
-            self.targets['ARRIVE'] = target
+            self.targets[force_arrive] = (Point2d(*target),)
             self.status['ARRIVE'] = True
             print "ARRIVE active."
 
         if 'PURSUE' in keylist:
             prey = kwargs['PURSUE']
             # TODO: Error checking here.
-            self.targets['PURSUE'] = prey
+            self.targets[force_pursue] = (prey,)
             self.status['PURSUE'] = True
             print "PURSUE active."
 
         if 'EVADE' in keylist:
             predator = kwargs['EVADE']
             # TODO: Error checking here.
-            self.targets['EVADE'] = predator
+            self.targets[force_evade] = (predator,)
             self.status['EVADE'] = True
             print "EVADE active."
             
         if 'TAKECOVER' in keylist:
-#            info = kwargs['TAKECOVER']
-#            self.sniper = info[0]
-#            self.coverlist = info[1]
-#            self.cover_dist = info[2]
-#            self.stalk = info[3]
-            self.targets['TAKECOVER'] = kwargs['TAKECOVER']
+            self.targets[force_takecover] = kwargs['TAKECOVER']
             self.status['TAKECOVER'] = True
             print "TAKECOVER active."
             
         if 'WANDER' in keylist:
-            wander_params = kwargs['WANDER']
             # TODO: Fix arguments, check errors
-            wander_params.insert(0, self.vehicle.front)
-            self.targets['WANDER'] = wander_params
+            self.wander_params = kwargs['WANDER']
+            self.wander_target = self.vehicle.front
+            # Next line may seem weird, but needed for unified interface.
+            self.targets[force_wander] = (self,)
             self.status['WANDER'] = True
             print "WANDER active."
 
         if 'AVOID' in keylist:
-            self.targets['AVOID'] = kwargs['AVOID']
+            self.targets[force_avoid] = (kwargs['AVOID'],)
             # TODO: Fix arguments, check errors
             # Currently we're passing a list of PointMass2d's
             self.status['AVOID'] = True
@@ -511,18 +514,18 @@ class SteeringBehavior(object):
             # Three whiskers: Front and left/right by 45 degrees
             whiskers = [Point2d(1,0), Point2d(SQRT_HALF, SQRT_HALF), Point2d(SQRT_HALF, -SQRT_HALF)]
             whisker_lengths = [info[0]] + 2*[info[0]*WALLAVOID_WHISKER_SCALE]
-            self.targets['WALLAVOID'] = [whiskers, whisker_lengths, info[1]]
+            self.targets[force_wallavoid] = [whiskers, whisker_lengths, info[1]]
             self.status['WALLAVOID'] = True
             print "WALLAVOID active"
             
         if 'GUARD' in keylist:
-            self.targets['GUARD'] = kwargs['GUARD']
+            self.targets[force_guard] = kwargs['GUARD']
             # TODO: Check for errors
             self.status['GUARD'] = True
             print "GUARD active."
 
         if 'FOLLOW' in keylist:
-            self.targets['FOLLOW'] = kwargs['FOLLOW']
+            self.targets[force_follow] = kwargs['FOLLOW']
             # TODO: Check for errors
             self.status['FOLLOW'] = True
             print "FOLLOW leader active."
@@ -534,33 +537,15 @@ class SteeringBehavior(object):
         -------
         Point2d: Steering force.
         """
-        # TODO: Add behaviours below
-        # TODO: Iterate over self.status instead of using lots of if's
-        force = Point2d(0,0)
-        if self.status['SEEK'] is True:
-            force += force_seek(self.vehicle, self.targets['SEEK'])
-        if self.status['FLEE'] is True:
-            force += force_flee(self.vehicle, self.targets['FLEE'])
-        if self.status['ARRIVE'] is True:
-            force += force_arrive(self.vehicle, self.targets['ARRIVE'])
-        if self.status['PURSUE'] is True:
-            force += force_pursue(self.vehicle, self.targets['PURSUE'])
-        if self.status['EVADE'] is True:
-            force += force_evade(self.vehicle, self.targets['EVADE'])
-        if self.status['TAKECOVER'] is True:
-            force += force_takecover(self.vehicle, *self.targets['TAKECOVER'])
-        if self.status['WANDER'] is True:
-            # WANDER uses persistent data from SteeringBehavior class,
-            # so we have to pass that instead of the vehicle.
-            force += force_wander(self)
-        if self.status['AVOID'] is True:
-            force += force_avoid(self.vehicle, self.targets['AVOID'])
-        if self.status['WALLAVOID'] is True:
-            force += force_wallavoid(self.vehicle, *self.targets['WALLAVOID'])
-        if self.status['GUARD'] is True:
-            force += force_guard(self.vehicle, *self.targets['GUARD'])
-        if self.status['FOLLOW'] is True:
-            force += force_follow(self.vehicle, *self.targets['FOLLOW'])
+        force = Point2d(0,0)     
+        owner = self.vehicle
+        # This assumes self.targets is a dictionary with keys equal to 
+        # appropriate force_foo functons, and values equal to the parameters
+        # to be passed. All force_ functions take a vehicle as their first
+        # argument; we look this up here and do not store in self.targets.
+        for f, t in self.targets.iteritems():
+            force += f(owner, *t)
+
 
         return force
 

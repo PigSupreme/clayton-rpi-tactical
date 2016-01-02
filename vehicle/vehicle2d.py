@@ -372,15 +372,15 @@ if __name__ == "__main__":
     obslist = obj[numveh:]
 
     # Static Walls for pygame: TESTING
-    wall_list = [SimpleWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
+    wall_list = (SimpleWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
                  SimpleWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
                  SimpleWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
-                 SimpleWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0))]
+                 SimpleWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0)))
 #                 SimpleWall2d((2+sc_width//2, 2+sc_height//2), min(sc_width,sc_height), 4, Point2d(1,1)),
 #                 SimpleWall2d((sc_width//2, sc_height//2), min(sc_width,sc_height), 4, Point2d(-1,-1)),
 #                 SimpleWall2d((sc_width//3, sc_height//2), sc_height//3, 4, Point2d(1,0)),
 #                 SimpleWall2d((sc_width//3-2, sc_height//2), sc_height//3, 4, Point2d(-1,0))
-#                 ]
+#                 }
     
     obj.extend(wall_list)
         
@@ -394,28 +394,28 @@ if __name__ == "__main__":
 
     # Big red arrow: Wander and Avoid obstacles
     obj[0].maxspeed = 4.0
-    obj[0].steering.set_target(WANDER=[250, 50, 10])
+    obj[0].steering.set_target(WANDER=(250, 50, 10))
     obj[0].radius = 100
 
-    #Old examples
-    #obj[1].steering.set_target(SEEK = Point2d(500,300))
-    #obj[1].steering.set_target(FLEE = Point2d(500,400))
+    #Old examples, updated for new syntax
+    #obj[1].steering.set_target(SEEK=(500,300))
+    #obj[1].steering.set_target(FLEE=(500,400))
 
     # Yellow arrow: Guard RED from GREEN leader
     obj[1].maxspeed = 5.0
-    obj[1].steering.set_target(GUARD=[obj[0], obj[2], 0.2])
+    obj[1].steering.set_target(GUARD=(obj[0], obj[2], 0.2))
 
     # Green arrow leader; TAKECOVER from YELLOW
     obj[2].maxspeed = 3.0
-    obj[2].steering.set_target(PURSUE=obj[0], TAKECOVER=[obj[1], obslist, 200, True])   
+    obj[2].steering.set_target(PURSUE=obj[0], TAKECOVER=(obj[1], obslist, 200, True))   
     # This was old demo:    
     #obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1]) 
 
     # Green arrow followers: Follow GREEN leader and evade YELLOW
     obj[3].maxspeed = 3.0
-    obj[3].steering.set_target(FOLLOW=[obj[2], Point2d(-20,20)], EVADE=obj[1])
+    obj[3].steering.set_target(FOLLOW=(obj[2], Point2d(-20,20)), EVADE=obj[1])
     obj[4].maxspeed = 3.0
-    obj[4].steering.set_target(FOLLOW=[obj[2], Point2d(-20,-20)], EVADE=obj[1])
+    obj[4].steering.set_target(FOLLOW=(obj[2], Point2d(-20,-20)), EVADE=obj[1])
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
