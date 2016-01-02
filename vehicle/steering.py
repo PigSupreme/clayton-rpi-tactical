@@ -481,11 +481,12 @@ class SteeringBehavior(object):
             print "EVADE active."
             
         if 'TAKECOVER' in keylist:
-            info = kwargs['TAKECOVER']
-            self.sniper = info[0]
-            self.coverlist = info[1]
-            self.cover_dist = info[2]
-            self.stalk = info[3]
+#            info = kwargs['TAKECOVER']
+#            self.sniper = info[0]
+#            self.coverlist = info[1]
+#            self.cover_dist = info[2]
+#            self.stalk = info[3]
+            self.targets['TAKECOVER'] = kwargs['TAKECOVER']
             self.status['TAKECOVER'] = True
             print "TAKECOVER active."
             
@@ -498,10 +499,9 @@ class SteeringBehavior(object):
             print "WANDER active."
 
         if 'AVOID' in keylist:
-            obstacle_list = kwargs['AVOID']
+            self.targets['AVOID'] = kwargs['AVOID']
             # TODO: Fix arguments, check errors
             # Currently we're passing a list of PointMass2d's
-            self.obstacles = obstacle_list
             self.status['AVOID'] = True
             print "AVOID obstacles active."
 
@@ -509,26 +509,21 @@ class SteeringBehavior(object):
             info = kwargs['WALLAVOID']
             # TODO: Fix arguments, check errors
             # Three whiskers: Front and left/right by 45 degrees
-            self.whiskers = [Point2d(1,0), Point2d(SQRT_HALF, SQRT_HALF), Point2d(SQRT_HALF, -SQRT_HALF)]
-            self.whisker_lengths = [info[0]] + 2*[info[0]*WALLAVOID_WHISKER_SCALE]
-            self.walls = info[1]
+            whiskers = [Point2d(1,0), Point2d(SQRT_HALF, SQRT_HALF), Point2d(SQRT_HALF, -SQRT_HALF)]
+            whisker_lengths = [info[0]] + 2*[info[0]*WALLAVOID_WHISKER_SCALE]
+            self.targets['WALLAVOID'] = [whiskers, whisker_lengths, info[1]]
             self.status['WALLAVOID'] = True
             print "WALLAVOID active"
             
         if 'GUARD' in keylist:
-            info = kwargs['GUARD']
+            self.targets['GUARD'] = kwargs['GUARD']
             # TODO: Check for errors
-            self.guard_this = info[0]
-            self.guard_from = info[1]
-            self.guard_aggr = info[2]
             self.status['GUARD'] = True
             print "GUARD active."
 
         if 'FOLLOW' in keylist:
-            info = kwargs['FOLLOW']
+            self.targets['FOLLOW'] = kwargs['FOLLOW']
             # TODO: Check for errors
-            self.leader = info[0]
-            self.leader_offset = info[1]
             self.status['FOLLOW'] = True
             print "FOLLOW leader active."
 
@@ -541,7 +536,6 @@ class SteeringBehavior(object):
         """
         # TODO: Add behaviours below
         # TODO: Iterate over self.status instead of using lots of if's
-        # TODO: Fix parameters to use self. targets instead of ad-hoc locals
         force = Point2d(0,0)
         if self.status['SEEK'] is True:
             force += force_seek(self.vehicle, self.targets['SEEK'])
@@ -554,17 +548,19 @@ class SteeringBehavior(object):
         if self.status['EVADE'] is True:
             force += force_evade(self.vehicle, self.targets['EVADE'])
         if self.status['TAKECOVER'] is True:
-            force += force_takecover(self.vehicle, self.sniper, self.coverlist, self.cover_dist, self.stalk)
+            force += force_takecover(self.vehicle, *self.targets['TAKECOVER'])
         if self.status['WANDER'] is True:
+            # WANDER uses persistent data from SteeringBehavior class,
+            # so we have to pass that instead of the vehicle.
             force += force_wander(self)
         if self.status['AVOID'] is True:
-            force += force_avoid(self.vehicle, self.obstacles)
+            force += force_avoid(self.vehicle, self.targets['AVOID'])
         if self.status['WALLAVOID'] is True:
-            force += force_wallavoid(self.vehicle, self.whiskers, self.whisker_lengths, self.walls)
+            force += force_wallavoid(self.vehicle, *self.targets['WALLAVOID'])
         if self.status['GUARD'] is True:
-            force += force_guard(self.vehicle, self.guard_this, self.guard_from, self.guard_aggr)
+            force += force_guard(self.vehicle, *self.targets['GUARD'])
         if self.status['FOLLOW'] is True:
-            force += force_follow(self.vehicle, self.leader, self.leader_offset)
+            force += force_follow(self.vehicle, *self.targets['FOLLOW'])
 
         return force
 
