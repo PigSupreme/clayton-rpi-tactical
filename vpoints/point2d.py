@@ -114,6 +114,32 @@ class Point2d(object):
         y = scalar * self.y
         return Point2d(x, y)
 
+    def rotated_by(self, angle, use_deg = False):
+        """Get this vector rotated anticlockwise.
+        
+        Parameters
+        ----------
+        angle: int or float
+            Directed anticlockwise angle to rotate by,
+        degrees: boolean
+            If True, angle is in degrees. Otherwise radians (default)
+        
+        
+        Example
+        -------
+        >>> a = Point2d(2,-2)
+        >>> print(a.rotated_by(3.14159))
+        Point2d: <-1.999995, 2.000005>
+        >>> print(a.rotated_by(90,True))
+        Point2d: <2.000000, 2.000000>
+        """
+        if use_deg is True:
+            angle = angle / 57.2957795131
+        
+        c = cos(angle)
+        s = sin(angle)
+        return Point2d(c*self.x - s*self.y, s*self.x + c*self.y)
+
     def norm(self):
         """Get the norm (length) of this vector.
 
@@ -304,8 +330,8 @@ class Point2d(object):
 
         Returns
         -------
-        (Point2d, Point2d):
-            (v2,v3) such that self = q*v2 + v3, where v2 is in the
+        Point2d, Point2d:
+            v2,v3 such that self = q*v2 + v3, where v2 is in the
             span of direction and v2 and v3 are orthogonal.
 
         Example
@@ -321,11 +347,11 @@ class Point2d(object):
         """
         parallel = self.proj(direction)
         perp = self - parallel
-        return (parallel, perp)
-        
+        return parallel, perp
+
     def left_normal(self):
         """Returns the left-facing normal of this vector
-        
+
         Example
         -------
         >>> a = Point2d(1, -2)
@@ -333,11 +359,11 @@ class Point2d(object):
         Point2d: <2.000000, 1.000000>
         """
         return Point2d(-self.y, self.x)
-    
+
     def __setitem__(self, index, value):
-        """Allows a value to be assigned to each vector components; 
+        """Allows a value to be assigned to each vector components;
         indexed starting at 0
-        
+
         Example
         -------
         >>> a = Point2d(1, -2)
@@ -365,11 +391,14 @@ if __name__ == "__main__":
     print("a-b = %s" % str(a-b))
     print("a*b = %s" % str(a*b))
     print("sqrt(2)a = %s" % a.scale(sqrt(2)))
+    
+    print("a rotated by 90 degrees = %s" % a.rotated_by(90,True))
+    print("b rotated by -pi/3 radians = %s" % b.rotated_by(-1.0471975511965976))
 
     na = a.norm()
     print("||a|| = %s" % na)
     print("||a||^2 = %s" % a.sqnorm())
-    print("Unit vector in direction of a: %s, which has norm %s" % (a.unit(),a.unit().norm()))
+    print("Unit vector in direction of a: %s, which has norm %s" % (a.unit(), a.unit().norm()))
 
     a.normalize()
     print("Normalized a = %s" % a)
@@ -377,7 +406,7 @@ if __name__ == "__main__":
     aa = a.angle()
     print("Angle of a = %f radians" % aa)
     from math import cos, sin
-    print("Rebuilding vector a from norm and angle: <%f,%f>" % (na*cos(aa),na*sin(aa)))
+    print("Rebuilding vector a from norm and angle: <%f,%f>" % (na*cos(aa), na*sin(aa)))
 
     b.truncate(1)
     print("Truncated b to norm 1: %s" % b)
@@ -385,7 +414,7 @@ if __name__ == "__main__":
     projab = a/b
     print("Signed length of projection of a onto b = %f" % projab)
     c = a.proj(b)
-    print("Projection of a onto b is %s with length %f" % (c,c.norm()))
+    print("Projection of a onto b is %s with length %f" % (c, c.norm()))
 
     print("Signed length of projection of a onto c = %f" % (a/c))
 
@@ -397,4 +426,4 @@ if __name__ == "__main__":
     print("Dot product of resolved vectors = %f" % (cframe[0]*cframe[1]))
     print("Dot product of b with perpendicular = %f" % (b*cframe[1]))
     print("Sum of resolved vectors = %s" % (cframe[0]+cframe[1]))
-    
+

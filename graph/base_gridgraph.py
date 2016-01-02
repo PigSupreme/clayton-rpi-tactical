@@ -87,10 +87,12 @@ class GridGraph(object):
 
     def active_neighbors(self, node):
         """Get a list of active neighbors for the given node.
-        Paramters
-        ---------
+
+        Parameters
+        ----------
         node: 2-tuple of int
             Grid coordinates of the given node.
+
         Note
         ----
         For performance reasons, this does not check if node is valid.
