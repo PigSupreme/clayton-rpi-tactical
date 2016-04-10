@@ -544,7 +544,6 @@ class SteeringBehavior(object):
         ALIGN: List of Vehicle, optional
             Vehicle list to flock against
         COHESION: List of Vehicle, optional
-            Vehicle list to flock against
             
         Note
         ----
