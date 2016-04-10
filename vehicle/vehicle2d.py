@@ -193,7 +193,7 @@ class PointMass2d(pygame.sprite.Sprite):
         ## TODO: Put these in the function argument, perhaps as **kwargs
         self.mass = float(1.0)
         self.maxspeed = float(5.0)
-        self.maxforce = float(1.5)
+        self.maxforce = float(3.5)
 
         # Steering behavior class for this object.
         self.steering = SteeringBehavior(self)

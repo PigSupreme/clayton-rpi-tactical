@@ -34,6 +34,10 @@ WALLAVOID_WHISKER_SCALE = 0.8
 # this angle of view.
 TAKECOVER_STALK_T = 0.1 
 
+# For simplicity, we multiply the vehicle's bounding radius by this constant
+# to determine the local neighborhood radius for group behaviours.
+FLOCKING_RADIUS_MULTIPLIER = 3.0
+
 # Random number generator
 from random import Random
 rand_gen = Random()
@@ -385,7 +389,95 @@ def force_follow(owner, leader, offset):
     target_pos += leader.vel.scale(ptime)
     return force_arrive(owner, target_pos, 1.5)
 
+##############################################
+### Group (flocking) behaviours start here ###
+##############################################
 
+def get_neighbor_vehicles(owner, vlist):
+    """Returns a list of nearby vehicles for use with group behaviours.
+    
+    Parameters
+    ----------
+    owner: Vehicle
+        The vehicle at the center of the neighborhood.
+    vlist: List of Vehicle
+        List of vehicles to be checked against. See Notes below.
+        
+    Notes
+    -----
+    This function checks other vehicles based only on their distance to owner.
+    This allows for pre-processing (such as spaitial partitioning or flocking
+    with certain vehicles only); the results of which are passed in as vlist.
+    """
+    n_radius = owner.radius * FLOCKING_RADIUS_MULTIPLIER
+    neighbor_list = list()
+    for other in vlist:
+        if other is not owner:
+            min_range = n_radius + other.radius
+            offset = other.pos - owner.pos
+            if offset.sqnorm() < min_range * min_range:
+                neighbor_list.append(other)    
+    return neighbor_list
+
+def force_separate(owner, flock_list):
+    """Steering force for SEPARATE group behaviour.
+    
+    Parameters
+    ----------
+    owner: Vehicle
+        The vehicle computing this force.
+    flock_list: List of Vehicle
+        Neighboring vehicles to separate from.
+        
+    Notes
+    -----
+    For each neighbor, include a force away from that neighbor with magnitude
+    inversely proprotional to distance from that neighbor.
+    """
+    # TODO: Update this with dynamic neighbors
+    result = Point2d(0,0)
+    neighbors = get_neighbor_vehicles(owner, flock_list)
+    for other in neighbors:
+        if other is not owner:
+            offset = owner.pos - other.pos
+            result += offset.scale(1/offset.sqnorm())
+    return result
+
+def force_align(owner, flock_list):
+    """Steering force for ALIGN group behaviour."""
+    # TODO: Update this with dynamic neighbors    
+    result = Point2d(0,0)
+    n = 0
+    neighbors = get_neighbor_vehicles(owner, flock_list)
+    for other in neighbors:
+        if other is not owner:
+            result += other.front
+            n += 1
+    if n > 0:
+        result = result.scale(1.0/n)
+        result -= owner.front
+    return result
+        
+def force_cohesion(owner, flock_list):
+    """Steering force for COHESION group behaviour."""
+    # TODO: Update this with dynamic neighbors    
+    center = Point2d(0,0)
+    n = 0
+    neighbors = get_neighbor_vehicles(owner, flock_list)
+    for other in neighbors:
+        if other is not owner:
+            center += other.pos
+            n += 1
+    if n > 0:
+        center = center.scale(1.0/n)
+        return force_seek(owner, center)
+    else:
+        return Point2d(0,0)
+            
+
+#########################################################
+### "Navigator-type class to control vehicle steering ###
+#########################################################
 
 class SteeringBehavior(object):
     """Helper class for managing a vehicle's autonomous steering.
@@ -413,7 +505,10 @@ class SteeringBehavior(object):
                        'AVOID': False,
                        'WALLAVOID': False,
                        'GUARD': False,
-                       'FOLLOW': False
+                       'FOLLOW': False,
+                       'SEPARATE': False,
+                       'ALIGN': False,
+                       'COHESION': False
                        }
         self.targets = dict()
 
@@ -444,6 +539,12 @@ class SteeringBehavior(object):
             (GuardTarget, GuardFrom, AggressivePercent)
         FOLLOW: (Vehicle, Point2d), optional
             (Leader, OffsetFromLeader)
+        SEPARATE: List of Vehicle, optional
+            Vehicle list to flock against
+        ALIGN: List of Vehicle, optional
+            Vehicle list to flock against
+        COHESION: List of Vehicle, optional
+            Vehicle list to flock against
             
         Note
         ----
@@ -529,6 +630,33 @@ class SteeringBehavior(object):
             # TODO: Check for errors
             self.status['FOLLOW'] = True
             print "FOLLOW leader active."
+            
+        if 'SEPARATE' in keylist:
+            n_list = kwargs['SEPARATE']
+            self.vehicle.radius * FLOCKING_RADIUS_MULTIPLIER
+            self.flocking = True
+            # TODO: Make this neighbor-tagging dynamic
+            self.targets[force_separate] = [n_list] 
+            self.status['SEPARATE'] = True
+            print 'SEPARATE (flocking) active.'
+
+        if 'ALIGN' in keylist:
+            n_list = kwargs['ALIGN']
+            self.vehicle.radius * FLOCKING_RADIUS_MULTIPLIER
+            self.flocking = True
+            # TODO: Make this neighbor-tagging dynamic
+            self.targets[force_align] = [n_list] 
+            self.status['ALIGN'] = True
+            print 'ALIGN (flocking) active.'
+            
+        if 'COHESION' in keylist:
+            n_list = kwargs['COHESION']
+            self.vehicle.radius * FLOCKING_RADIUS_MULTIPLIER
+            self.flocking = True
+            # TODO: Make this neighbor-tagging dynamic
+            self.targets[force_cohesion] = [n_list] 
+            self.status['COHESION'] = True
+            print 'COHESION (flocking) active.'
 
     def compute_force(self):
         """Find the required steering force based on current behaviors.
@@ -545,10 +673,11 @@ class SteeringBehavior(object):
         # argument; we look this up here and do not store in self.targets.
         for f, t in self.targets.iteritems():
             force += f(owner, *t)
-
-
         return force
 
+    def compute_force_budgeted(self):
+        # TODO: Set this up!
+        pass
 
 
 

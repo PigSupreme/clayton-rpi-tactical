@@ -12,7 +12,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 
-from math import sqrt, acos
+from math import sqrt, acos, cos, sin
 
 class Point2d(object):
     """Creates a 2d vector, defaulting to <0,0>.
