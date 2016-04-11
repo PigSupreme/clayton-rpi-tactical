@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+# steering.py
 """Module containing BOID steering behavior functions.
 
 Since we typically won't need every single behaviour for a given instance,
@@ -9,6 +9,8 @@ for a given behaviour is named force_name-of-behviour.
 from sys import path
 path.insert(0, '../vpoints')
 from point2d import Point2d
+
+# TODO: Move these constants to their own file
 INF = float('inf')
 from math import sqrt
 SQRT_HALF = sqrt(0.5)
@@ -22,7 +24,7 @@ EVADE_PANIC_SQ = 160**2
 
 # This controls the size of an object detection box for AVOID obstacles
 # Length in front of vehicle is 100%-200% of this
-AVOID_MIN_LENGTH = 25.0
+AVOID_MIN_LENGTH = 25
 # Tweaking constant for braking force of AVOID obstacles
 AVOID_BRAKE_WEIGHT = 2.0
 
@@ -284,7 +286,7 @@ def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
         The vehicle computing this force.
     whisk_units: list of Point2d or 2-tuple
         Whisker UNIT vectors in owner's local coordinates (forward is x+).
-    whisk_lens: list of ositive int or float
+    whisk_lens: list of positive int or float
         Lengths of whiskers, in same order as whisk_units above.
     wall_list: list of SimpleWall2d
         Walls to test for avoidance.        
@@ -416,7 +418,9 @@ def get_neighbor_vehicles(owner, vlist):
             min_range = n_radius + other.radius
             offset = other.pos - owner.pos
             if offset.sqnorm() < min_range * min_range:
-                neighbor_list.append(other)    
+                # Only consider neighbors to the front
+                if offset*owner.front >=0:
+                    neighbor_list.append(other)    
     return neighbor_list
 
 def force_separate(owner, flock_list):
@@ -440,7 +444,7 @@ def force_separate(owner, flock_list):
     for other in neighbors:
         if other is not owner:
             offset = owner.pos - other.pos
-            result += offset.scale(1/offset.sqnorm())
+            result += offset.scale(other.radius/offset.sqnorm())
     return result
 
 def force_align(owner, flock_list):
@@ -451,7 +455,7 @@ def force_align(owner, flock_list):
     neighbors = get_neighbor_vehicles(owner, flock_list)
     for other in neighbors:
         if other is not owner:
-            result += other.front
+            result += other.vel
             n += 1
     if n > 0:
         result = result.scale(1.0/n)
@@ -470,14 +474,14 @@ def force_cohesion(owner, flock_list):
             n += 1
     if n > 0:
         center = center.scale(1.0/n)
-        return force_seek(owner, center)
+        return force_arrive(owner, center)
     else:
         return Point2d(0,0)
             
 
-#########################################################
-### "Navigator-type class to control vehicle steering ###
-#########################################################
+########################################################
+### Navigator-type class to control vehicle steering ###
+########################################################
 
 class SteeringBehavior(object):
     """Helper class for managing a vehicle's autonomous steering.
@@ -544,13 +548,14 @@ class SteeringBehavior(object):
         ALIGN: List of Vehicle, optional
             Vehicle list to flock against
         COHESION: List of Vehicle, optional
-            
-        Note
-        ----
-        Except for SEEK, FLEE, and ARRIVE, it might be possible to give
-        the parameters for some behaviours as lists or sets. Test this.
-
+            Vehicle list to flock against
         """
+#        Note
+#        ----
+#        Except for SEEK, FLEE, and ARRIVE, it might be possible to give
+#        the parameters for some behaviours as lists or sets. Test this.
+#        """
+        
         keylist = kwargs.keys()
         if 'SEEK' in keylist:
             target = kwargs['SEEK']
@@ -632,7 +637,6 @@ class SteeringBehavior(object):
             
         if 'SEPARATE' in keylist:
             n_list = kwargs['SEPARATE']
-            self.vehicle.radius * FLOCKING_RADIUS_MULTIPLIER
             self.flocking = True
             # TODO: Make this neighbor-tagging dynamic
             self.targets[force_separate] = [n_list] 
@@ -641,7 +645,6 @@ class SteeringBehavior(object):
 
         if 'ALIGN' in keylist:
             n_list = kwargs['ALIGN']
-            self.vehicle.radius * FLOCKING_RADIUS_MULTIPLIER
             self.flocking = True
             # TODO: Make this neighbor-tagging dynamic
             self.targets[force_align] = [n_list] 
@@ -650,7 +653,6 @@ class SteeringBehavior(object):
             
         if 'COHESION' in keylist:
             n_list = kwargs['COHESION']
-            self.vehicle.radius * FLOCKING_RADIUS_MULTIPLIER
             self.flocking = True
             # TODO: Make this neighbor-tagging dynamic
             self.targets[force_cohesion] = [n_list] 

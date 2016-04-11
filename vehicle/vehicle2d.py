@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# vehicle2d.py
 """Module containing Vehicle class, for use with Pygame."""
 
 # for python3 compat

@@ -11,7 +11,7 @@ from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
 INF = float('inf')
-FLOCK_RADIUS_OVERRIDE = 4.0
+FLOCK_RADIUS_OVERRIDE = 6.0
 
 # Note: Adjust this depending on where this file ends up.
 sys.path.insert(0, '../vpoints')
@@ -64,13 +64,13 @@ if __name__ == "__main__":
     pygame.init()
 
     # Display constants
-    size = sc_width, sc_height = 1080, 960
+    size = sc_width, sc_height = 800, 640
     screen = pygame.display.set_mode(size)
     bgcolor = 111, 145, 192
 
     # Sprite images and pygame rectangles
-    numveh = 40
-    numobs = 10
+    numveh = 30
+    numobs = 15
     img = list(range(numveh+numobs))
     rec = list(range(numveh+numobs))
 
@@ -131,10 +131,10 @@ if __name__ == "__main__":
     # Flocking demo fails to celebrate its sheep diversity...
     for sheep in vehlist:
         sheep.maxspeed = 8.0
-        sheep.radius = 20
-        sheep.steering.set_target(AVOID=obslist, WALLAVOID=[50, walllist])
+        sheep.maxforce = 12.0
+        sheep.radius = 25
+        sheep.steering.set_target(AVOID=obslist, WALLAVOID=[25, walllist])
         sheep.steering.set_target(SEPARATE=vehlist, ALIGN=vehlist)
-
 
 
     while 1:
@@ -146,9 +146,9 @@ if __name__ == "__main__":
         #for wall in walllist:
         #    wall.tagged = False
 
-        allsprites.update(0.8)
+        allsprites.update(0.5)
 
-        # pygame.time.delay(2)
+        pygame.time.delay(5)
 
         # Render
         screen.fill(bgcolor)
