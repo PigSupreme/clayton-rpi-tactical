@@ -257,6 +257,9 @@ class PointMass2d(pygame.sprite.Sprite):
         # Movement and image rotation:
         self.move(delta_t, force)
         self._rotate_for_blit()
+        
+        # Used to draw force vectors for pygame demos
+        self.force = force
 
         # Simple edge warping
         #self.pos = Point2d(self.pos[0] % sc_width, self.pos[1] % sc_height)

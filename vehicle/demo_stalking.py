@@ -166,12 +166,20 @@ if __name__ == "__main__":
             wall.tagged = False
 
         allsprites.update(0.4)
-
-        # pygame.time.delay(2)
+        
+        pygame.time.delay(20)
 
         # Render
         screen.fill(bgcolor)
         allsprites.draw(screen)
+
+        # Draw the force vectors for each vehicle
+        for i in range(numveh):
+            vehicle = obj[i]
+            g_pos = vehicle.pos
+            g_force = g_pos + vehicle.force.scale(25)
+            pygame.draw.line(screen, (0,0,0), g_pos.ntuple(), g_force.ntuple(), 3)        
+
         pygame.display.flip()
 
     pygame.time.delay(2000)

@@ -32,6 +32,10 @@ class Point2d(object):
     def __str__(self):
         return "Point2d: <%f, %f>" % (self.x, self.y)
 
+    def ntuple(self):
+        """Returns the coordinates of this point in a Python tuple."""
+        return (self.x, self.y)
+
     def __neg__(self):
         """Negates each entry; overrides unary - operator.
 
