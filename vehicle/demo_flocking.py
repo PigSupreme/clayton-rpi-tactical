@@ -11,7 +11,7 @@ from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
 INF = float('inf')
-FLOCK_RADIUS_OVERRIDE = 6.0
+FLOCK_RADIUS_OVERRIDE = 3.0
 
 # Note: Adjust this depending on where this file ends up.
 sys.path.insert(0, '../vpoints')
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     for sheep in vehlist:
         sheep.maxspeed = 8.0
         sheep.maxforce = 12.0
-        sheep.radius = 25
+        sheep.radius = 40
         sheep.steering.set_target(AVOID=obslist, WALLAVOID=[25, walllist])
         sheep.steering.set_target(SEPARATE=vehlist, ALIGN=vehlist)
 

@@ -10,35 +10,13 @@ from sys import path
 path.insert(0, '../vpoints')
 from point2d import Point2d
 
-# TODO: Move these constants to their own file
+# Constants for steering behaviours
+from steering_constants import *
+
+# Math Constants (for readability)
 INF = float('inf')
 from math import sqrt
 SQRT_HALF = sqrt(0.5)
-
-# This contols the gradual deceleration for ARRIVE behavior.
-# Larger values will cause more gradual deceleration
-ARRIVE_DECEL_TWEAK = 10.0
-
-# Used by EVADE; we ignore the predator if it is too far away.
-EVADE_PANIC_SQ = 160**2
-
-# This controls the size of an object detection box for AVOID obstacles
-# Length in front of vehicle is 100%-200% of this
-AVOID_MIN_LENGTH = 25
-# Tweaking constant for braking force of AVOID obstacles
-AVOID_BRAKE_WEIGHT = 2.0
-
-# Avoid Walls: Percentage length of side whiskers relative to front whisker
-WALLAVOID_WHISKER_SCALE = 0.8
-
-# Take cover: For stalking, set this to cos^2(theta), where theta is the max
-# angle from predator's front vector. The stalker will not hide unless within
-# this angle of view.
-TAKECOVER_STALK_T = 0.1 
-
-# For simplicity, we multiply the vehicle's bounding radius by this constant
-# to determine the local neighborhood radius for group behaviours.
-FLOCKING_RADIUS_MULTIPLIER = 3.0
 
 # Random number generator
 from random import Random
@@ -64,7 +42,7 @@ def force_seek(owner, target):
     targetvel = targetvel.scale(owner.maxspeed)
     return targetvel - owner.vel
 
-def force_flee(owner, target, panic_squared=INF):
+def force_flee(owner, target, panic_squared=FLEE_PANIC_SQ):
     """Steering force for FLEE behaviour.
 
     Another simple behaviour that directs the owner away from a given point.
@@ -132,6 +110,8 @@ def force_pursue(owner, prey):
     prey_offset = prey.pos - owner.pos
     # If prey is in front and moving our way, SEEK to prey's position
     # Compute this using dot products; constant below is cos(10 degrees)
+    # TODO: Double-check the math on this. Do we need to account for the
+    #   vectors being non-unit, or check that we're actually facing prey?
     if prey_offset * prey.vel < -0.966:
         return force_seek(owner, prey.pos)
 
@@ -253,7 +233,6 @@ def force_takecover(owner, predator, obs_list, max_range, stalk=False):
         hide_dir = (owner.pos - predator.pos)
         if (hide_dir * predator.front)**2 < hide_dir.sqnorm()*TAKECOVER_STALK_T:
             return Point2d(0,0)
-        
     
     best_dsq = max_range*max_range
     best_pos = None
@@ -331,8 +310,8 @@ def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
             depth = whisk_lens[i] - t_min[i]
             result += closest_wall[i].front.scale(depth)
 
-    # Scale by onwer radius; bigger objects should tend to stay away
-    return result#.scale(owner.radius)
+    # Scale by owner radius; bigger objects should tend to stay away
+    return result.scale(owner.radius)
         
 def force_guard(owner, guard_this, guard_from, aggro):
     """Steering force for GUARD behavior.
@@ -389,7 +368,7 @@ def force_follow(owner, leader, offset):
     diff = target_pos - owner.pos
     ptime = diff.norm() / (owner.maxspeed + leader.vel.norm())
     target_pos += leader.vel.scale(ptime)
-    return force_arrive(owner, target_pos, 1.5)
+    return force_arrive(owner, target_pos, FOLLOW_ARRIVE_HESITANCE)
 
 ##############################################
 ### Group (flocking) behaviours start here ###
@@ -438,18 +417,16 @@ def force_separate(owner, flock_list):
     For each neighbor, include a force away from that neighbor with magnitude
     inversely proprotional to distance from that neighbor.
     """
-    # TODO: Update this with dynamic neighbors
     result = Point2d(0,0)
     neighbors = get_neighbor_vehicles(owner, flock_list)
     for other in neighbors:
         if other is not owner:
             offset = owner.pos - other.pos
-            result += offset.scale(other.radius/offset.sqnorm())
+            result += offset.scale(FLOCKING_SEPARATE_SCALE*other.radius/offset.sqnorm())
     return result
 
 def force_align(owner, flock_list):
     """Steering force for ALIGN group behaviour."""
-    # TODO: Update this with dynamic neighbors    
     result = Point2d(0,0)
     n = 0
     neighbors = get_neighbor_vehicles(owner, flock_list)
@@ -463,8 +440,7 @@ def force_align(owner, flock_list):
     return result
         
 def force_cohesion(owner, flock_list):
-    """Steering force for COHESION group behaviour."""
-    # TODO: Update this with dynamic neighbors    
+    """Steering force for COHESION group behaviour.""" 
     center = Point2d(0,0)
     n = 0
     neighbors = get_neighbor_vehicles(owner, flock_list)
@@ -474,7 +450,7 @@ def force_cohesion(owner, flock_list):
             n += 1
     if n > 0:
         center = center.scale(1.0/n)
-        return force_arrive(owner, center)
+        return force_arrive(owner, center, FLOCKING_COHESHION_HESITANCE)
     else:
         return Point2d(0,0)
             

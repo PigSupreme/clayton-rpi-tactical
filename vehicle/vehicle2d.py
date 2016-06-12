@@ -11,12 +11,12 @@ from pygame.locals import RLEACCEL
 
 INF = float('inf')
 
-# Note: Adjust this depending on where this file ends up.
+# TODO: Adjust this depending on where this file ends up.
 sys.path.insert(0, '../vpoints')
 from point2d import Point2d
 
 from steering import SteeringBehavior
-
+from steering_constants import *
 
 # Point2d functions return radians, but pygame wants degrees. The negative
 # is needed since y coordinates increase downwards on screen. Multiply a
@@ -108,7 +108,6 @@ class SimpleWall2d(pygame.sprite.Sprite):
         self.front = f_normal.unit()
         self.left = self.front.left_normal()
         self.rsq = (length/2)**2
-        #print("Wall normal = %s, Wall left = %s" % (self.front, self.left))
 
         # Put into place for rendering
         self.image = pygame.transform.rotate(self.orig, self.theta)
@@ -189,11 +188,11 @@ class PointMass2d(pygame.sprite.Sprite):
         self.left = Point2d(-self.front[1], self.front[0])
         self._rotate_for_blit()
 
-        # Movement constraints
+        # Movement constraints (defaults from steering_constants.py)
         ## TODO: Put these in the function argument, perhaps as **kwargs
-        self.mass = float(1.0)
-        self.maxspeed = float(5.0)
-        self.maxforce = float(3.5)
+        self.mass = POINTMASS2D_MASS
+        self.maxspeed = POINTMASS2D_MAXSPEED
+        self.maxforce = POINTMASS2D_MAXFORCE
 
         # Steering behavior class for this object.
         self.steering = SteeringBehavior(self)
