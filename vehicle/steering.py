@@ -506,6 +506,7 @@ class SteeringBehavior(object):
                        'COHESION': False
                        }
         self.targets = dict()
+        self.flocking = False   
         
         # Set the appropriate compute_force_ function here.
         if use_budget is True:
@@ -574,8 +575,10 @@ class SteeringBehavior(object):
 
         if 'ARRIVE' in keylist:
             target = kwargs['ARRIVE']
-            # TODO: Error checking here.
-            self.targets[force_arrive] = (Point2d(*target),)
+            if len(target) == 2:
+                self.targets[force_arrive] = (Point2d(*target),)
+            else:
+                self.targets[force_arrive] = (Point2d(target[0], target[1]), target[2])
             self.status['ARRIVE'] = True
             print "ARRIVE active."
 
