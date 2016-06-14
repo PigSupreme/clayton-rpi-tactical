@@ -67,7 +67,7 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Sprite images and pygame rectangles
-    numveh = 5
+    numveh = 10
     numobs = 25
 
     img = list(range(numveh+numobs))
@@ -125,30 +125,37 @@ if __name__ == "__main__":
 
     ### Vehicle behavior defined below ###
 
-    # Big red arrow: Wander and Avoid obstacles
+    # Big red arrow: Wander and Avoid obstacles, SEPARATE from Yellow
     obj[0].maxspeed = 4.0
     obj[0].steering.set_target(WANDER=(250, 50, 10))
     obj[0].radius = 100
+    obj[0].steering.set_target(SEPARATE=[obj[1]])
 
     #Old examples, updated for new syntax
     #obj[1].steering.set_target(SEEK=(500,300))
     #obj[1].steering.set_target(FLEE=(500,400))
 
-    # Yellow arrow: Guard RED from GREEN leader
+    # Yellow arrow: Guard RED from GREEN leader, SEPARATE from RED
     obj[1].maxspeed = 5.0
-    obj[1].steering.set_target(GUARD=(obj[0], obj[2], 0.2))
+    obj[1].steering.set_target(GUARD=(obj[0], obj[2], 0.25))
+    obj[1].steering.set_target(SEPARATE=[obj[0]])
 
-    # Green arrow leader; TAKECOVER from YELLOW
-    obj[2].maxspeed = 3.0
-    obj[2].steering.set_target(PURSUE=obj[0], TAKECOVER=(obj[1], obslist, 200, True))
+    # Green arrows; TAKECOVER from YELLOW, WANDER, and SEPRATE each other
+    for i in range(2, numveh):
+        obj[i].maxspeed = 3.0
+        obj[i].steering.set_target(PURSUE=obj[0], TAKECOVER=(obj[1], obslist, 150, True))
+        obj[i].steering.set_target(WANDER=(60,10,3))
+        obj[i].steering.set_target(SEPARATE=[obj[j] for j in range(2, numveh)])
+#        obj[i].steering.set_target(ALIGN=[obj[j] for j in range(2, numveh)])
+        obj[i].steering.set_target(COHESION=[obj[j] for j in range(2, numveh)])
     # This was old demo:
     #obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1])
 
     # Green arrow followers: Follow GREEN leader and evade YELLOW
-    obj[3].maxspeed = 3.0
-    obj[3].steering.set_target(FOLLOW=(obj[2], Point2d(-20,20)), EVADE=obj[1])
-    obj[4].maxspeed = 3.0
-    obj[4].steering.set_target(FOLLOW=(obj[2], Point2d(-20,-20)), EVADE=obj[1])
+    #obj[3].maxspeed = 3.0
+    #obj[3].steering.set_target(FOLLOW=(obj[2], Point2d(-30,30)), EVADE=obj[1])
+    #obj[4].maxspeed = 3.0
+    #obj[4].steering.set_target(FOLLOW=(obj[2], Point2d(-30,-30)), EVADE=obj[1])
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
@@ -166,19 +173,19 @@ if __name__ == "__main__":
             wall.tagged = False
 
         allsprites.update(0.4)
-        
-        pygame.time.delay(20)
+
+        #pygame.time.delay(2)
 
         # Render
         screen.fill(bgcolor)
         allsprites.draw(screen)
 
         # Draw the force vectors for each vehicle
-        for i in range(numveh):
-            vehicle = obj[i]
-            g_pos = vehicle.pos
-            g_force = g_pos + vehicle.force.scale(25)
-            pygame.draw.line(screen, (0,0,0), g_pos.ntuple(), g_force.ntuple(), 3)        
+#        for i in range(numveh):
+#            vehicle = obj[i]
+#            g_pos = vehicle.pos
+#            g_force = g_pos + vehicle.force.scale(25)
+#            pygame.draw.line(screen, (0,0,0), g_pos.ntuple(), g_force.ntuple(), 3)
 
         pygame.display.flip()
 

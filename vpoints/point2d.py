@@ -34,6 +34,7 @@ class Point2d(object):
 
     def ntuple(self):
         """Returns the coordinates of this point in a Python tuple."""
+        # TODO: Example
         return (self.x, self.y)
 
     def __neg__(self):
@@ -239,6 +240,12 @@ class Point2d(object):
             return True
         else:
             return False
+            
+    def scale_to(self, mag):
+        """Scale this vector to the given magnitude."""
+        self.normalize()
+        self.x = self.x * mag
+        self.y = self.y * mag
 
     def angle(self):
         """Get the polar angle of this vector in radians.

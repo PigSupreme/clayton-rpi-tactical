@@ -10,8 +10,7 @@ import os, sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
-INF = float('inf')
-FLOCK_RADIUS_OVERRIDE = 3.0
+# INF = float('inf')
 
 # Note: Adjust this depending on where this file ends up.
 sys.path.insert(0, '../vpoints')
@@ -59,12 +58,13 @@ def load_image(name, colorkey=None):
 if __name__ == "__main__":
     from vehicle2d import PointMass2d, StaticMass2d, SimpleWall2d
     import steering
-    steering.FLOCKING_RADIUS_MULTIPLIER = FLOCK_RADIUS_OVERRIDE
+    steering.FLOCKING_RADIUS_MULTIPLIER = 3.0
+    steering.EVADE_PANIC_SQ = 180**2
 
     pygame.init()
 
     # Display constants
-    size = sc_width, sc_height = 800, 640
+    size = sc_width, sc_height = 1080, 960
     screen = pygame.display.set_mode(size)
     bgcolor = 111, 145, 192
 
@@ -75,17 +75,13 @@ if __name__ == "__main__":
     rec = list(range(numveh+numobs))
 
     # Vehicle Sprites
-#    img[0], rec[0] = load_image('rpig.png', -1)
-#    for i in range(1, 2):
-#        img[i], rec[i] = load_image('ypig.png', -1)
-#    for i in range(2, numveh):
-#        img[i], rec[i] = load_image('gpig.png', -1)
-    for i in range(numveh):
+    img[0], rec[0] = load_image('ypig.png', -1)
+    for i in range(1, numveh):
         img[i], rec[i] = load_image('gpig.png', -1)
     # Vehicle Physics
     pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
-    vel = Point2d(5.0,0).rotated_by(147*i,True)
+    vel = Point2d(5.0,0).rotated_by(147*i, True)
     # List of vehicles (used later as a pygame Sprite group_)
     obj = [PointMass2d(img[i], rec[i], pos[i], 50, vel) for i in range(numveh)]
     # List of vehicles only, for later use
@@ -102,7 +98,7 @@ if __name__ == "__main__":
     yvals.append(yoffset)
     shuffle(yvals)
     for i in range(numveh, numveh + numobs):
-        print('i = %d, i-numveh = %d' % (i,i-numveh))
+        print('i = %d, i-numveh = %d' % (i, i-numveh))
         offset = (i+1.0-numveh)/(numobs+1)
         rany = yvals[i-numveh]
         pos.append(Point2d(offset*sc_width, rany))
@@ -128,14 +124,22 @@ if __name__ == "__main__":
     allsprites = pygame.sprite.RenderPlain(obj)
 
     ### Steering behaviours ###
+    dog = vehlist[0]
+    dog.maxspeed = 10.0
+    dog.radius = 40
+    dog.steering.set_target(AVOID=obslist, WALLAVOID=[25, walllist])
+    dog.steering.set_target(SEPARATE=vehlist, ALIGN=vehlist)
+    dog.steering.set_target(WANDER=(200, 25, 6))
+
     # Flocking demo fails to celebrate its sheep diversity...
-    for sheep in vehlist:
+    for sheep in vehlist[1:]:
         sheep.maxspeed = 8.0
-        sheep.maxforce = 12.0
+        sheep.maxforce = 6.0
         sheep.radius = 40
         sheep.steering.set_target(AVOID=obslist, WALLAVOID=[25, walllist])
-        sheep.steering.set_target(SEPARATE=vehlist, ALIGN=vehlist)
-
+        sheep.steering.set_target(SEPARATE=vehlist, ALIGN=vehlist, COHESION=vehlist[1:])
+        sheep.steering.set_target(EVADE=dog)
+        sheep.steering.set_target(WANDER=(250, 10, 3))
 
     while 1:
         for event in pygame.event.get():
@@ -147,20 +151,19 @@ if __name__ == "__main__":
         #    wall.tagged = False
 
         allsprites.update(0.5)
-
-        pygame.time.delay(5)
+        #pygame.time.delay(5)
 
         # Render
         screen.fill(bgcolor)
         allsprites.draw(screen)
-        
+
         # Draw the force vectors for each vehicle
-        for i in range(numveh):
-            vehicle = obj[i]
-            g_pos = vehicle.pos
-            g_force = g_pos + vehicle.force.scale(5)
-            pygame.draw.line(screen, (0,0,0), g_pos.ntuple(), g_force.ntuple(), 3)
-            
+#        for i in range(numveh):
+#            vehicle = obj[i]
+#            g_pos = vehicle.pos
+#            g_force = g_pos + vehicle.force.scale(5)
+#            pygame.draw.line(screen, (0,0,0), g_pos.ntuple(), g_force.ntuple(), 3)
+
         pygame.display.flip()
 
     # Clean-up here
