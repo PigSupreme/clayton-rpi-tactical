@@ -10,9 +10,8 @@ import os, sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
-TARGET_FREQ = 500
-
 INF = float('inf')
+TARGET_FREQ = 1000
 
 # Note: Adjust this depending on where this file ends up.
 sys.path.insert(0, '../vpoints')
@@ -59,7 +58,7 @@ def load_image(name, colorkey=None):
 
 if __name__ == "__main__":
     from vehicle2d import PointMass2d, StaticMass2d, SimpleWall2d
-
+    FLOCKING_RADIUS_MULTIPLIER = 1.2
 
     pygame.init()
 
@@ -69,21 +68,15 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Sprite images and pygame rectangles
-    numveh = 3
-    numobs = 16
+    numveh = 6
+    numobs = 12
 
-    total = 2*numveh+numobs
+    total = numveh+numobs
     img = list(range(total))
     rec = list(range(total))
-    img[0], rec[0] = load_image('rpig.png', -1)
-    img[1], rec[1] = load_image('ypig.png', -1)
-    img[2], rec[2] = load_image('gpig.png', -1)
-
-    # Steering behaviour targets 
-    for i in range(numveh, 2*numveh):
-        img[i] = pygame.Surface((5,5))
-        rec[i] = img[i].get_rect()
-    numveh *= 2
+    img[0], rec[0] = load_image('gpig.png', -1)
+    for i in range(1,numveh):
+        img[i], rec[i] = load_image('ypig.png', -1)
 
     # Static obstacles
     for i in range(numveh, numveh + numobs):
@@ -97,14 +90,7 @@ if __name__ == "__main__":
     vel = Point2d(20,0)
 
     # Array of vehicles for pygame
-    obj = [PointMass2d(img[i], rec[i], pos[i], 50, vel) for i in range(numveh//2)]
-
-    # Steering behaviour target sprites 
-    for i in range(numveh//2, numveh):
-        img[i] = pygame.Surface((5,5))
-        rec[i] = img[i].get_rect()
-        pos.append(Point2d(0,0))
-        obj.append(StaticMass2d(img[i], rec[i], pos[i], 10, vel))
+    obj = [PointMass2d(img[i], rec[i], pos[i], 50, vel) for i in range(numveh)]
 
     # Static obstacles for pygame (randomly-generated positions)
     yoffset = sc_height/(numobs+1)
@@ -129,14 +115,24 @@ if __name__ == "__main__":
     allsprites = pygame.sprite.RenderPlain(obj)
 
     ### Vehicle behavior defined below ###
-    # Big red (WANDER)
-    obj[0].steering.set_target(ARRIVE=obj[3].rect.center)
+    # Green leader (WANDER)
+    #obj[0].steering.set_target(WANDER=(40,30,5))
+    #obj[0].maxspeed =2.0
+    obj[0].steering.set_target(ARRIVE=(100,100))
     
-    # Yellow (ARRIVE)
-    obj[1].steering.set_target(ARRIVE=obj[4].rect.center)
+    # Yellow (some kind of flocking)
+    for i in range(1,numveh):
+        #obj[i].steering.set_target(ALIGN=[obj[0]])
+        #obj[i].steering.set_target(SEPARATE=[obj[i] for i in range(numveh)])
+        pass
 
-    # Green (SEEK)
-    obj[2].steering.set_target(SEEK=obj[5].rect.center)
+    # Formation    
+    obj[1].steering.set_target(FOLLOW=(obj[0], Point2d(-40,20)))
+    obj[2].steering.set_target(FOLLOW=(obj[0], Point2d(-40,-20)))
+    obj[3].steering.set_target(FOLLOW=(obj[0], Point2d(-80,40)))
+    obj[4].steering.set_target(FOLLOW=(obj[0], Point2d(-80,0)))
+    obj[5].steering.set_target(FOLLOW=(obj[0], Point2d(-80,-40)))
+
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
@@ -150,34 +146,16 @@ if __name__ == "__main__":
             if event.type in [QUIT, MOUSEBUTTONDOWN]:
                 pygame.quit()
                 sys.exit()
-
-        # Update steering targets every so often
+                
+        # Update leader's target every so often
         ticks += 1
         if ticks == TARGET_FREQ:
             # Green target
             x_new = randint(30, sc_width-30)
             y_new = randint(30, sc_height-30)
             new_pos = Point2d(x_new,y_new)
-            obj[5].rect.center = (x_new, y_new)
-            obj[2].steering.set_target(SEEK=(x_new,y_new))
-
-        if ticks == TARGET_FREQ*2:
-            # Yellow target
-            x_new = randint(30, sc_width-30)
-            y_new = randint(30, sc_height-30)
-            new_pos = Point2d(x_new,y_new)
-            obj[4].rect.center = (x_new, y_new)
-            obj[1].steering.set_target(ARRIVE=(x_new,y_new,0.5))
-
-        if ticks == TARGET_FREQ*3:
-            # Red target
-            x_new = randint(30, sc_width-30)
-            y_new = randint(30, sc_height-30)
-            new_pos = Point2d(x_new,y_new)
-            obj[3].rect.center = (x_new, y_new)
-            obj[0].steering.set_target(ARRIVE=(x_new,y_new,3.0))
+            obj[0].steering.set_target(ARRIVE=(x_new,y_new))
             ticks = 0
-
         # Mother Nature will be like, sloooooow dowwwwwwn....
         allsprites.update(0.2)
 

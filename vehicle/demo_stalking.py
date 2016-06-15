@@ -143,11 +143,11 @@ if __name__ == "__main__":
     # Green arrows; TAKECOVER from YELLOW, WANDER, and SEPRATE each other
     for i in range(2, numveh):
         obj[i].maxspeed = 3.0
-        obj[i].steering.set_target(PURSUE=obj[0], TAKECOVER=(obj[1], obslist, 150, True))
-        obj[i].steering.set_target(WANDER=(60,10,3))
+        obj[i].steering.set_target(PURSUE=obj[0], TAKECOVER=(obj[1], obslist, 120, True))
+#        obj[i].steering.set_target(WANDER=(60,10,3))
         obj[i].steering.set_target(SEPARATE=[obj[j] for j in range(2, numveh)])
 #        obj[i].steering.set_target(ALIGN=[obj[j] for j in range(2, numveh)])
-        obj[i].steering.set_target(COHESION=[obj[j] for j in range(2, numveh)])
+#        obj[i].steering.set_target(COHESION=[obj[j] for j in range(2, numveh)])
     # This was old demo:
     #obj[2].steering.set_target(PURSUE=obj[0], EVADE=obj[1])
 
