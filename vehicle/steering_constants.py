@@ -53,3 +53,7 @@ FLOCKING_SEPARATE_SCALE = 1.2
 
 # Cohesion uses ARRIVE with this hesitance, for smooth flocking
 FLOCKING_COHESHION_HESITANCE = 3.5
+
+if __name__=="__main__":
+    print("Steering constants. Import this elsewhere.")
+    

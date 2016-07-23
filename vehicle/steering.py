@@ -6,6 +6,12 @@ import the needed ones from this module. The function that returns the force
 for a given behaviour is named force_name-of-behviour.
 """
 
+# for python3 compat
+from __future__ import unicode_literals
+from __future__ import absolute_import
+from __future__ import print_function
+from __future__ import division
+
 from sys import path
 path.insert(0, '../vpoints')
 from point2d import Point2d
@@ -428,7 +434,7 @@ def force_align(owner):
 def force_cohesion(owner):
     """Steering force for COHESION group behaviour.
 
-        Parameters
+    Parameters
     ----------
     owner: Vehicle
         The vehicle computing this force.
@@ -438,6 +444,7 @@ def force_cohesion(owner):
     All flocking forces use owner.neighbor_list to find a flock; set this list
     before calling this function.
     """
+    
     center = Point2d(0,0)
     n = 0
     for other in owner.neighbor_list:
@@ -557,21 +564,20 @@ class SteeringBehavior(object):
         self.flocking to True; this is used by force_foo functions so that
         neighbors need only be tagged once per cycle (for efficiency).
         """
-
         keylist = kwargs.keys()
         if 'SEEK' in keylist:
             target = kwargs['SEEK']
             # TODO: Error checking here.
             self.targets[force_seek] = (Point2d(*target),)
             self.status['SEEK'] = True
-            print "SEEK active."
+            print("SEEK active.")
 
         if 'FLEE' in keylist:
             target = kwargs['FLEE']
             # TODO: Error checking here.
             self.targets[force_flee] = (Point2d(*target),)
             self.status['FLEE'] = True
-            print "FLEE active."
+            print("FLEE active.")
 
         if 'ARRIVE' in keylist:
             target = kwargs['ARRIVE']
@@ -580,26 +586,26 @@ class SteeringBehavior(object):
             else:
                 self.targets[force_arrive] = (Point2d(target[0], target[1]), target[2])
             self.status['ARRIVE'] = True
-            print "ARRIVE active."
+            print("ARRIVE active.")
 
         if 'PURSUE' in keylist:
             prey = kwargs['PURSUE']
             # TODO: Error checking here.
             self.targets[force_pursue] = (prey,)
             self.status['PURSUE'] = True
-            print "PURSUE active."
+            print("PURSUE active.")
 
         if 'EVADE' in keylist:
             predator = kwargs['EVADE']
             # TODO: Error checking here.
             self.targets[force_evade] = (predator,)
             self.status['EVADE'] = True
-            print "EVADE active."
+            print("EVADE active.")
 
         if 'TAKECOVER' in keylist:
             self.targets[force_takecover] = kwargs['TAKECOVER']
             self.status['TAKECOVER'] = True
-            print "TAKECOVER active."
+            print("TAKECOVER active.")
 
         if 'WANDER' in keylist:
             # TODO: Fix arguments, check errors
@@ -608,14 +614,14 @@ class SteeringBehavior(object):
             # Next line may seem weird, but needed for unified interface.
             self.targets[force_wander] = (self,)
             self.status['WANDER'] = True
-            print "WANDER active."
+            print("WANDER active.")
 
         if 'AVOID' in keylist:
             self.targets[force_avoid] = (kwargs['AVOID'],)
             # TODO: Fix arguments, check errors
             # Currently we're passing a list of PointMass2d's
             self.status['AVOID'] = True
-            print "AVOID obstacles active."
+            print("AVOID obstacles active.")
 
         if 'WALLAVOID' in keylist:
             info = kwargs['WALLAVOID']
@@ -625,19 +631,19 @@ class SteeringBehavior(object):
             whisker_lengths = [info[0]] + 2*[info[0]*WALLAVOID_WHISKER_SCALE]
             self.targets[force_wallavoid] = [whiskers, whisker_lengths, info[1]]
             self.status['WALLAVOID'] = True
-            print "WALLAVOID active"
+            print("WALLAVOID active")
 
         if 'GUARD' in keylist:
             self.targets[force_guard] = kwargs['GUARD']
             # TODO: Check for errors
             self.status['GUARD'] = True
-            print "GUARD active."
+            print("GUARD active.")
 
         if 'FOLLOW' in keylist:
             self.targets[force_follow] = kwargs['FOLLOW']
             # TODO: Check for errors
             self.status['FOLLOW'] = True
-            print "FOLLOW leader active."
+            print("FOLLOW leader active.")
 
         if 'SEPARATE' in keylist:
             n_list = kwargs['SEPARATE']
@@ -646,7 +652,7 @@ class SteeringBehavior(object):
             self.targets[force_separate] = ()
             self.flockmates = n_list[:]
             self.status['SEPARATE'] = True
-            print 'SEPARATE (flocking) active.'
+            print('SEPARATE (flocking) active.')
 
         if 'ALIGN' in keylist:
             n_list = kwargs['ALIGN']
@@ -655,7 +661,7 @@ class SteeringBehavior(object):
             self.targets[force_align] = ()
             self.flockmates = n_list[:]
             self.status['ALIGN'] = True
-            print 'ALIGN (flocking) active.'
+            print('ALIGN (flocking) active.')
 
         if 'COHESION' in keylist:
             n_list = kwargs['COHESION']
@@ -664,7 +670,7 @@ class SteeringBehavior(object):
             self.targets[force_cohesion] = ()
             self.flockmates = n_list[:]
             self.status['COHESION'] = True
-            print 'COHESION (flocking) active.'
+            print('COHESION (flocking) active.')
 
         self.set_priorities()
 
@@ -686,8 +692,8 @@ class SteeringBehavior(object):
         sophisticated sensing of neighbors in the future.
 
         Results of flagging are stored as owner.neighbor_list to be read later by
-        force_ functions that require this info. Be sure to run this function
-        before any such force_ functions (mostly for flocking).
+        force_foo functions that require this info. Be sure to run this function
+        before any such force_foo functions (mostly for flocking).
 
         This is designed to work with pre-processing (such as spatial partitioning
         or flocking with certain vehicles only); the results of which are passed
@@ -726,6 +732,7 @@ class SteeringBehavior(object):
         # argument; we look this up here and do not store in self.targets.
         for f, t in self.targets.iteritems():
             force += f(owner, *t)
+        force.truncate(owner.maxforce)
         return force
 
     def set_priorities(self):
@@ -763,4 +770,4 @@ class SteeringBehavior(object):
         return force
 
 if __name__ == "__main__":
-    print "Steering behavior functions. Import this elsewhere."
+    print("Steering behavior functions. Import this elsewhere.")

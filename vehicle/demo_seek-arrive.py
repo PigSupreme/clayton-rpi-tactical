@@ -5,6 +5,7 @@
 from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
+from __future__ import division
 
 import os, sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
@@ -107,7 +108,7 @@ if __name__ == "__main__":
         obj.append(StaticMass2d(img[i], rec[i], pos[i], 10, vel))
 
     # Static obstacles for pygame (randomly-generated positions)
-    yoffset = sc_height/(numobs+1)
+    yoffset = sc_height//(numobs+1)
     yvals = list(range(yoffset, sc_height-yoffset, yoffset))
     shuffle(yvals)
     for i in range(numveh, numveh + numobs):

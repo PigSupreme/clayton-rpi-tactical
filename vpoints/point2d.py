@@ -11,6 +11,7 @@ such as numpy that would probably perform better.
 from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
+from __future__ import division
 
 from math import sqrt, acos, cos, sin
 
@@ -119,17 +120,17 @@ class Point2d(object):
         y = scalar * self.y
         return Point2d(x, y)
 
-    def rotated_by(self, angle, use_deg = False):
+    def rotated_by(self, angle, use_deg=False):
         """Get this vector rotated anticlockwise.
-        
+
         Parameters
         ----------
         angle: int or float
             Directed anticlockwise angle to rotate by,
         degrees: boolean
             If True, angle is in degrees. Otherwise radians (default)
-        
-        
+
+
         Example
         -------
         >>> a = Point2d(2,-2)
@@ -140,7 +141,7 @@ class Point2d(object):
         """
         if use_deg is True:
             angle = angle / 57.2957795131
-        
+
         c = cos(angle)
         s = sin(angle)
         return Point2d(c*self.x - s*self.y, s*self.x + c*self.y)
@@ -240,7 +241,7 @@ class Point2d(object):
             return True
         else:
             return False
-            
+
     def scale_to(self, mag):
         """Scale this vector to the given magnitude."""
         self.normalize()
@@ -265,7 +266,7 @@ class Point2d(object):
             theta = -theta
         return float(theta)
 
-    def __div__(self, direction):
+    def __truediv__(self, direction):
         """Length of an orthogonal projection; overrides the / operator.
 
         Parameters
@@ -290,6 +291,7 @@ class Point2d(object):
         --------
         >>> a = Point2d(2,2)
         >>> b = Point2d(3,0)
+        >>> # doctest raises a TypeError with the next two computations...why?
         >>> a/b
         2.0
         >>> b/a
@@ -347,14 +349,14 @@ class Point2d(object):
 
         Example
         -------
-        >>> a = Point2d(2,2)
-        >>> b = Point2d(3,0)
+        >>> a = Point2d(2,-3)
+        >>> b = Point2d(1,4)
         >>> print(a.resolve(b)[0])
-        Point2d: <-0.461538, 0.307692>
+        Point2d: <-0.588235, -2.352941>
         >>> print(a.resolve(b)[1])
-        Point2d: <2.461538, 3.692308>
+        Point2d: <2.588235, -0.647059>
         >>> print(a.resolve(b)[0]+a.resolve(b)[1])
-        Point2d: <2.000000, 4.000000>
+        Point2d: <2.000000, -3.000000>
         """
         parallel = self.proj(direction)
         perp = self - parallel
@@ -366,7 +368,7 @@ class Point2d(object):
         Example
         -------
         >>> a = Point2d(1, -2)
-        >>> print a.left_normal()
+        >>> print(a.left_normal())
         Point2d: <2.000000, 1.000000>
         """
         return Point2d(-self.y, self.x)
@@ -378,11 +380,11 @@ class Point2d(object):
         Example
         -------
         >>> a = Point2d(1, -2)
-        >>> print a
+        >>> print(a)
         Point2d: <1.000000, -2.000000>
         >>> a[0] = 3
         >>> a[1] = 5
-        >>> print a
+        >>> print(a)
         Point2d: <3.000000, 5.000000>
         """
         if index == 0:
@@ -393,48 +395,5 @@ class Point2d(object):
             raise KeyError("Point2d %s has no component %s" % (self, str(index)))
 
 if __name__ == "__main__":
-    a = Point2d(1, -2)
-    b = Point2d(3, 20)
-    print("a = %s" % a)
-    print("b = %s" % b)
-    print ("-a = %s" % (-a))
-    print("a+b = %s" % str(a+b))
-    print("a-b = %s" % str(a-b))
-    print("a*b = %s" % str(a*b))
-    print("sqrt(2)a = %s" % a.scale(sqrt(2)))
-    
-    print("a rotated by 90 degrees = %s" % a.rotated_by(90,True))
-    print("b rotated by -pi/3 radians = %s" % b.rotated_by(-1.0471975511965976))
-
-    na = a.norm()
-    print("||a|| = %s" % na)
-    print("||a||^2 = %s" % a.sqnorm())
-    print("Unit vector in direction of a: %s, which has norm %s" % (a.unit(), a.unit().norm()))
-
-    a.normalize()
-    print("Normalized a = %s" % a)
-
-    aa = a.angle()
-    print("Angle of a = %f radians" % aa)
-    from math import cos, sin
-    print("Rebuilding vector a from norm and angle: <%f,%f>" % (na*cos(aa), na*sin(aa)))
-
-    b.truncate(1)
-    print("Truncated b to norm 1: %s" % b)
-
-    projab = a/b
-    print("Signed length of projection of a onto b = %f" % projab)
-    c = a.proj(b)
-    print("Projection of a onto b is %s with length %f" % (c, c.norm()))
-
-    print("Signed length of projection of a onto c = %f" % (a/c))
-
-    cframe = a.resolve(b)
-    print("Resolving a in the direction of b...")
-    print("Parallel to b: %s" % cframe[0])
-    print("Orthogonal to b: %s" % cframe[1])
-    print("Checking resolution...")
-    print("Dot product of resolved vectors = %f" % (cframe[0]*cframe[1]))
-    print("Dot product of b with perpendicular = %f" % (b*cframe[1]))
-    print("Sum of resolved vectors = %s" % (cframe[0]+cframe[1]))
-
+    import doctest
+    doctest.testmod()
