@@ -11,11 +11,9 @@ import os, sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
-# INF = float('inf')
-
 # Note: Adjust this depending on where this file ends up.
-sys.path.insert(0, '../vpoints')
-from point2d import Point2d
+sys.path.insert(0, '..')
+from vpoints.point2d import Point2d
 
 def load_image(name, colorkey=None):
     """Loads image from current working directory for use in pygame.
