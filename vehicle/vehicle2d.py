@@ -115,23 +115,105 @@ class SimpleWall2d(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = center[0], center[1]
         self.center = center
-        self.tagged = False
 
     def update(self, delta_t=1.0):
         """Update for use by pygame.Sprite parent class."""
-        if self.tagged is True:
-            color = (255,255,255)
-        else:
-            color = (0,0,0)
-
         # Set-up original image for rendering
-        self.orig.fill(color)
+        self.orig.fill(self.color)
         self.rect = self.orig.get_rect()
 
         # Put into place for rendering
         self.image = pygame.transform.rotate(self.orig, self.theta)
         self.rect = self.image.get_rect()
         self.rect.center = self.center[0], self.center[1]
+
+class BasePointMass2d(object):
+    """A moving object with rectilinear motion (and steering??)."""
+    
+    def __init__(self, position, radius, velocity, spritedata=None):
+        # Basic object physics
+        # Note: We can't use self.pos = position here because of Point2d's
+        # __init__ method (and lack of __copy__), ditto for self.vel.
+        self.pos = Point2d(position[0], position[1])  # Center of object
+        self.radius = radius                          # Bounding radius
+        self.vel = Point2d(velocity[0], velocity[1])  # Current Velocity
+
+        # Normalized front vector in world coordinates.
+        # This stays aligned with the object's velocity (using move() below)
+        try:
+            self.front = velocity.unit()
+        except ZeroDivisionError:
+            # If velocity is <0,0>, set facing to screen upwards
+            self.front = Point2d(0,-1)
+        self.left = Point2d(-self.front[1], self.front[0])
+
+        # Movement constraints (defaults from steering_constants.py)
+        ## TODO: Put these in the function argument, perhaps as **kwargs
+        self.mass = POINTMASS2D_MASS
+        self.maxspeed = POINTMASS2D_MAXSPEED
+        self.maxforce = POINTMASS2D_MAXFORCE
+        
+        # TODO: Do we need steering here, or in a subclass?
+        # Steering behavior class for this object.
+        self.steering = SteeringBehavior(self)
+
+        if spritedata is not None:
+            self.sprite = PointMass2dSprite(self, *spritedata)
+        
+    def move(self, delta_t, force_vector=None):
+        """Updates position, velocity, and acceleration.
+        
+        Parameters
+        ----------
+        delta_t: float
+            Time increment since last move.
+        """
+        # Update position using current velocity
+        self.pos = self.pos + self.vel.scale(delta_t)
+
+        # TODO: Does steering belong here, or in a subclass?
+        force_vector = self.steering.compute_force()
+
+        # Apply force, if any...
+        if force_vector:
+            # Don't exceed our maximum force; compute acceleration/velocity
+            force_vector.truncate(self.maxforce)
+            accel = force_vector.scale(delta_t/self.mass)
+            self.vel = self.vel + accel
+        # ..but don't exceed our maximum speed
+        self.vel.truncate(self.maxspeed)
+
+        # Align heading to match our forward velocity. Note that
+        # if velocity is very small, skip this to avoid jittering.
+        if self.vel.sqnorm() > SPEED_EPSILON:
+            self.front = self.vel.unit()
+            self.left = Point2d(-self.front[1], self.front[0])
+            
+class PointMass2dSprite(pygame.sprite.Sprite):
+    """A Pygame sprite used to display a BasePointMass2d object."""
+    
+    def __init__(self, owner, img_surf, img_rect):
+        # Must call pygame's Sprite.__init__ first!
+        pygame.sprite.Sprite.__init__(self)
+        
+        self.owner = owner
+        
+        # Pygame image information for blitting
+        self.orig = img_surf
+        self.image = img_surf
+        self.rect = img_rect
+    
+    def update(self, delta_t=1.0):
+        """Called by pygame.Group.update() to redraw this sprite."""
+        owner = self.owner
+        # Update position
+        self.rect.center = owner.pos[0], owner.pos[1]
+        # Rotate for blitting
+        theta = owner.front.angle()*SCREEN_DEG
+        center = self.rect.center
+        self.image = pygame.transform.rotate(self.orig, theta)
+        self.rect = self.image.get_rect()
+        self.rect.center = center
 
 
 class PointMass2d(pygame.sprite.Sprite):
@@ -283,14 +365,8 @@ class StaticMass2d(PointMass2d):
     def __init__(self, *args):
         PointMass2d.__init__(self, *args)
         self.move(0.0)
-        self.tagged = False
 
     def update(self, delta_t=1.0):
-#        if self.tagged is True:
-#            self.image = StaticMass2d.tagged_image
-#        else:
-#            self.image = self.orig
-#        self.tagged = False
         pass
 
 class RotatingMass2d(PointMass2d):
