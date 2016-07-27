@@ -234,8 +234,6 @@ class BasePointMass2d(object):
             self.front = self.vel.unit()
             self.left = Point2d(-self.front[1], self.front[0])
 
-
-
 class SimpleVehicle2d(BasePointMass2d):
     """Point mass with steering behaviour."""
 
@@ -248,6 +246,16 @@ class SimpleVehicle2d(BasePointMass2d):
         """Compute steering force and update rectilinear motion."""
         force = self.steering.compute_force()
         BasePointMass2d.move(self, delta_t, force)
+
+class SimpleObstacle2d(BasePointMass2d):
+    """A static obstacle with center and bounding radius."""
+    
+    def __init__(self, position, radius, spritedata=None):
+        BasePointMass2d.__init__(self, position, radius, Point2d(0,0), spritedata)
+        
+    def move(self, delta_t=1.0):
+        pass
+
 
 class PointMass2d(pygame.sprite.Sprite):
     """A pygame.Sprite with rectilnear motion and steering behaviour.
@@ -320,7 +328,7 @@ class PointMass2d(pygame.sprite.Sprite):
         # Steering behavior class for this object.
         self.steering = SteeringBehavior(self)
 
-    def move(self, delta_t, force_vector=None):
+    def move(self, delta_t=1.0, force_vector=None):
         """Update the position of this object, using its current velocity.
 
         Parameters
@@ -400,6 +408,11 @@ class StaticMass2d(PointMass2d):
         Center of mass, in screen coordinates.
     radius: float
         Bounding radius of the object.
+        
+    Note
+    ----
+    Use SimpleObstacle2d instead of this class in future work.    
+    See PointMass2d notes for an explanation.
     """
 
     def __init__(self, *args):

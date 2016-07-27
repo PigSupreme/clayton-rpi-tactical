@@ -18,8 +18,9 @@ INF = float('inf')
 # Note: Adjust this depending on where this file ends up.
 sys.path.insert(0, '..')
 from vpoints.point2d import Point2d
-from vehicle.vehicle2d import StaticMass2d, SimpleWall2d
-from vehicle.vehicle2d import load_image, SimpleVehicle2d
+from vehicle.vehicle2d import SimpleWall2d
+from vehicle.vehicle2d import load_image, SimpleVehicle2d, SimpleObstacle2d
+ZERO_VECTOR = Point2d(0,0)
 
 if __name__ == "__main__":
     pygame.init()
@@ -51,11 +52,10 @@ if __name__ == "__main__":
     for i in range(numveh, 2*numveh):
         img[i] = pygame.Surface((5,5))
         rec[i] = img[i].get_rect()
-    numveh *= 2
 
     # Static obstacle image (shared among all obstacles)
     obs_img, obs_rec = load_image('circle.png', -1)
-    for i in range(numveh, numveh + numobs):
+    for i in range(2*numveh, 2*numveh + numobs):
         img[i], rec[i] = obs_img, obs_rec
 
     # Randomly generate initial placement for vehicles
@@ -64,32 +64,32 @@ if __name__ == "__main__":
     vel = Point2d(20,0)
 
     # Array of vehicles and associated pygame sprites
-    obj = [SimpleVehicle2d(pos[i], 50, vel, (img[i], rec[i])) for i in range(numveh//2)]
+    obj = [SimpleVehicle2d(pos[i], 50, vel, (img[i], rec[i])) for i in range(numveh)]
     rgroup = [veh.sprite for veh in obj]
     vehicles = obj[:]
 
-    # Steering behaviour target sprites
-    for i in range(numveh//2, numveh):
-        img[i] = pygame.Surface((5,5))
-        rec[i] = img[i].get_rect()
-        pos.append(Point2d(0,0))
-        target = StaticMass2d(img[i], rec[i], pos[i], 10, vel)
+    # Steering behaviour targets (implemented as vehicles for later use...)
+    for i in range(numveh, 2*numveh):
+        x_new = randint(30, sc_width-30)
+        y_new = randint(30, sc_height-30)
+        new_pos = Point2d(x_new,y_new)
+        target = SimpleVehicle2d(new_pos, 10, ZERO_VECTOR, (img[i], rec[i]))
         obj.append(target)
-        rgroup.append(target)
+        rgroup.append(target.sprite)
 
     # Static obstacles for pygame (randomly-generated positions)
     yoffset = sc_height//(numobs+1)
     yvals = list(range(yoffset, sc_height-yoffset, yoffset))
     shuffle(yvals)
-    for i in range(numveh, numveh + numobs):
-        offset = (i+1.0-numveh)/(numobs+1)
-        rany = yvals[i-numveh]
-        pos.append(Point2d(offset*sc_width, rany))
-        target = StaticMass2d(img[i], rec[i], pos[i], 10, vel)
-        obj.append(target)
-        rgroup.append(target)
+    for i in range(2*numveh, 2*numveh + numobs):
+        offset = (i+1.0-2*numveh)/(numobs+1)
+        rany = yvals[i-2*numveh]
+        new_pos = Point2d(offset*sc_width, rany)
+        obstacle = SimpleObstacle2d(new_pos, 10, (img[i], rec[i]))
+        obj.append(obstacle)
+        rgroup.append(obstacle.sprite)
     # This gives a convenient list of (non-wall) obstacles for later use
-    obslist = obj[numveh:]
+    obslist = obj[2*numveh:]
 
     # Static Walls for pygame (screen border only)
     wall_list = (SimpleWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
@@ -104,18 +104,19 @@ if __name__ == "__main__":
 
     ### Vehicle steering behavior defined below ###
     # Big red (ARRIVE, medium hesitance)
-    (x_new, y_new) = obj[3].rect.center
+    x_new, y_new = obj[3].pos[0], obj[3].pos[1]
     obj[0].steering.set_target(ARRIVE=(x_new,y_new,3.0))
 
     # Yellow (ARRIVE, low hesitance)
-    (x_new, y_new) = obj[4].rect.center
+    x_new, y_new = obj[4].pos[0], obj[4].pos[1]
     obj[1].steering.set_target(ARRIVE=(x_new,y_new,0.5))
 
     # Green (SEEK)
-    obj[2].steering.set_target(SEEK=obj[5].rect.center)
+    x_new, y_new = obj[5].pos[0], obj[5].pos[1]
+    obj[2].steering.set_target(SEEK=(x_new, y_new))
 
     # All vehicles will avoid obstacles and walls
-    for i in range(numveh):
+    for i in range(3):
         obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[30, wall_list])
     ### End of vehicle behavior ###
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
             x_new = randint(30, sc_width-30)
             y_new = randint(30, sc_height-30)
             new_pos = Point2d(x_new,y_new)
-            obj[5].rect.center = (x_new, y_new)
+            obj[5].pos = new_pos
             obj[2].steering.set_target(SEEK=(x_new,y_new))
 
         if ticks == TARGET_FREQ*2:
@@ -143,7 +144,7 @@ if __name__ == "__main__":
             x_new = randint(30, sc_width-30)
             y_new = randint(30, sc_height-30)
             new_pos = Point2d(x_new,y_new)
-            obj[4].rect.center = (x_new, y_new)
+            obj[4].pos = new_pos
             obj[1].steering.set_target(ARRIVE=(x_new,y_new,0.5))
 
         if ticks == TARGET_FREQ*3:
@@ -151,7 +152,7 @@ if __name__ == "__main__":
             x_new = randint(30, sc_width-30)
             y_new = randint(30, sc_height-30)
             new_pos = Point2d(x_new,y_new)
-            obj[3].rect.center = (x_new, y_new)
+            obj[3].pos = new_pos
             obj[0].steering.set_target(ARRIVE=(x_new,y_new,3.0))
             ticks = 0
 
