@@ -127,68 +127,6 @@ class SimpleWall2d(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = self.center[0], self.center[1]
 
-class BasePointMass2d(object):
-    """A moving object with rectilinear motion (and steering??)."""
-    
-    def __init__(self, position, radius, velocity, spritedata=None):
-        # Basic object physics
-        # Note: We can't use self.pos = position here because of Point2d's
-        # __init__ method (and lack of __copy__), ditto for self.vel.
-        self.pos = Point2d(position[0], position[1])  # Center of object
-        self.radius = radius                          # Bounding radius
-        self.vel = Point2d(velocity[0], velocity[1])  # Current Velocity
-
-        # Normalized front vector in world coordinates.
-        # This stays aligned with the object's velocity (using move() below)
-        try:
-            self.front = velocity.unit()
-        except ZeroDivisionError:
-            # If velocity is <0,0>, set facing to screen upwards
-            self.front = Point2d(0,-1)
-        self.left = Point2d(-self.front[1], self.front[0])
-
-        # Movement constraints (defaults from steering_constants.py)
-        ## TODO: Put these in the function argument, perhaps as **kwargs
-        self.mass = POINTMASS2D_MASS
-        self.maxspeed = POINTMASS2D_MAXSPEED
-        self.maxforce = POINTMASS2D_MAXFORCE
-        
-        # TODO: Do we need steering here, or in a subclass?
-        # Steering behavior class for this object.
-        self.steering = SteeringBehavior(self)
-
-        if spritedata is not None:
-            self.sprite = PointMass2dSprite(self, *spritedata)
-        
-    def move(self, delta_t, force_vector=None):
-        """Updates position, velocity, and acceleration.
-        
-        Parameters
-        ----------
-        delta_t: float
-            Time increment since last move.
-        """
-        # Update position using current velocity
-        self.pos = self.pos + self.vel.scale(delta_t)
-
-        # TODO: Does steering belong here, or in a subclass?
-        force_vector = self.steering.compute_force()
-
-        # Apply force, if any...
-        if force_vector:
-            # Don't exceed our maximum force; compute acceleration/velocity
-            force_vector.truncate(self.maxforce)
-            accel = force_vector.scale(delta_t/self.mass)
-            self.vel = self.vel + accel
-        # ..but don't exceed our maximum speed
-        self.vel.truncate(self.maxspeed)
-
-        # Align heading to match our forward velocity. Note that
-        # if velocity is very small, skip this to avoid jittering.
-        if self.vel.sqnorm() > SPEED_EPSILON:
-            self.front = self.vel.unit()
-            self.left = Point2d(-self.front[1], self.front[0])
-            
 class PointMass2dSprite(pygame.sprite.Sprite):
     """A Pygame sprite used to display a BasePointMass2d object."""
     
@@ -215,9 +153,104 @@ class PointMass2dSprite(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = center
 
+class BasePointMass2d(object):
+    """A moving object with rectilinear motion and optional sprite.
+
+    Parameters
+    ----------
+    position: Point2d
+        Center of mass, in screen coordinates.
+    radius: float
+        Bounding radius of the object.
+    velocity: Point2d
+        Velocity vector, in screen coordinates. Initial facing matches this.
+    spritedata: list or tuple, optional
+        Extra data used to create an associate sprite. See notes below.
+        
+    Notes
+    -----
+    This provides a minimal base class for a pointmass with bounding radius
+    and heading aligned to velocity. Use move() for physics updates each
+    cycle (including applying force).
+    
+    As we typically will be rendering these objects within some environment,
+    the constructor provides an optional spritedata parameter that can be used
+    to create an associated sprite. This is currently implemented using the
+    PointMass2dSprite class above (derived from pygame.sprite.Sprite), but
+    can be overridden by changing the _spriteclass attribute.
+    """
+    _spriteclass = PointMass2dSprite
+    """Default sprite class to use for rendering."""
+    
+    def __init__(self, position, radius, velocity, spritedata=None):
+        # Basic object physics
+        # Note: We can't use self.pos = position here because of Point2d's
+        # __init__ method (and lack of __copy__), ditto for self.vel.
+        self.pos = Point2d(position[0], position[1])  # Center of object
+        self.radius = radius                          # Bounding radius
+        self.vel = Point2d(velocity[0], velocity[1])  # Current Velocity
+
+        # Normalized front vector in world coordinates.
+        # This stays aligned with the object's velocity (using move() below)
+        try:
+            self.front = velocity.unit()
+        except ZeroDivisionError:
+            # If velocity is <0,0>, set facing to screen upwards
+            self.front = Point2d(0,-1)
+        self.left = Point2d(-self.front[1], self.front[0])
+
+        # Movement constraints (defaults from steering_constants.py)
+        ## TODO: Put these in the function argument, perhaps as **kwargs
+        self.mass = POINTMASS2D_MASS
+        self.maxspeed = POINTMASS2D_MAXSPEED
+        self.maxforce = POINTMASS2D_MAXFORCE
+
+        if spritedata is not None:
+            self.sprite = PointMass2dSprite(self, *spritedata)
+            
+    def move(self, delta_t=1.0, force_vector=None):
+        """Updates position, velocity, and acceleration.
+        
+        Parameters
+        ----------
+        delta_t: float
+            Time increment since last move.
+        """
+        # Update position using current velocity
+        self.pos = self.pos + self.vel.scale(delta_t)
+
+        # Apply force, if any...
+        if force_vector:
+            # Don't exceed our maximum force; compute acceleration/velocity
+            force_vector.truncate(self.maxforce)
+            accel = force_vector.scale(delta_t/self.mass)
+            self.vel = self.vel + accel
+        # ..but don't exceed our maximum speed
+        self.vel.truncate(self.maxspeed)
+
+        # Align heading to match our forward velocity. Note that
+        # if velocity is very small, skip this to avoid jittering.
+        if self.vel.sqnorm() > SPEED_EPSILON:
+            self.front = self.vel.unit()
+            self.left = Point2d(-self.front[1], self.front[0])
+
+
+
+class SimpleVehicle2d(BasePointMass2d):
+    """Point mass with steering behaviour."""
+
+    def __init__(self, position, radius, velocity, spritedata=None):
+        BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
+        # Steering behavior class for this object.
+        self.steering = SteeringBehavior(self)
+
+    def move(self, delta_t=1.0):
+        """Compute steering force and update rectilinear motion."""
+        force = self.steering.compute_force()
+        BasePointMass2d.move(self, delta_t, force)
 
 class PointMass2d(pygame.sprite.Sprite):
-    """A pygame.Sprite with rectilnear motion.
+    """A pygame.Sprite with rectilnear motion and steering behaviour.
 
     Parameters
     ----------
@@ -234,6 +267,13 @@ class PointMass2d(pygame.sprite.Sprite):
 
     Notes
     -----
+    This class uses Pygame's sprite group update() method to automatically
+    compute steering and rectilinear motion along with each render update.
+    While this works for simple use, it is causing integaration issues with
+    other update (i.e., FSM and messaging). The new BasePointMass2d class
+    above decouples the pygame sprite update, and may be more appropriate.
+    As a result, it is not unlikely that this class will be deprecated.
+    
     It is recommended to use the load_image() function above to initialize
     the image surface and rectangle, then pass the values to this function.
     One reason for separating these functions is to allow multiple sprites

@@ -19,7 +19,7 @@ INF = float('inf')
 sys.path.insert(0, '..')
 from vpoints.point2d import Point2d
 from vehicle.vehicle2d import StaticMass2d, SimpleWall2d
-from vehicle.vehicle2d import load_image, BasePointMass2d
+from vehicle.vehicle2d import load_image, SimpleVehicle2d
 
 if __name__ == "__main__":
     pygame.init()
@@ -27,6 +27,7 @@ if __name__ == "__main__":
     # Display constants
     size = sc_width, sc_height = 800, 640
     screen = pygame.display.set_mode(size)
+    pygame.display.set_caption('SEEK - ARRIVE demo')
     bgcolor = 111, 145, 192
 
     # Update Speed
@@ -40,7 +41,7 @@ if __name__ == "__main__":
     # Sprite images and pygame rectangles
     img = list(range(total))
     rec = list(range(total))
-    
+
     # Load vehicle images
     img[0], rec[0] = load_image('rpig.png', -1)
     img[1], rec[1] = load_image('ypig.png', -1)
@@ -63,11 +64,11 @@ if __name__ == "__main__":
     vel = Point2d(20,0)
 
     # Array of vehicles and associated pygame sprites
-    obj = [BasePointMass2d(pos[i], 50, vel, (img[i], rec[i])) for i in range(numveh//2)]
+    obj = [SimpleVehicle2d(pos[i], 50, vel, (img[i], rec[i])) for i in range(numveh//2)]
     rgroup = [veh.sprite for veh in obj]
     vehicles = obj[:]
 
-    # Steering behaviour target sprites 
+    # Steering behaviour target sprites
     for i in range(numveh//2, numveh):
         img[i] = pygame.Surface((5,5))
         rec[i] = img[i].get_rect()
@@ -87,7 +88,7 @@ if __name__ == "__main__":
         target = StaticMass2d(img[i], rec[i], pos[i], 10, vel)
         obj.append(target)
         rgroup.append(target)
-    # This gives a convenient list of (now-wall) obstacles for later use
+    # This gives a convenient list of (non-wall) obstacles for later use
     obslist = obj[numveh:]
 
     # Static Walls for pygame (screen border only)
@@ -102,11 +103,13 @@ if __name__ == "__main__":
     allsprites = pygame.sprite.RenderPlain(rgroup)
 
     ### Vehicle steering behavior defined below ###
-    # Big red (WANDER)
-    obj[0].steering.set_target(ARRIVE=obj[3].rect.center)
-    
-    # Yellow (ARRIVE)
-    obj[1].steering.set_target(ARRIVE=obj[4].rect.center)
+    # Big red (ARRIVE, medium hesitance)
+    (x_new, y_new) = obj[3].rect.center
+    obj[0].steering.set_target(ARRIVE=(x_new,y_new,3.0))
+
+    # Yellow (ARRIVE, low hesitance)
+    (x_new, y_new) = obj[4].rect.center
+    obj[1].steering.set_target(ARRIVE=(x_new,y_new,0.5))
 
     # Green (SEEK)
     obj[2].steering.set_target(SEEK=obj[5].rect.center)
@@ -114,9 +117,10 @@ if __name__ == "__main__":
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
         obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[30, wall_list])
-
     ### End of vehicle behavior ###
 
+
+    ### Main loop ###
     ticks = 0
     while 1:
         for event in pygame.event.get():
@@ -151,26 +155,18 @@ if __name__ == "__main__":
             obj[0].steering.set_target(ARRIVE=(x_new,y_new,3.0))
             ticks = 0
 
-        # Update Vehicles
+        # Update Vehicles (via manually calling each move() method)
         for v in vehicles:
             v.move(UPDATE_SPEED)
-            
-        # Update Sprites
+
+        # Update Sprites (via pygame sprite group update)
         allsprites.update(UPDATE_SPEED)
 
         #pygame.time.delay(2)
 
-        # Render
+        # Screen update
         screen.fill(bgcolor)
         allsprites.draw(screen)
-
-        # Draw the force vectors for each vehicle
-#        for i in range(numveh):
-#            vehicle = obj[i]
-#            g_pos = vehicle.pos
-#            g_force = g_pos + vehicle.force.scale(25)
-#            pygame.draw.line(screen, (0,0,0), g_pos.ntuple(), g_force.ntuple(), 3)
-
         pygame.display.flip()
 
     pygame.time.delay(2000)
