@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 """Non-flocking vehicle demo."""
 
@@ -16,10 +17,11 @@ TARGET_FREQ = 500
 INF = float('inf')
 
 # Note: Adjust this depending on where this file ends up.
-sys.path.insert(0, '..')
+sys.path.append('..')
 from vpoints.point2d import Point2d
-from vehicle.vehicle2d import SimpleWall2d
-from vehicle.vehicle2d import load_image, SimpleVehicle2d, SimpleObstacle2d
+
+from vehicle.vehicle2d import load_pygame_image
+from vehicle.vehicle2d import SimpleVehicle2d, SimpleObstacle2d, BaseWall2d
 ZERO_VECTOR = Point2d(0,0)
 
 if __name__ == "__main__":
@@ -44,9 +46,9 @@ if __name__ == "__main__":
     rec = list(range(total))
 
     # Load vehicle images
-    img[0], rec[0] = load_image('rpig.png', -1)
-    img[1], rec[1] = load_image('ypig.png', -1)
-    img[2], rec[2] = load_image('gpig.png', -1)
+    img[0], rec[0] = load_pygame_image('../images/rpig.png', -1)
+    img[1], rec[1] = load_pygame_image('../images/ypig.png', -1)
+    img[2], rec[2] = load_pygame_image('../images/gpig.png', -1)
 
     # Steering behaviour target images (generated here)
     for i in range(numveh, 2*numveh):
@@ -54,7 +56,7 @@ if __name__ == "__main__":
         rec[i] = img[i].get_rect()
 
     # Static obstacle image (shared among all obstacles)
-    obs_img, obs_rec = load_image('circle.png', -1)
+    obs_img, obs_rec = load_pygame_image('../images/circle.png', -1)
     for i in range(2*numveh, 2*numveh + numobs):
         img[i], rec[i] = obs_img, obs_rec
 
@@ -92,12 +94,13 @@ if __name__ == "__main__":
     obslist = obj[2*numveh:]
 
     # Static Walls for pygame (screen border only)
-    wall_list = (SimpleWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
-                 SimpleWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
-                 SimpleWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
-                 SimpleWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0)))
+    wall_list = (BaseWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
+                 BaseWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
+                 BaseWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
+                 BaseWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0)))
     obj.extend(wall_list)
-    rgroup.extend(wall_list)
+    for wall in wall_list:
+        rgroup.append(wall.sprite)
 
     # Set-up pygame rendering
     allsprites = pygame.sprite.RenderPlain(rgroup)

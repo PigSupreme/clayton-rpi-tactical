@@ -7,65 +7,32 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import os, sys, pygame
-from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
+import sys, pygame
+from pygame.locals import QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
 INF = float('inf')
 TARGET_FREQ = 1000
 
 # Note: Adjust this depending on where this file ends up.
-sys.path.insert(0, '..')
+sys.path.append('..')
 from vpoints.point2d import Point2d
 
-def load_image(name, colorkey=None):
-    """Loads image from current working directory for use in pygame.
+from vehicle.vehicle2d import load_pygame_image
+from vehicle.vehicle2d import SimpleVehicle2d, SimpleObstacle2d, BaseWall2d
 
-    Parameters
-    ----------
-    name: string
-        Image file to load (must be pygame-compatible format)
-    colorkey: pygame.Color
-        Used to set a background color for this image that will be ignored
-        during blitting. If set to -1, the upper-left pixel color will be
-        used as the background color. See pygame.Surface.set_colorkey() for
-        further details.
+import steering
+steering.FLOCKING_RADIUS_MULTIPLIER = 1.2
 
-    Returns
-    -------
-    (pygame.Surface, pygame.rect):
-        For performance reasons, the returned Surface is the same format as
-        the pygame display. The alpha channel is removed.
-
-    """
-    imagefile = os.path.join(os.getcwd(), name)
-    try:
-        image_surf = pygame.image.load(imagefile)
-    except pygame.error, message:
-        print('Error: Cannot load image: %s' % name)
-        raise SystemExit(message)
-
-    # This converts the surface for maximum blitting performance,
-    # including removal of any alpha channel:
-    image_surf = image_surf.convert()
-
-    # This sets the background (ignored during blit) color:
-    if colorkey is not None:
-        if colorkey is -1:
-            colorkey = image_surf.get_at((0,0))
-        image_surf.set_colorkey(colorkey, RLEACCEL)
-    return image_surf, image_surf.get_rect()
-
+UPDATE_SPEED = 0.2
 
 if __name__ == "__main__":
-    from vehicle2d import PointMass2d, StaticMass2d, SimpleWall2d
-    FLOCKING_RADIUS_MULTIPLIER = 1.2
-
     pygame.init()
 
     # Display constants
     size = sc_width, sc_height = 800, 640
     screen = pygame.display.set_mode(size)
+    pygame.display.set_caption('FOLLOW (offset pursuit) demo')
     bgcolor = 111, 145, 192
 
     # Sprite images and pygame rectangles
@@ -75,15 +42,13 @@ if __name__ == "__main__":
     total = numveh+numobs
     img = list(range(total))
     rec = list(range(total))
-    img[0], rec[0] = load_image('gpig.png', -1)
+    img[0], rec[0] = load_pygame_image('../images/gpig.png', -1)
     for i in range(1,numveh):
-        img[i], rec[i] = load_image('ypig.png', -1)
+        img[i], rec[i] = load_pygame_image('../images/ypig.png', -1)
 
     # Static obstacles
     for i in range(numveh, numveh + numobs):
-        img[i], rec[i] = load_image('circle.png', -1)
-
-    StaticMass2d.tagged_image = load_image('circle_tag.png', -1)[0]
+        img[i], rec[i] = load_pygame_image('../images/circle.png', -1)
 
     # Object physics for vehicles
     pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
@@ -91,7 +56,11 @@ if __name__ == "__main__":
     vel = Point2d(20,0)
 
     # Array of vehicles for pygame
-    obj = [PointMass2d(img[i], rec[i], pos[i], 50, vel) for i in range(numveh)]
+    obj = [SimpleVehicle2d(pos[i], 50, vel, (img[i], rec[i])) for i in range(numveh)]
+    rgroup = [veh.sprite for veh in obj]
+    
+    # List of vehicles only, for later use
+    vehlist = obj[:]
 
     # Static obstacles for pygame (randomly-generated positions)
     yoffset = sc_height//(numobs+1)
@@ -101,19 +70,22 @@ if __name__ == "__main__":
         offset = (i+1.0-numveh)/(numobs+1)
         rany = yvals[i-numveh]
         pos.append(Point2d(offset*sc_width, rany))
-        obj.append(StaticMass2d(img[i], rec[i], pos[i], 10, vel))
+        obstacle = SimpleObstacle2d(pos[i], 10, (img[i], rec[i]))
+        obj.append(obstacle)
+        rgroup.append(obstacle.sprite)
     # This gives a convenient list of obstacles for later use
     obslist = obj[numveh:]
 
-    # Static Walls for pygame (screen border only)
-    wall_list = (SimpleWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
-                 SimpleWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
-                 SimpleWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
-                 SimpleWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0)))
+    # Static Walls: Only near screen boundary
+    wall_list = (BaseWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
+                 BaseWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
+                 BaseWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
+                 BaseWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0)))
     obj.extend(wall_list)
+    rgroup.extend([wall.sprite for wall in wall_list])
 
     # Set-up pygame rendering
-    allsprites = pygame.sprite.RenderPlain(obj)
+    allsprites = pygame.sprite.RenderPlain(rgroup)
 
     ### Vehicle behavior defined below ###
     # Green leader (WANDER)
@@ -133,7 +105,6 @@ if __name__ == "__main__":
     obj[3].steering.set_target(FOLLOW=(obj[0], Point2d(-80,40)))
     obj[4].steering.set_target(FOLLOW=(obj[0], Point2d(-80,0)))
     obj[5].steering.set_target(FOLLOW=(obj[0], Point2d(-80,-40)))
-
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
@@ -157,22 +128,17 @@ if __name__ == "__main__":
             new_pos = Point2d(x_new,y_new)
             obj[0].steering.set_target(ARRIVE=(x_new,y_new))
             ticks = 0
-        # Mother Nature will be like, sloooooow dowwwwwwn....
-        allsprites.update(0.2)
 
-        #pygame.time.delay(2)
+        # Update Vehicles (via manually calling each move() method)
+        for v in vehlist:
+            v.move(UPDATE_SPEED)
+
+        # Update Sprites (via pygame sprite group update)
+        allsprites.update(UPDATE_SPEED)
 
         # Render
         screen.fill(bgcolor)
         allsprites.draw(screen)
-
-        # Draw the force vectors for each vehicle
-#        for i in range(numveh):
-#            vehicle = obj[i]
-#            g_pos = vehicle.pos
-#            g_force = g_pos + vehicle.force.scale(25)
-#            pygame.draw.line(screen, (0,0,0), g_pos.ntuple(), g_force.ntuple(), 3)
-
         pygame.display.flip()
 
     pygame.time.delay(2000)

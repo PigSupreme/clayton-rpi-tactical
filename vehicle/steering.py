@@ -13,7 +13,7 @@ from __future__ import print_function
 from __future__ import division
 
 from sys import path
-path.insert(0, '../vpoints')
+path.extend(['../vpoints'])
 from point2d import Point2d
 
 # Constants for steering behaviours

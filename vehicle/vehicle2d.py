@@ -13,7 +13,7 @@ from pygame.locals import RLEACCEL
 INF = float('inf')
 
 # TODO: Adjust this depending on where this file ends up.
-sys.path.insert(0, '../vpoints')
+sys.path.extend(['../vpoints', '../vehicle'])
 from point2d import Point2d
 
 from steering import SteeringBehavior
@@ -30,7 +30,7 @@ SCREEN_DEG = -57.2957795131
 SPEED_EPSILON = .000000001
 
 
-def load_image(name, colorkey=None):
+def load_pygame_image(name, colorkey=None):
     """Loads image from current working directory for use in pygame.
 
     Parameters
@@ -73,8 +73,12 @@ def load_image(name, colorkey=None):
         image_surf.set_colorkey(colorkey, RLEACCEL)
     return image_surf, image_surf.get_rect()
 
-class SimpleWall2d(pygame.sprite.Sprite):
-    """A simple wall for use in Pygame.
+# For backwards compatibility
+load_image  = load_pygame_image
+"""Backwards compatibility for old demos. Will be deprecated."""
+
+class BaseWall2d(object):
+    """A base class for static wall-type obstacles.
 
     Parameters
     ----------
@@ -91,18 +95,31 @@ class SimpleWall2d(pygame.sprite.Sprite):
         Color for rendering. Defaults to (0,0,0)
     """
 
+    class BaseWall2dSprite(pygame.sprite.Sprite):
+        """Pygame Sprite for rendering BaseWall2d objects."""
+
+        def __init__(self, owner, color=None):
+            # Must call pygame's Sprite.__init__ first!
+            pygame.sprite.Sprite.__init__(self)
+
+            # Set-up sprite image
+            self.image = pygame.Surface((owner.length, owner.thick))
+            self.image.set_colorkey((255,0,255))
+            if color == None:
+                self.color = (0,0,0)
+            self.image.fill(self.color)
+            self.rect = self.image.get_rect()
+
+            # Put into place for rendering
+            self.image = pygame.transform.rotate(self.image, owner.theta)
+            self.rect = self.image.get_rect()
+            self.rect.center = owner.pos[0], owner.pos[1]
+
+        def update(self, delta_t=1.0):
+            """Update for use by pygame.Sprite parent class."""
+            pass
+
     def __init__(self, center, length, thick, f_normal, color=None):
-        # Must call pygame's Sprite.__init__ first!
-        pygame.sprite.Sprite.__init__(self)
-
-        # Set-up original image for rendering
-        self.orig = pygame.Surface((length, thick))
-        self.orig.set_colorkey((255,0,255))
-        if color == None:
-            self.color = (0,0,0)
-        self.orig.fill(self.color)
-        self.rect = self.orig.get_rect()
-
         # Positional data
         self.pos = Point2d(center[0], center[1])
         self.theta = f_normal.angle()*SCREEN_DEG -90
@@ -110,37 +127,27 @@ class SimpleWall2d(pygame.sprite.Sprite):
         self.left = self.front.left_normal()
         self.rsq = (length/2)**2
 
-        # Put into place for rendering
-        self.image = pygame.transform.rotate(self.orig, self.theta)
-        self.rect = self.image.get_rect()
-        self.rect.center = center[0], center[1]
-        self.center = center
+        self.length = length
+        self.thick = thick
 
-    def update(self, delta_t=1.0):
-        """Update for use by pygame.Sprite parent class."""
-        # Set-up original image for rendering
-        self.orig.fill(self.color)
-        self.rect = self.orig.get_rect()
+        # Wall sprite
+        self.sprite = BaseWall2d.BaseWall2dSprite(self, color)
 
-        # Put into place for rendering
-        self.image = pygame.transform.rotate(self.orig, self.theta)
-        self.rect = self.image.get_rect()
-        self.rect.center = self.center[0], self.center[1]
 
 class PointMass2dSprite(pygame.sprite.Sprite):
     """A Pygame sprite used to display a BasePointMass2d object."""
-    
+
     def __init__(self, owner, img_surf, img_rect):
         # Must call pygame's Sprite.__init__ first!
         pygame.sprite.Sprite.__init__(self)
-        
+
         self.owner = owner
-        
+
         # Pygame image information for blitting
         self.orig = img_surf
         self.image = img_surf
         self.rect = img_rect
-    
+
     def update(self, delta_t=1.0):
         """Called by pygame.Group.update() to redraw this sprite."""
         owner = self.owner
@@ -166,13 +173,13 @@ class BasePointMass2d(object):
         Velocity vector, in screen coordinates. Initial facing matches this.
     spritedata: list or tuple, optional
         Extra data used to create an associate sprite. See notes below.
-        
+
     Notes
     -----
     This provides a minimal base class for a pointmass with bounding radius
     and heading aligned to velocity. Use move() for physics updates each
     cycle (including applying force).
-    
+
     As we typically will be rendering these objects within some environment,
     the constructor provides an optional spritedata parameter that can be used
     to create an associated sprite. This is currently implemented using the
@@ -181,7 +188,7 @@ class BasePointMass2d(object):
     """
     _spriteclass = PointMass2dSprite
     """Default sprite class to use for rendering."""
-    
+
     def __init__(self, position, radius, velocity, spritedata=None):
         # Basic object physics
         # Note: We can't use self.pos = position here because of Point2d's
@@ -207,10 +214,10 @@ class BasePointMass2d(object):
 
         if spritedata is not None:
             self.sprite = PointMass2dSprite(self, *spritedata)
-            
+
     def move(self, delta_t=1.0, force_vector=None):
         """Updates position, velocity, and acceleration.
-        
+
         Parameters
         ----------
         delta_t: float
@@ -249,12 +256,74 @@ class SimpleVehicle2d(BasePointMass2d):
 
 class SimpleObstacle2d(BasePointMass2d):
     """A static obstacle with center and bounding radius."""
-    
+
     def __init__(self, position, radius, spritedata=None):
         BasePointMass2d.__init__(self, position, radius, Point2d(0,0), spritedata)
-        
+
     def move(self, delta_t=1.0):
         pass
+
+############################################################
+## Old classes below...future deprecation likely
+############################################################
+
+class SimpleWall2d(pygame.sprite.Sprite):
+    """A simple wall for use in Pygame.
+
+    Parameters
+    ----------
+
+    center: tuple or Point2d
+        The center of the wall in screen coordinates.
+    length: int
+        Length of the wall.
+    thick: int
+        Thickness of the wall.
+    f_normal: Point2d
+        Normal vector out from the front of the wall.
+    color: 3-tuple or pygame.Color, optional
+        Color for rendering. Defaults to (0,0,0)
+        
+    Note
+    ----
+    Obsolete; replaced by BaseWall2d class.
+    """
+
+    def __init__(self, center, length, thick, f_normal, color=None):
+        # Must call pygame's Sprite.__init__ first!
+        pygame.sprite.Sprite.__init__(self)
+
+        # Set-up original image for rendering
+        self.orig = pygame.Surface((length, thick))
+        self.orig.set_colorkey((255,0,255))
+        if color == None:
+            self.color = (0,0,0)
+        self.orig.fill(self.color)
+        self.rect = self.orig.get_rect()
+
+        # Positional data
+        self.pos = Point2d(center[0], center[1])
+        self.theta = f_normal.angle()*SCREEN_DEG -90
+        self.front = f_normal.unit()
+        self.left = self.front.left_normal()
+        self.rsq = (length/2)**2
+
+        # Put into place for rendering
+        self.image = pygame.transform.rotate(self.orig, self.theta)
+        self.rect = self.image.get_rect()
+        self.rect.center = center[0], center[1]
+        self.center = center
+
+    def update(self, delta_t=1.0):
+        """Update for use by pygame.Sprite parent class."""
+        # Set-up original image for rendering
+        self.orig.fill(self.color)
+        self.rect = self.orig.get_rect()
+
+        # Put into place for rendering
+        self.image = pygame.transform.rotate(self.orig, self.theta)
+        self.rect = self.image.get_rect()
+        self.rect.center = self.center[0], self.center[1]
 
 
 class PointMass2d(pygame.sprite.Sprite):
@@ -281,7 +350,7 @@ class PointMass2d(pygame.sprite.Sprite):
     other update (i.e., FSM and messaging). The new BasePointMass2d class
     above decouples the pygame sprite update, and may be more appropriate.
     As a result, it is not unlikely that this class will be deprecated.
-    
+
     It is recommended to use the load_image() function above to initialize
     the image surface and rectangle, then pass the values to this function.
     One reason for separating these functions is to allow multiple sprites
@@ -388,7 +457,7 @@ class PointMass2d(pygame.sprite.Sprite):
         # Movement and image rotation:
         self.move(delta_t, force)
         self._rotate_for_blit()
-        
+
         # Used to draw force vectors for pygame demos
         self.force = force
 
@@ -408,10 +477,10 @@ class StaticMass2d(PointMass2d):
         Center of mass, in screen coordinates.
     radius: float
         Bounding radius of the object.
-        
+
     Note
     ----
-    Use SimpleObstacle2d instead of this class in future work.    
+    Use SimpleObstacle2d instead of this class in future work.
     See PointMass2d notes for an explanation.
     """
 
