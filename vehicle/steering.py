@@ -376,6 +376,22 @@ def force_follow(owner, leader, offset):
     target_pos += leader.vel.scale(ptime)
     return force_arrive(owner, target_pos, FOLLOW_ARRIVE_HESITANCE)
 
+def force_brake(owner, decay=0.5):
+    """Steering force oppoisite of current forward velocity.
+    
+    Parameters
+    ----------
+    owner: Vehicle
+        The vehicle computing this force.
+    decay: float
+        Discrete exponential decay constant for speed; 0 < decay < 1.
+    """
+    
+    speed = owner.vel.norm()
+    return owner.vel.scale(-decay * speed)
+    
+
+
 ##############################################
 ### Group (flocking) behaviours start here ###
 ##############################################
@@ -477,7 +493,8 @@ class SteeringBehavior(object):
         If set to False, all active behaviors are consdidered each update.
     """
 
-    PRIORITY_DEFAULTS = ['WALLAVOID',
+    PRIORITY_DEFAULTS = ['BRAKE',
+                         'WALLAVOID',
                          'AVOID',
                          'SEPARATE',
                          'FLEE',
@@ -510,9 +527,11 @@ class SteeringBehavior(object):
                        'FOLLOW': False,
                        'SEPARATE': False,
                        'ALIGN': False,
-                       'COHESION': False
+                       'COHESION': False,
+                       'BRAKE': False
                        }
         self.targets = dict()
+        self.inactive_targets = dict()
         self.flocking = False   
         
         # Set the appropriate compute_force_ function here.
@@ -558,6 +577,8 @@ class SteeringBehavior(object):
             Vehicle list to flock against
         COHESION: List of Vehicle, optional
             Vehicle list to flock against
+        BRAKE: float, optional
+            Speed decay factor (0 < decay < 1)
 
         Notes
         -----
@@ -565,6 +586,11 @@ class SteeringBehavior(object):
         self.flocking to True; this is used by force_foo functions so that
         neighbors need only be tagged once per cycle (for efficiency).
         """
+        # TODO: It seems inefficient to check all behaviours per call when
+        # we'll typically only be setting a few per call. The real problem is
+        # the lack of a switch statement in Python, but consider a better
+        # implementation. Perhaps break each activation code into its own
+        # function, similar to what we did with force_foo().
         keylist = kwargs.keys()
         if 'SEEK' in keylist:
             target = kwargs['SEEK']
@@ -673,25 +699,57 @@ class SteeringBehavior(object):
             self.status['COHESION'] = True
             print('COHESION (flocking) active.')
 
+        if 'BRAKE' in keylist:
+            target = kwargs['BRAKE']
+            # TODO: Error checking here.
+            if 0 < target < 1:
+                self.targets[force_brake] = (target,)
+            else:
+                self.targets[force_brake] = (0.5,)
+            self.status['BRAKE'] = True
+            print("BRAKE active.")
+
         self.set_priorities()
 
-    # TODO: Add a clear_target function or similar to deactivate behaviours
-    def deactivate_behaviour(self, behaviour_type):
-        """Temporarilily turns off a given steering behaviour."""
+    def pause(self, steering_type):
+        """Temporarilily turns off a steering behaviour, keeping targets."""
         try:
-            self.status[behaviour_type] = False
+            self.status[steering_type] = False
+            fnc_name = 'force_' + steering_type.lower()
+            fnc = globals()[fnc_name]
+            self.inactive_targets[steering_type] = self.targets[fnc]
+            del self.targets[fnc]
+            self.set_priorities()
+            print('%s paused.' % steering_type)
         except KeyError:
-            print('Warning: Behaviour %s has not been initialized. Ignoring deactivation' % behaviour_type)
+            print('Warning: Behaviour %s has not been initialized. Ignoring pause.' % steering_type)
 
-    def reactivate_behaviour(self, behaviour_type):
-        """Turns a previously-initialized behaviour back on."""
+    def resume(self, steering_type):
+        """Turns on a previously paused behaviour, using old targets."""
         # TODO: Check that this behaviour was previous initialized
-        self.status[behaviour_type] = True
+        try:
+            target = self.inactive_targets[steering_type]
+            fnc_name = 'force_' + steering_type.lower()
+            fnc = globals()[fnc_name]
+            self.targets[fnc] = target
+            self.status[steering_type] = True
+            del self.inactive_targets[fnc]
+            self.set_priorities()
+        except KeyError:
+            print('Warning: Behaviour %s was not paused. Ignoring resume.' % steering_type)
 
-    def end_behaviour(self, behaviour_type):
+    def stop(self, steering_type):
         """Permanently turns off a steering behaviour until re-initialized."""
-        pass    
-
+        try:
+            self.status[steering_type] = False
+            fnc_name = 'force_' + steering_type.lower()
+            fnc = globals()[fnc_name]
+            del self.targets[fnc]
+            self.set_priorities()
+            print('%s deactivated.' % steering_type)
+        except KeyError:
+            print('Warning: Behaviour %s has not been initialized. Ignoring stop.' % steering_type)
+ 
 
     def flag_neighbor_vehicles(self, vlist=()):
         """Populates a list of nearby vehicles, for use with flocking
@@ -717,6 +775,9 @@ class SteeringBehavior(object):
         This is designed to work with pre-processing (such as spatial partitioning
         or flocking with certain vehicles only); the results of which are passed
         in as vlist. If this isn't needed,
+        
+        TODO: Current implementation does not use vlist(), and the above comment
+        is clearly incomplete. Figure out what's going on here and fix it.
         """
         owner = self.vehicle
         n_radius = owner.radius * FLOCKING_RADIUS_MULTIPLIER

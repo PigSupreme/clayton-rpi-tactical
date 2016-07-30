@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 """Non-flocking vehicle demo."""
 
@@ -28,7 +27,7 @@ ZERO_VECTOR = Point2d(0,0)
 from fsm_ex.state_machine import State, StateMachine
 
 class InitialState(State):
-    
+
     def execute(self, agent):
         print('Inital state: Vehicle %d' % agent.ent_id)
         agent.steering.set_target(AVOID=obslist, WALLAVOID=[30, wall_list])
@@ -40,30 +39,33 @@ class SeekingState(State):
 
     def enter(self, agent):
         # Set target; estimate time to reach it
-        goal_pos = (agent.goal.pos[0], agent.goal.pos[1])
         goal_dist = (agent.pos - agent.goal.pos).norm()
         est_time = goal_dist / agent.maxspeed
-        agent.seek_countdown = est_time * 1.5 / UPDATE_SPEED
-        
-        # Highest-numbered vehicle (GREEN) uses SEEK
-        if agent.ent_id == numveh-1:
-            agent.steering.set_target(SEEK=goal_pos)
-        else:
-            # All others use ARRIVE            
+        agent.seek_countdown = (est_time * 1.2) / UPDATE_SPEED
+
+        # If vehicle has hesistance, use ARRIVE. Otherwise use SEEK
+        goal_pos = [agent.goal.pos[0], agent.goal.pos[1]]
+        try:
+            goal_pos.append(agent.hesitance)
             agent.steering.set_target(ARRIVE=goal_pos)
+        except AttributeError:
+                agent.steering.set_target(SEEK=goal_pos)
 
     def execute(self, agent):
         # If we take too long to reach target, switch to wandering
         counter = agent.seek_countdown - 1.0
         if counter < 0:
+            # First stop SEEK/ARRIVE, since we didn't reach the target
+            if hasattr(agent, 'hesitance'):
+                agent.steering.pause('ARRIVE')
+            else:
+                agent.steering.pause('SEEK')
             agent.fsm.change_state(WanderState())
         else:
             agent.seek_countdown = counter
-        
+
     def on_msg(self, agent, message):
         if message == 'MSG_ARRIVED':
-            agent_id = agent.ent_id
-            print('Vehicle %d: Received MSG_ARRIVED' % agent_id)
             agent.fsm.change_state(WaitingState())
             return True
         else:
@@ -71,41 +73,41 @@ class SeekingState(State):
 
 
 class WaitingState(State):
-    
+    """Vehicle waits for a bit, then switches to WanderState."""
+
     def enter(self, agent):
-        agent.wait_timer = TARGET_FREQ // 2
-    
+        agent.wait_timer = TARGET_FREQ // 3
+
     def execute(self, agent):
         agent.wait_timer = agent.wait_timer - 1
         if agent.wait_timer <= 0:
-            del agent.wait_timer
             agent.fsm.change_state(WanderState())
-            
+
     def leave(self, agent):
-        """Code to execute just before changing from this state."""
-        # Turn off steering behaviour (SEEK or ARRIVE)
-        agent.steering.deactivate_behaviour('SEEK')
-        agent.steering.deactivate_behaviour('ARRIVE')
-        
+        agent.wait_timer = 0
+        # Pause steering behaviour (SEEK or ARRIVE)
+        if hasattr(agent, 'hesitance'):
+            agent.steering.pause('ARRIVE')
+        else:
+            agent.steering.pause('SEEK')
+
 
 class WanderState(State):
-    """Vehicle will WANDER until it receives new instructions."""
-    
+    """Vehicle will WANDER until it receives MSG_AWAKEN."""
+
     def enter(self, agent):
-        agent.steering.set_target(WANDER=(250, 10, 3))
-        
+        agent.steering.set_target(WANDER=(70, 15, 3))
+
     def leave(self, agent):
-        agent.steering.deactivate_behaviour('WANDER')
-        
+        agent.steering.stop('WANDER')
+
     def on_msg(self, agent, message):
         if message == 'MSG_AWAKEN':
-            agent_id = agent.ent_id
-            print('Vehicle %d: Received MSG_AWAKEN' % agent_id)
             agent.fsm.change_state(SeekingState())
             return True
         else:
             return False
-            
+
 
 if __name__ == "__main__":
     pygame.init()
@@ -115,7 +117,7 @@ if __name__ == "__main__":
     screen = pygame.display.set_mode(size)
     pygame.display.set_caption('FSM demo with SEEK - ARRIVE - WANDER and Pygame collisions')
     bgcolor = 111, 145, 192
-    
+
     # Number of vehicles and obstacles
     numveh = 3
     numobs = 16
@@ -158,7 +160,7 @@ if __name__ == "__main__":
         x_new = randint(30, sc_width-30)
         y_new = randint(30, sc_height-30)
         new_pos = Point2d(x_new,y_new)
-        target = SimpleVehicle2d(new_pos, 10, ZERO_VECTOR, (img[i], rec[i]))
+        target = SimpleVehicle2d(new_pos, 2.5, ZERO_VECTOR, (img[i], rec[i]))
         obj.append(target)
         rgroup.append(target.sprite)
 
@@ -188,16 +190,18 @@ if __name__ == "__main__":
     # Set-up pygame rendering
     allsprites = pygame.sprite.RenderPlain(rgroup)
 
-    ### Vehicle steering targets ###
-    # Big red (ARRIVE, medium hesitance set by FSM later)
+    # Assign each real vehicle a steering target
+    # Big red (ARRIVE, with medium hesitance set by FSM later)
     x_new, y_new = obj[3].pos[0], obj[3].pos[1]
     obj[0].goal = obj[3]
+    obj[0].hesitance = 3.0
 
-    # Yellow (ARRIVE, low hesitance set by FSM later)
+    # Yellow (ARRIVE, with low hesitance set by FSM later)
     x_new, y_new = obj[4].pos[0], obj[4].pos[1]
     obj[1].goal = obj[4]
+    obj[1].hesitance = 0.5
 
-    # Green (SEEK set by FSM later)
+    # Green (No hesitance, so FSM will use SEEK later)
     x_new, y_new = obj[5].pos[0], obj[5].pos[1]
     obj[2].goal = obj[5]
 
@@ -215,12 +219,16 @@ if __name__ == "__main__":
     COLLIDE_FUNCTION = pygame.sprite.collide_circle
 
     ### Main loop ###
-    ticks = 0
+    ticks = TARGET_FREQ // 2
     while 1:
         for event in pygame.event.get():
             if event.type in [QUIT, MOUSEBUTTONDOWN]:
                 pygame.quit()
                 sys.exit()
+
+        # FSM Updates
+        for i in range(numveh):
+            obj[i].fsm.update()
 
         # Update Vehicles (via manually calling each move() method)
         for v in vehicles:
@@ -231,10 +239,6 @@ if __name__ == "__main__":
                 v.tgroup.remove(obj[v_id + numveh].sprite)
                 v.fsm.handle_msg('MSG_ARRIVED')
 
-        # FSM Updates
-        for i in range(numveh):
-            obj[i].fsm.update()
-
         # Update steering targets every so often
         ticks += 1
         if ticks == TARGET_FREQ:
@@ -244,8 +248,8 @@ if __name__ == "__main__":
                 y_new = randint(30, sc_height-30)
                 new_pos = Point2d(x_new,y_new)
                 obj[i + numveh].pos = new_pos
-                obj[i].fsm.handle_msg('MSG_AWAKEN')
                 obj[i].tgroup.add(obj[i + numveh].sprite)
+                obj[i].fsm.handle_msg('MSG_AWAKEN')
                 ticks = 0
 
         # Update Sprites (via pygame sprite group update)
