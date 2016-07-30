@@ -519,6 +519,7 @@ class SteeringBehavior(object):
         if use_budget is True:
             self.compute_force = self.compute_force_budgeted
             # Kludge function to sort behaviours by order in PRIORITY_DEFAULTS
+            # This removes each 'force_' part and converts to UPPERCASE
             self.priority_key = lambda fnc: SteeringBehavior.PRIORITY_DEFAULTS.index(fnc[0].func_name[6:].upper())
             self.set_priorities()
         else:
@@ -674,8 +675,26 @@ class SteeringBehavior(object):
 
         self.set_priorities()
 
+    # TODO: Add a clear_target function or similar to deactivate behaviours
+    def deactivate_behaviour(self, behaviour_type):
+        """Temporarilily turns off a given steering behaviour."""
+        try:
+            self.status[behaviour_type] = False
+        except KeyError:
+            print('Warning: Behaviour %s has not been initialized. Ignoring deactivation' % behaviour_type)
+
+    def reactivate_behaviour(self, behaviour_type):
+        """Turns a previously-initialized behaviour back on."""
+        # TODO: Check that this behaviour was previous initialized
+        self.status[behaviour_type] = True
+
+    def end_behaviour(self, behaviour_type):
+        """Permanently turns off a steering behaviour until re-initialized."""
+        pass    
+
+
     def flag_neighbor_vehicles(self, vlist=()):
-        """
+        """Populates a list of nearby vehicles, for use with flocking
 
         Parameters
         ----------
@@ -732,6 +751,7 @@ class SteeringBehavior(object):
         # argument; we look this up here and do not store in self.targets.
         for f, t in self.targets.iteritems():
             force += f(owner, *t)
+            # TODO: Check for active behaviours; see budgeted version below
         force.truncate(owner.maxforce)
         return force
 
@@ -754,6 +774,12 @@ class SteeringBehavior(object):
 
         budget = owner.maxforce
         for (f, t) in self.priorities:
+            # Check if this behaviour is actually active
+            # If not, continue to the next behaviour
+            status_key = f.func_name[6:].upper()
+            if self.status[status_key] is not True:
+                continue
+            
             newforce = f(owner, *t)
             newnorm = newforce.norm()
             if budget > newnorm:
