@@ -264,7 +264,11 @@ class SimpleObstacle2d(BasePointMass2d):
     def move(self, delta_t=1.0):
         pass
 
+<<<<<<< HEAD
 class SimpleRigidBody2d(BasePointMass2d):
+=======
+class SimpleRotatingMass2d(BasePointMass2d):
+>>>>>>> ebab42ebb0f3a5dea8b25ca7835828b2bc05d4e2
     """Moving object with linear and angular motion, with optional sprite.
     
     Notes
