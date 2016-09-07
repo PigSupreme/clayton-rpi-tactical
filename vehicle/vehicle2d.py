@@ -265,6 +265,7 @@ class SimpleObstacle2d(BasePointMass2d):
         pass
 
 class SimpleRigidBody2d(BasePointMass2d):
+
     """Moving object with linear and angular motion, with optional sprite.
     
     Notes
