@@ -527,6 +527,7 @@ class SteeringPath(object):
         # Compute initial segment, see Notes
         self.oldway = self.waypoints.pop(0)
         self.newway = self.waypoints.pop(0)
+        # Length of this edge and unit vector (oldway to newway)
         offset = self.newway - self.oldway
         self.edgelength = offset.norm()
         self.edgevector = offset.scale(1/self.edgelength)
@@ -542,6 +543,7 @@ class SteeringPath(object):
         try:
             self.newway = self.waypoints.pop(0)
             # TODO: Check for empty path, rewrite try/execpt block
+            # Compute new length and unit vector
             offset = self.newway - self.oldway
             self.edgelength = offset.norm()
             self.edgevector = offset.scale(1/self.edgelength)
@@ -589,6 +591,58 @@ def activate_pathfollow(steering, path):
     steering.targets[force_pathfollow] = (path,)
     return True
 
+def force_pathresume(owner, path, invk):
+    """Steering force for PATHRESUME behaviour.
+
+    Parameters
+    ----------
+    owner: SimpleVehicle2d
+        The vehicle computing this force.
+    path: SteeringPath
+        Path to be followed by the owner
+    invk: positive float
+        Reciprocal of exponential decay constant. See Notes.
+        
+    Notes
+    -----
+    If the vehicle is off course, this will give a balance between returning
+    directly to the current path edge and SEEKing to the next waypoint.
+    Smaller value of invk (larger decay rate) give more immediate return to
+    the path.
+    TODO: Further comments are probably needed.
+    """
+    # TODO: Clean up this nonsense!
+    # If no waypoint left, exit immediately
+    if path.newway is None:
+        return Point2d(0,0)
+        
+    # Otherwise, check for arrival
+    if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
+        path.advance()
+        
+    if path.newway is None:
+        return Point2d(0,0)
+    
+    # TODO: This is for testing only?
+    owner.waypoint = path.newway
+    
+    # This is the remaining direct distance to the next waypoint,
+    # using orthogonal projection operator
+    rl = (path.newway - owner.pos)/path.edgevector
+    # If resume target is beyond the next waypoint, SEEK to next waypoint.
+    # Otherwise, SEEK to the resume target
+    if invk >= rl:
+        target = path.newway
+    else:
+        target = path.newway + path.edgevector.scale(invk - rl)
+    
+    return force_seek(owner, target)
+
+def activate_pathresume(steering, path, dekay=PATHRESUME_DECAY):
+    """Activate PATHRESUME behaviour."""
+    # TODO: Error checking here.
+    steering.targets[force_pathresume] = (path, 1.0/dekay)
+    return True
 
 ##############################################
 ### Group (flocking) behaviours start here ###
@@ -741,6 +795,7 @@ class SteeringBehavior(object):
                          'PURSUE',
                          'GUARD',
                          'FOLLOW',
+                         'PATHRESUME',
                          'PATHFOLLOW',
                          'COHESION',
                          'ALIGN',
@@ -806,6 +861,8 @@ class SteeringBehavior(object):
         Flocking behaviours (SEPARATE, ALIGN, COHESION) automatically set
         self.flocking to True; this is used by force_foo functions so that
         neighbors need only be tagged once per cycle (for efficiency).
+        
+        TODO: Parameters for path-related behaviour
         """
         for (behaviour, target) in kwargs.items():
             # Find and call correponding activate function

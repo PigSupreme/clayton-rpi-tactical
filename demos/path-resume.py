@@ -30,14 +30,14 @@ if __name__ == "__main__":
     # Display constants
     size = sc_width, sc_height = 800, 640
     screen = pygame.display.set_mode(size)
-    pygame.display.set_caption('SIMPLE PATHFOLLOW demo')
+    pygame.display.set_caption('PATHFOLLOW vs. PATHRESUME demo')
     bgcolor = 111, 145, 192
 
     # Update Speed
     UPDATE_SPEED = 0.6
 
     # Number of vehicles and obstacles
-    numveh = 1
+    numveh = 2
     numobs = 12
     total = 2*numveh+numobs
 
@@ -47,6 +47,7 @@ if __name__ == "__main__":
 
     # Load vehicle images
     img[0], rec[0] = load_pygame_image('../images/gpig.png', -1)
+    img[1], rec[1] = load_pygame_image('../images/ypig.png', -1)
 
     # Steering behaviour target images (generated here)
     for i in range(numveh, 2*numveh):
@@ -59,7 +60,8 @@ if __name__ == "__main__":
         img[i], rec[i] = obs_img, obs_rec
 
     # Randomly generate initial placement for vehicles
-    pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
+    spos = Point2d(randint(30, sc_width-30), randint(30, sc_height-30))
+    pos = [spos for i in range(numveh)]
     vel = Point2d(20,0)
 
     # Array of vehicles and associated pygame sprites
@@ -103,12 +105,20 @@ if __name__ == "__main__":
     allsprites = pygame.sprite.RenderPlain(rgroup)
 
     ### Vehicle steering behavior defined below ###
-    # Green (PATHFOLLOW)
+    # Green (PATHRESUME)
     startp = (obj[0].pos.x, obj[0].pos.y)
     waylist = [startp, (380,380), (60, 370), (220,150), (180,80), (500,290), startp]
-    path = SteeringPath([Point2d(*p) for p in waylist],True)
-    obj[0].steering.set_target(PATHFOLLOW=path)
+    gpath = SteeringPath([Point2d(*p) for p in waylist],True)
+    obj[0].steering.set_target(PATHFOLLOW=gpath)
     obj[0].waypoint = obj[0].pos
+
+    # Yellow (PATHFOLLOW)
+    startp = (obj[1].pos.x, obj[1].pos.y)
+    waylist = [startp, (380,380), (60, 370), (220,150), (180,80), (500,290), startp]
+    ypath = SteeringPath([Point2d(*p) for p in waylist],True)
+    obj[1].steering.set_target(PATHRESUME=ypath)
+    obj[1].waypoint = obj[1].pos
+
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
