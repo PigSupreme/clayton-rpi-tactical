@@ -46,6 +46,9 @@ TAKECOVER_STALK_T = 0.1
 # FOLLOW the leader uses ARRIVE with this hesitance, for smooth formations 
 FOLLOW_ARRIVE_HESITANCE = 1.5
 
+# Used by PATHFOLLOW to determine when we're close enough to a waypoint
+PATHFOLLOW_TOLERANCE_SQ = 10**2
+
 # For simplicity, we multiply the vehicle's bounding radius by this constant
 # to determine the local neighborhood radius for group behaviours.
 FLOCKING_RADIUS_MULTIPLIER = 2.0

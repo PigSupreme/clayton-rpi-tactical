@@ -499,6 +499,98 @@ def activate_brake(steering, target):
     return True
 
 ##############################################
+### Path-following behaviours start here   ###
+##############################################
+
+class SteeringPath(object):
+    """Helper class for managing path-related behaviour.
+    
+    Parameters
+    ----------
+    waypoints: list of Point2d
+        Non-empty list of waypoints on this path.
+    is_cyclic: boolean
+        If set to True, path will automatically cycle. See notes below.
+        
+    Notes
+    -----
+    When using this for vehicle steering, the first waypoint is intended as the
+    starting point of some owner vehicle. This point is *not* automatically put
+    back on the path even if is_cyclic is set to True, so add it manually to the
+    end of waypoints list if the vehicle should return to its starting point.
+    """
+    
+    def __init__(self, waypoints, is_cyclic=False):
+        self.waypoints = waypoints
+        self.is_cyclic = is_cyclic
+        
+        # Compute initial segment, see Notes
+        self.oldway = self.waypoints.pop(0)
+        self.newway = self.waypoints.pop(0)
+        offset = self.newway - self.oldway
+        self.edgelength = offset.norm()
+        self.edgevector = offset.scale(1/self.edgelength)
+        if not is_cyclic:
+            # Add a dummy waypoint to signal end of path
+            self.waypoints.append(None)
+        
+    def advance(self):
+        """Update our waypoints to the next segment on the path."""
+        self.oldway = self.newway
+        if self.is_cyclic:
+            self.waypoints.append(self.newway)
+        try:
+            self.newway = self.waypoints.pop(0)
+            # TODO: Check for empty path, rewrite try/execpt block
+            offset = self.newway - self.oldway
+            self.edgelength = offset.norm()
+            self.edgevector = offset.scale(1/self.edgelength)
+        except TypeError:
+            # self.oldway was the last waypoint on the path
+            self.newway = None
+            self.edgelength = 0
+            self.edgevector = Point2d(0,0)
+
+            
+def force_pathfollow(owner, path):
+    """Steering force for PATHFOLLOW behaviour.
+    
+    Parameters
+    ----------
+    owner: SimpleVehicle2d
+        The vehicle computing this force.
+    path: SteeringPath
+        Path to be followed by the owner
+        
+    Notes
+    -----
+    This is the simplest version, SEEK to next waypoint.
+    """
+    # TODO: Clean up this nonsense!
+    # If no waypoint left, exit immediately
+    if path.newway is None:
+        return Point2d(0,0)
+        
+    # Otherwise, check for arrival
+    if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
+        path.advance()
+        
+    if path.newway is None:
+        return Point2d(0,0)
+    
+    # TODO: This is for testing only?
+    owner.waypoint = path.newway
+    
+    return force_seek(owner, path.newway)
+        
+def activate_pathfollow(steering, path):
+    """Activate PATHFOLLOW behaviour."""
+    # TODO: Error checking here.
+    steering.targets[force_pathfollow] = (path,)
+    return True
+
+
+##############################################
 ### Group (flocking) behaviours start here ###
 ##############################################
 
@@ -649,6 +741,7 @@ class SteeringBehavior(object):
                          'PURSUE',
                          'GUARD',
                          'FOLLOW',
+                         'PATHFOLLOW',
                          'COHESION',
                          'ALIGN',
                          'WANDER'
