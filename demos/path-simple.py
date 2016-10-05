@@ -34,7 +34,7 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Update Speed
-    UPDATE_SPEED = 0.2
+    UPDATE_SPEED = 0.6
 
     # Number of vehicles and obstacles
     numveh = 1
@@ -105,7 +105,9 @@ if __name__ == "__main__":
 
     ### Vehicle steering behavior defined below ###
     # Green (PATHFOLLOW)
-    path = SteeringPath([obj[0].pos, Point2d(380,380), Point2d(370,200), Point2d(220,150), Point2d(180,80), Point2d(500,290)],True)
+    startp = (obj[0].pos.x, obj[0].pos.y)
+    waylist = [startp, (380,380), (60, 370), (220,150), (180,80), (500,290), startp]
+    path = SteeringPath([Point2d(*p) for p in waylist],True)
     obj[0].steering.set_target(PATHFOLLOW=path)
     obj[0].waypoint = obj[0].pos
 
@@ -135,6 +137,7 @@ if __name__ == "__main__":
 
         # Screen update
         screen.fill(bgcolor)
+        pygame.draw.lines(screen, (55,55,55), True, waylist, 2)
         allsprites.draw(screen)
         pygame.display.flip()
 
