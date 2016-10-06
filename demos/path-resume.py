@@ -11,8 +11,6 @@ import sys, pygame
 from pygame.locals import QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
-TARGET_FREQ = 500
-
 INF = float('inf')
 
 # Note: Adjust this depending on where this file ends up.
@@ -34,12 +32,16 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Update Speed
-    UPDATE_SPEED = 0.6
+    UPDATE_SPEED = 0.1
 
     # Number of vehicles and obstacles
     numveh = 2
     numobs = 12
     total = 2*numveh+numobs
+
+    # Waypoint/path information
+    pathlen = 6
+    min_dist_sq = 80*2
 
     # Sprite images and pygame rectangles
     img = list(range(total))
@@ -105,16 +107,24 @@ if __name__ == "__main__":
     allsprites = pygame.sprite.RenderPlain(rgroup)
 
     ### Vehicle steering behavior defined below ###
-    # Green (PATHRESUME)
+    # Randomly-generated list of waypoints
     startp = (obj[0].pos.x, obj[0].pos.y)
-    waylist = [startp, (380,380), (60, 370), (220,150), (180,80), (500,290), startp]
+    waylist = [startp]
+    while len(waylist) <= pathlen:
+        newp = (randint(30, sc_width-30), randint(30, sc_height-30))
+        newp2d = Point2d(*newp)
+        d_min_sq = min([(obs.pos - newp2d).sqnorm() for obs in obslist])
+        if d_min_sq > min_dist_sq:
+            waylist.append(newp)
+    waylist.append(startp)
+    print("Waypoint list: %s " % waylist)
+
+    # Green (PATHRESUME)
     gpath = SteeringPath([Point2d(*p) for p in waylist],True)
     obj[0].steering.set_target(PATHFOLLOW=gpath)
     obj[0].waypoint = obj[0].pos
 
     # Yellow (PATHFOLLOW)
-    startp = (obj[1].pos.x, obj[1].pos.y)
-    waylist = [startp, (380,380), (60, 370), (220,150), (180,80), (500,290), startp]
     ypath = SteeringPath([Point2d(*p) for p in waylist],True)
     obj[1].steering.set_target(PATHRESUME=ypath)
     obj[1].waypoint = obj[1].pos

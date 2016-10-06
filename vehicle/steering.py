@@ -530,6 +530,8 @@ class SteeringPath(object):
         # Length of this edge and unit vector (oldway to newway)
         offset = self.newway - self.oldway
         self.edgelength = offset.norm()
+        # TODO: Check for length zero (currently throws ZeroDivision error)
+        # This means identical consecutive waypoints.
         self.edgevector = offset.scale(1/self.edgelength)
         if not is_cyclic:
             # Add a dummy waypoint to signal end of path
