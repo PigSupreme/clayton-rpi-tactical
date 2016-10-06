@@ -530,9 +530,11 @@ class SteeringPath(object):
         # Length of this edge and unit vector (oldway to newway)
         offset = self.newway - self.oldway
         self.edgelength = offset.norm()
-        # TODO: Check for length zero (currently throws ZeroDivision error)
-        # This means identical consecutive waypoints.
-        self.edgevector = offset.scale(1/self.edgelength)
+        if self.edgelength > 0:
+            self.edgevector = offset.scale(1/self.edgelength)
+        else:
+            self.edgevector = Point2d(0,0)
+            print("[%s] Warning: duplciate waypoint at %s" % (self,self.newway))
         if not is_cyclic:
             # Add a dummy waypoint to signal end of path
             self.waypoints.append(None)
@@ -548,7 +550,11 @@ class SteeringPath(object):
             # Compute new length and unit vector
             offset = self.newway - self.oldway
             self.edgelength = offset.norm()
-            self.edgevector = offset.scale(1/self.edgelength)
+            if self.edgelength > 0:
+                self.edgevector = offset.scale(1/self.edgelength)
+            else:
+                self.edgevector = Point2d(0,0)
+                print("[%s] Warning: duplciate waypoint at %s" % (self,self.newway))
         except TypeError:
             # self.oldway was the last waypoint on the path
             self.newway = None
@@ -629,8 +635,14 @@ def force_pathresume(owner, path, invk):
     owner.waypoint = path.newway
     
     # This is the remaining direct distance to the next waypoint,
-    # using orthogonal projection operator
-    rl = (path.newway - owner.pos)/path.edgevector
+    # using orthogonal projection operator. If the old/new waypoints
+    # are identical, the Point2d code throws the error, and we can
+    # simply SEEK to the next waypoint
+    try:
+        rl = (path.newway - owner.pos)/path.edgevector
+    except ZeroDivisionError:
+        rl = 0
+        
     # If resume target is beyond the next waypoint, SEEK to next waypoint.
     # Otherwise, SEEK to the resume target
     if invk >= rl:

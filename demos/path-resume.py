@@ -129,7 +129,6 @@ if __name__ == "__main__":
     obj[1].steering.set_target(PATHRESUME=ypath)
     obj[1].waypoint = obj[1].pos
 
-
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
         obj[i].steering.set_target(AVOID=obslist, WALLAVOID=[30, wall_list])
