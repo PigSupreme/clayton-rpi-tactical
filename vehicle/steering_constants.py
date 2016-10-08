@@ -46,8 +46,12 @@ TAKECOVER_STALK_T = 0.1
 # FOLLOW the leader uses ARRIVE with this hesitance, for smooth formations 
 FOLLOW_ARRIVE_HESITANCE = 1.5
 
-# Used by PATHFOLLOW/RESUME to determine when we're close enough to a waypoint
-PATHFOLLOW_TOLERANCE_SQ = 10**2
+# SteeringPath will treat consecutive waypoints that are closer than this
+# as duplicates, and remove them from the path.
+PATH_EPSILON_SQ = 10.0**2
+
+# Used by PATHFOLLOW/RESUME to determine when we're close enough to a waypoint.
+PATHFOLLOW_TOLERANCE_SQ = 10.0**2
 
 # Exponential decay constnt for PATHRESUME
 PATHRESUME_DECAY = 0.075

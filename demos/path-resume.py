@@ -32,7 +32,7 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Update Speed
-    UPDATE_SPEED = 0.1
+    UPDATE_SPEED = 0.25
 
     # Number of vehicles and obstacles
     numveh = 2
@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     # Waypoint/path information
     pathlen = 6
-    min_dist_sq = 80*2
+    min_dist_sq = 80**2
 
     # Sprite images and pygame rectangles
     img = list(range(total))
@@ -119,12 +119,12 @@ if __name__ == "__main__":
     waylist.append(startp)
     print("Waypoint list: %s " % waylist)
 
-    # Green (PATHRESUME)
-    gpath = SteeringPath([Point2d(*p) for p in waylist],True)
+    # Green (PATHFOLLOW)
+    gpath = SteeringPath([Point2d(*p) for p in waylist],False)
     obj[0].steering.set_target(PATHFOLLOW=gpath)
     obj[0].waypoint = obj[0].pos
 
-    # Yellow (PATHFOLLOW)
+    # Yellow (PATHRESUME)
     ypath = SteeringPath([Point2d(*p) for p in waylist],True)
     obj[1].steering.set_target(PATHRESUME=ypath)
     obj[1].waypoint = obj[1].pos

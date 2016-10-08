@@ -518,48 +518,106 @@ class SteeringPath(object):
     starting point of some owner vehicle. This point is *not* automatically put
     back on the path even if is_cyclic is set to True, so add it manually to the
     end of waypoints list if the vehicle should return to its starting point.
+    
+    TODO: It may be helpful to rewrite this class as a generator.
     """
     
     def __init__(self, waypoints, is_cyclic=False):
-        self.waypoints = waypoints
-        self.is_cyclic = is_cyclic
+        self.oldway = waypoints[0]
+        self.waypoints = []
+        prev_wp = self.oldway
         
-        # Compute initial segment, see Notes
-        self.oldway = self.waypoints.pop(0)
-        self.newway = self.waypoints.pop(0)
+        # Include only consecutive waypoints that are far enough apart
+        for wp in waypoints[1:]:
+            if (prev_wp - wp).sqnorm() >= PATH_EPSILON_SQ:
+                self.waypoints.append(wp)
+                prev_wp = wp
+        
+        # Compute initial segment, see Notes on returning to first waypoint
+        self.newway = self.waypoints[0]
+        self.wpindex = 0
+        
         # Length of this edge and unit vector (oldway to newway)
         offset = self.newway - self.oldway
         self.edgelength = offset.norm()
-        if self.edgelength > 0:
-            self.edgevector = offset.scale(1/self.edgelength)
-        else:
-            self.edgevector = Point2d(0,0)
-            print("[%s] Warning: duplciate waypoint at %s" % (self,self.newway))
-        if not is_cyclic:
-            # Add a dummy waypoint to signal end of path
-            self.waypoints.append(None)
+        self.edgevector = offset.scale(1/self.edgelength)
+
+        self.is_cyclic = is_cyclic
+
+    def reset_from_position(self, start_pos, do_return=False):
+        """Reset the next waypoint to the start of this path.
         
+        Parameters
+        ----------
+        start_pos: Point2d
+            The new starting point for the path
+        do_return: boolean
+            If set to True, start_pos becomes the final waypoint. See Notes.
+            
+        Notes
+        -----
+        As with the __init__() method, start_pos is intended as the current
+        location of some vehicle, and is not explicitly added as the first
+        waypoint. If the path was previously cyclic, we will not return to
+        start_pos by default (but the previous waypoints will still continue
+        to cycle). do_return=True includes start_pos as the final waypoint, 
+        but only if it is outside of the PATH_EPSILON_SQ threshold.
+        """
+        self.newway = self.waypoints[0]
+        self.wpindex = 0
+        # TODO: Make sure this works for single edges and start_pos close to
+        # the first or last waypoint in a cyclic path.
+        # If we're close to the first waypoint, use that wp as start_pos
+        if (start_pos - self.newway).sqnorm() < PATH_EPSILON_SQ:
+            self.advance()
+        if do_return and (start.pos - self.waypoints[-1]).sqnorm() >= PATH_EPSILON_SQ:
+            self.waypoints.append(start_pos)
+
     def advance(self):
-        """Update our waypoints to the next segment on the path."""
+        """Update our waypoint to the next one in the path.
+        
+        Notes
+        -----
+        When we advance() from the last waypoint in a non-cyclic path, the
+        value of self.newway is set to None. This can be used elsewhere??
+        """
         self.oldway = self.newway
-        if self.is_cyclic:
-            self.waypoints.append(self.newway)
+        self.wpindex = self.wpindex + 1
+
         try:
-            self.newway = self.waypoints.pop(0)
-            # TODO: Check for empty path, rewrite try/execpt block
+            self.newway = self.waypoints[self.wpindex]
             # Compute new length and unit vector
             offset = self.newway - self.oldway
             self.edgelength = offset.norm()
-            if self.edgelength > 0:
+            self.edgevector = offset.scale(1/self.edgelength)
+
+        # This throws if we are at the last waypoint in the list. If the path
+        # is_cyclic, the 
+        except IndexError:
+            if self.is_cyclic:
+                # If cyclic, go back to the first waypoint
+                self.wpindex = 0
+                self.newway = self.waypoints[0]
+                offset = self.newway - self.oldway
+                self.edgelength = offset.norm()
                 self.edgevector = offset.scale(1/self.edgelength)
             else:
-                self.edgevector = Point2d(0,0)
-                print("[%s] Warning: duplciate waypoint at %s" % (self,self.newway))
-        except TypeError:
-            # self.oldway was the last waypoint on the path
-            self.newway = None
-            self.edgelength = 0
-            self.edgevector = Point2d(0,0)
+                self.newway = None
+                self.edgelength = 0
+                self.edgevector = None
+                
+    def num_left(self):
+        """Returns the number of waypoints remaining in this path.
+        
+        Notes
+        -----
+        For cyclic paths, we always return the total number of waypoints,
+        regardless of where we are in the list.
+        """
+        if self.is_cyclic:
+            return len(self.waypoints)
+        else:
+            return len(self.waypoints) - self.wpindex
 
             
 def force_pathfollow(owner, path):
@@ -574,18 +632,21 @@ def force_pathfollow(owner, path):
         
     Notes
     -----
-    This is the simplest version, SEEK to next waypoint.
+    If there is only one waypoint left, we ARRIVE at it. Otherwise, we SEEK.
     """
-    # TODO: Clean up this nonsense!
     # If no waypoint left, exit immediately
     if path.newway is None:
         return Point2d(0,0)
+
+    # If current destination is the last waypoint on this path, ARRIVE
+    # at that waypoint
+    if path.num_left() <=1:
+        return force_arrive(owner, path.newway)
         
-    # Otherwise, check for arrival
+    # Otherwise, check if we've reached the next waypoint
+    # Note: No force is returned when we switch to the next waypoint
     if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
         path.advance()
-        
-    if path.newway is None:
         return Point2d(0,0)
     
     # TODO: This is for testing only?
@@ -619,38 +680,49 @@ def force_pathresume(owner, path, invk):
     the path.
     TODO: Further comments are probably needed.
     """
-    # TODO: Clean up this nonsense!
     # If no waypoint left, exit immediately
     if path.newway is None:
         return Point2d(0,0)
-        
-    # Otherwise, check for arrival
-    if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
-        path.advance()
-        
-    if path.newway is None:
-        return Point2d(0,0)
-    
-    # TODO: This is for testing only?
-    owner.waypoint = path.newway
     
     # This is the remaining direct distance to the next waypoint,
     # using orthogonal projection operator. If the old/new waypoints
     # are identical, the Point2d code throws the error, and we can
-    # simply SEEK to the next waypoint
+    # simply SEEK/ARRIVE to the next waypoint
+    # TODO: This try/excecpt shouldn't be needed anymore, since the __init__()
+    # now elminates consecutive waypoints that are close together.
     try:
         rl = (path.newway - owner.pos)/path.edgevector
     except ZeroDivisionError:
         rl = 0
         
-    # If resume target is beyond the next waypoint, SEEK to next waypoint.
-    # Otherwise, SEEK to the resume target
-    if invk >= rl:
+    # If resume target is beyond the next waypoint, SEEK/ARRIVE to waypoint.
+    # Otherwise, SEEK (never ARRIVE?) to the resume target
+    if invk >= rl: # Resume target is beyond the next waypoint
         target = path.newway
-    else:
+        # ARRIVE if this is the last waypoint; no further computation neeed
+        if path.num_left() <=1:
+            return force_arrive(owner, path.newway)
+    else: # Resume target is between last/next waypoints
         target = path.newway + path.edgevector.scale(invk - rl)
+        
+    # If we reach this part of the code, we must SEEK to either a target on
+    # the path or a waypoint that is not the last one in the path. So...
+    # Check if we're close enough to the next waypoint to switch.
+    # Note: No force is returned when we switch to the next waypoint
+    if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
+        path.advance()
+        return Point2d(0,0)
+        
+    #TODO: If the next line triggers, we have a problem?
+    if path.newway is None:
+        print("[%s PATHRESUME] Wanring: We should have ARRIVED at the last waypoint.")
+        return Point2d(0,0)
     
+    # TODO: This is for testing only?
+    owner.waypoint = path.newway
+
     return force_seek(owner, target)
+
 
 def activate_pathresume(steering, path, dekay=PATHRESUME_DECAY):
     """Activate PATHRESUME behaviour."""
