@@ -41,9 +41,9 @@ WALLAVOID_WHISKER_SCALE = 0.8
 # Take cover: For stalking, set this to cos^2(theta), where theta is the max
 # angle from predator's front vector. The stalker will not hide unless within
 # this angle of view.
-TAKECOVER_STALK_T = 0.1 
+TAKECOVER_STALK_T = 0.1
 
-# FOLLOW the leader uses ARRIVE with this hesitance, for smooth formations 
+# FOLLOW the leader uses ARRIVE with this hesitance, for smooth formations
 FOLLOW_ARRIVE_HESITANCE = 1.5
 
 # SteeringPath will treat consecutive waypoints that are closer than this
@@ -69,4 +69,3 @@ FLOCKING_COHESHION_HESITANCE = 3.5
 
 if __name__=="__main__":
     print("Steering constants. Import this elsewhere.")
-    

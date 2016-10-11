@@ -267,21 +267,21 @@ class SimpleObstacle2d(BasePointMass2d):
 class SimpleRigidBody2d(BasePointMass2d):
 
     """Moving object with linear and angular motion, with optional sprite.
-    
+
     Notes
     -----
-    
+
     Although this isn't really a point mass in the physical sense, we inherit
     from BasePointMass2d in order to avoid duplicating or refactoring code.
-    
+
     TODO: Standardize initial physics data (for all of these classes!!!)
     """
-    # def __init__(self,image,rect,position,radius,velocity): #OLD 
-    def __init__(self, position, radius, velocity, beta, omega, spritedata=None):     
-        
+    # def __init__(self,image,rect,position,radius,velocity): #OLD
+    def __init__(self, position, radius, velocity, beta, omega, spritedata=None):
+
         # Use parent class for non-rotational stuff
         BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
-        
+
         # Rotational inertia and rotational velocity (degrees per time)
         self.inertia = RIGIDBODY2D_INERTIA
         self.omega = omega
@@ -291,7 +291,7 @@ class SimpleRigidBody2d(BasePointMass2d):
         # Adjust facing (beta is measured relative to direction of velocity)
         self.front = self.front.rotated_by(beta)
         self.left = self.front.left_normal()
-    
+
         if spritedata is not None:
             self.sprite = PointMass2dSprite(self, *spritedata)
 
@@ -304,7 +304,7 @@ class SimpleRigidBody2d(BasePointMass2d):
             Time increment since last move.
         force_vector: Point2d, optional
             Constant force during this update.
-            
+
         Note
         ----
         We must override BasePointMass2d.move() in order to avoid aligning
@@ -321,30 +321,30 @@ class SimpleRigidBody2d(BasePointMass2d):
             accel = force_vector.scale(delta_t/self.mass)
             self.vel = self.vel + accel
         # ..but don't exceed our maximum speed
-        self.vel.truncate(self.maxspeed)      
-        
+        self.vel.truncate(self.maxspeed)
+
     def rotate(self, delta_t=1.0, torque=0):
         """Updates heading, angular velocity, and torque.
-        
-        
+
+
         Parameters
         ----------
         delta_t: float
             Time increment since last rotate.
         torque: float, optional
-            Constant torque during this update.        
+            Constant torque during this update.
         """
-        
+
         # Update current facing
         self.front = self.front.rotated_by(self.omega).unit()
-        self.left = self.front.left_normal()   
+        self.left = self.front.left_normal()
 
         # Clamp to maximum torque, then compute angular acceleration...
         torque = max(min(torque, self.maxtorque), -self.maxtorque)
         alpha = torque*delta_t/self.inertia
-       
+
         # ...and apply, but don't exceed our maximum angular velocity
-        omega = self.omega + alpha  
+        omega = self.omega + alpha
         self.omega = max(min(omega, self.maxomega), -self.maxomega)
 
 ############################################################
@@ -367,7 +367,7 @@ class SimpleWall2d(pygame.sprite.Sprite):
         Normal vector out from the front of the wall.
     color: 3-tuple or pygame.Color, optional
         Color for rendering. Defaults to (0,0,0)
-        
+
     Note
     ----
     Obsolete; replaced by BaseWall2d class.

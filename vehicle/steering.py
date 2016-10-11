@@ -171,7 +171,7 @@ def activate_pursue(steering, prey):
     # TODO: Error checking here.
     steering.targets[force_pursue] = (prey,)
     return True
-    
+
 def force_evade(owner, predator):
     """Steering force for EVADE behaviour.
 
@@ -294,7 +294,7 @@ def force_takecover(owner, target, obs_list, max_range, stalk=False):
     Owner attempts to move to the nearest position that will put an obstacle
     between itself and the target. If no such points are within max_range,
     EVADE the predator instead.
-    
+
     By setting stalk to True, we'll only hide when in front of the target.
     Stalking allows this vehicle to (somewhat clumsily) sneak up from behind.
 
@@ -339,7 +339,7 @@ def activate_takecover(steering, target):
     # TODO: Error checking
     steering.targets[force_takecover] = target
     return True
-            
+
 def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
     """Steering force for WALLAVOID behaviour with aribtrary whiskers.
 
@@ -479,7 +479,7 @@ def activate_follow(steering, target):
 
 def force_brake(owner, decay=0.5):
     """Steering force oppoisite of current forward velocity.
-    
+
     Parameters
     ----------
     owner: SimpleVehicle2d
@@ -504,39 +504,42 @@ def activate_brake(steering, target):
 
 class SteeringPath(object):
     """Helper class for managing path-related behaviour.
-    
+
     Parameters
     ----------
     waypoints: list of Point2d
         Non-empty list of waypoints on this path.
     is_cyclic: boolean
         If set to True, path will automatically cycle. See notes below.
-        
+
     Notes
     -----
+    Instances of SteeringPath should be owned by a SteeringBehaviour, but all
+    path-management code is controlled from within this class.
+
     When using this for vehicle steering, the first waypoint is intended as the
-    starting point of some owner vehicle. This point is *not* automatically put
-    back on the path even if is_cyclic is set to True, so add it manually to the
-    end of waypoints list if the vehicle should return to its starting point.
-    
+    starting point of some owner vehicle. The vehicle will *not* automatically
+    return to this point even if is_cyclic is set to True, so add it manually
+    to the end of waypoints if a return trip is needed.
+
     TODO: It may be helpful to rewrite this class as a generator.
     """
-    
+
     def __init__(self, waypoints, is_cyclic=False):
         self.oldway = waypoints[0]
         self.waypoints = []
         prev_wp = self.oldway
-        
+
         # Include only consecutive waypoints that are far enough apart
         for wp in waypoints[1:]:
             if (prev_wp - wp).sqnorm() >= PATH_EPSILON_SQ:
                 self.waypoints.append(wp)
                 prev_wp = wp
-        
+
         # Compute initial segment, see Notes on returning to first waypoint
         self.newway = self.waypoints[0]
         self.wpindex = 0
-        
+
         # Length of this edge and unit vector (oldway to newway)
         offset = self.newway - self.oldway
         self.edgelength = offset.norm()
@@ -546,22 +549,23 @@ class SteeringPath(object):
 
     def reset_from_position(self, start_pos, do_return=False):
         """Reset the next waypoint to the start of this path.
-        
+
         Parameters
         ----------
         start_pos: Point2d
             The new starting point for the path
         do_return: boolean
             If set to True, start_pos becomes the final waypoint. See Notes.
-            
+
         Notes
         -----
         As with the __init__() method, start_pos is intended as the current
         location of some vehicle, and is not explicitly added as the first
         waypoint. If the path was previously cyclic, we will not return to
         start_pos by default (but the previous waypoints will still continue
-        to cycle). do_return=True includes start_pos as the final waypoint, 
-        but only if it is outside of the PATH_EPSILON_SQ threshold.
+        to cycle). To override this, set do_return=True. However, start_pos
+        will not be added explicitly is it is within the threshold given by
+        PATH_EPSILON_SQ, because it is close enough to an actual waypoint.
         """
         self.newway = self.waypoints[0]
         self.wpindex = 0
@@ -575,7 +579,7 @@ class SteeringPath(object):
 
     def advance(self):
         """Update our waypoint to the next one in the path.
-        
+
         Notes
         -----
         When we advance() from the last waypoint in a non-cyclic path, the
@@ -591,8 +595,7 @@ class SteeringPath(object):
             self.edgelength = offset.norm()
             self.edgevector = offset.scale(1/self.edgelength)
 
-        # This throws if we are at the last waypoint in the list. If the path
-        # is_cyclic, the 
+        # This throws if we are at the last waypoint in the list.
         except IndexError:
             if self.is_cyclic:
                 # If cyclic, go back to the first waypoint
@@ -605,10 +608,10 @@ class SteeringPath(object):
                 self.newway = None
                 self.edgelength = 0
                 self.edgevector = None
-                
+
     def num_left(self):
         """Returns the number of waypoints remaining in this path.
-        
+
         Notes
         -----
         For cyclic paths, we always return the total number of waypoints,
@@ -619,19 +622,20 @@ class SteeringPath(object):
         else:
             return len(self.waypoints) - self.wpindex
 
-            
+
 def force_pathfollow(owner, path):
     """Steering force for PATHFOLLOW behaviour.
-    
+
     Parameters
     ----------
     owner: SimpleVehicle2d
         The vehicle computing this force.
     path: SteeringPath
         Path to be followed by the owner
-        
+
     Notes
     -----
+    This is the simple version; we merely head towards the next waypoint.
     If there is only one waypoint left, we ARRIVE at it. Otherwise, we SEEK.
     """
     # If no waypoint left, exit immediately
@@ -642,18 +646,18 @@ def force_pathfollow(owner, path):
     # at that waypoint
     if path.num_left() <=1:
         return force_arrive(owner, path.newway)
-        
+
     # Otherwise, check if we've reached the next waypoint
     # Note: No force is returned when we switch to the next waypoint
     if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
         path.advance()
         return Point2d(0,0)
-    
+
     # TODO: This is for testing only?
     owner.waypoint = path.newway
-    
+
     return force_seek(owner, path.newway)
-        
+
 def activate_pathfollow(steering, path):
     """Activate PATHFOLLOW behaviour."""
     # TODO: Error checking here.
@@ -671,19 +675,23 @@ def force_pathresume(owner, path, invk):
         Path to be followed by the owner
     invk: positive float
         Reciprocal of exponential decay constant. See Notes.
-        
+
     Notes
     -----
     If the vehicle is off course, this will give a balance between returning
-    directly to the current path edge and SEEKing to the next waypoint.
-    Smaller value of invk (larger decay rate) give more immediate return to
-    the path.
-    TODO: Further comments are probably needed.
+    directly to the current path edge and progressing to the next waypoint.
+
+    If the vehicle has already overshot the next waypoint, we head directly to
+    that waypoint, ignoring the path. Otherwise, follow an exponential decay
+    curve asymptotic to the path; although this curve doesn't actually pass
+    through the waypoint, it makes computations very quick, especially since
+    we store invk. Smaller values of invk imply a larger decay rate, and give
+    more immediate return to the path.
     """
     # If no waypoint left, exit immediately
     if path.newway is None:
         return Point2d(0,0)
-    
+
     # This is the remaining direct distance to the next waypoint,
     # using orthogonal projection operator. If the old/new waypoints
     # are identical, the Point2d code throws the error, and we can
@@ -694,7 +702,7 @@ def force_pathresume(owner, path, invk):
         rl = (path.newway - owner.pos)/path.edgevector
     except ZeroDivisionError:
         rl = 0
-        
+
     # If resume target is beyond the next waypoint, SEEK/ARRIVE to waypoint.
     # Otherwise, SEEK (never ARRIVE?) to the resume target
     if invk >= rl: # Resume target is beyond the next waypoint
@@ -704,7 +712,7 @@ def force_pathresume(owner, path, invk):
             return force_arrive(owner, path.newway)
     else: # Resume target is between last/next waypoints
         target = path.newway + path.edgevector.scale(invk - rl)
-        
+
     # If we reach this part of the code, we must SEEK to either a target on
     # the path or a waypoint that is not the last one in the path. So...
     # Check if we're close enough to the next waypoint to switch.
@@ -712,12 +720,12 @@ def force_pathresume(owner, path, invk):
     if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
         path.advance()
         return Point2d(0,0)
-        
+
     #TODO: If the next line triggers, we have a problem?
     if path.newway is None:
         print("[%s PATHRESUME] Wanring: We should have ARRIVED at the last waypoint.")
         return Point2d(0,0)
-    
+
     # TODO: This is for testing only?
     owner.waypoint = path.newway
 
@@ -798,7 +806,7 @@ def activate_align(steering, n_list):
     steering.targets[force_align] = ()
     steering.flockmates = n_list[:]
     return True
-    
+
 def force_cohesion(owner):
     """Steering force for COHESION group behaviour.
 
@@ -812,7 +820,7 @@ def force_cohesion(owner):
     All flocking forces use owner.neighbor_list to find a flock; set this list
     before calling this function.
     """
-    
+
     center = Point2d(0,0)
     n = 0
     for other in owner.neighbor_list:
@@ -835,21 +843,22 @@ def activate_cohesion(steering, n_list):
 ########################################################
 ## Auto-generate a list of behaviours above, along with
 ## dictionaries to reference their force/activate fnc's.
-## This allows us to easily add behaviours later.
+## This allows us to easily add behaviours later; see
+## the module docstring for instructions.
 ########################################################
 BEHAVIOUR_LIST = [x[6:].upper() for x in locals().keys()[:] if (x[:6]=='force_')]
 FORCE_FNC = dict()
 ACTIVATE_FNC = dict()
 for behaviour in BEHAVIOUR_LIST[:]:
     try:
-        force_fnc = locals()['force_' + behaviour.lower()] 
+        force_fnc = locals()['force_' + behaviour.lower()]
         activate_fnc = locals()['activate_' + behaviour.lower()]
         FORCE_FNC[behaviour] = force_fnc
         ACTIVATE_FNC[behaviour] = activate_fnc
     except KeyError:
         print("[steering.py] Warning: could not define behaviour %s." % behaviour)
         BEHAVIOUR_LIST.remove(behaviour)
-        
+
 ########################################################
 ### Navigator-type class to control vehicle steering ###
 ########################################################
@@ -894,8 +903,8 @@ class SteeringBehavior(object):
         self.status = {beh: False for beh in BEHAVIOUR_LIST}
         self.targets = dict()
         self.inactive_targets = dict()
-        self.flocking = False   
-        
+        self.flocking = False
+
         # Set the appropriate compute_force_ function here.
         if use_budget is True:
             self.compute_force = self.compute_force_budgeted
@@ -931,6 +940,10 @@ class SteeringBehavior(object):
             List of walls to be avoided
         GUARD: (BasePointMass2d, BasePointMass2d, float), optional
             (GuardTarget, GuardFrom, AggressivePercent)
+        PATHFOLLOW: (SteeringPath), optional
+            List of waypoints for PATHFOLLOW behaviour.
+        PATHRESUME: (SteeringPath, invk), optional
+            List of waypoints and inverse of decay constant for PATHRESUME.
         FOLLOW: (BasePointMass2d, Point2d), optional
             (Leader, OffsetFromLeader)
         SEPARATE: List of BasePointMass2d, optional
@@ -947,8 +960,6 @@ class SteeringBehavior(object):
         Flocking behaviours (SEPARATE, ALIGN, COHESION) automatically set
         self.flocking to True; this is used by force_foo functions so that
         neighbors need only be tagged once per cycle (for efficiency).
-        
-        TODO: Parameters for path-related behaviour
         """
         for (behaviour, target) in kwargs.items():
             # Find and call correponding activate function
@@ -999,10 +1010,10 @@ class SteeringBehavior(object):
             print('%s stopped.' % steering_type)
         except KeyError:
             print('Warning: Behaviour %s has not been initialized. Ignoring stop.' % steering_type)
- 
+
 
     def flag_neighbor_vehicles(self, vlist=()):
-        """Populates a list of nearby vehicles, for use with flocking
+        """Populates a list of nearby vehicles, for use with flocking.
 
         Parameters
         ----------
@@ -1025,7 +1036,7 @@ class SteeringBehavior(object):
         This is designed to work with pre-processing (such as spatial partitioning
         or flocking with certain vehicles only); the results of which are passed
         in as vlist. If this isn't needed,
-        
+
         TODO: Current implementation does not use vlist(), and the above comment
         is clearly incomplete. Figure out what's going on here and fix it.
         """
@@ -1091,7 +1102,7 @@ class SteeringBehavior(object):
             status_key = f.func_name[6:].upper()
             if self.status[status_key] is not True:
                 continue
-            
+
             newforce = f(owner, *t)
             newnorm = newforce.norm()
             if budget > newnorm:

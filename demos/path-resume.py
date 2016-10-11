@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Non-flocking vehicle demo."""
+"""Path-following vehicle demo."""
 
 # for python3 compat
 from __future__ import unicode_literals
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     UPDATE_SPEED = 0.25
 
     # Number of vehicles and obstacles
-    numveh = 2
+    numveh = 3
     numobs = 12
     total = 2*numveh+numobs
 
@@ -50,6 +50,7 @@ if __name__ == "__main__":
     # Load vehicle images
     img[0], rec[0] = load_pygame_image('../images/gpig.png', -1)
     img[1], rec[1] = load_pygame_image('../images/ypig.png', -1)
+    img[2], rec[2] = load_pygame_image('../images/rpig.png', -1)
 
     # Steering behaviour target images (generated here)
     for i in range(numveh, 2*numveh):
@@ -62,8 +63,8 @@ if __name__ == "__main__":
         img[i], rec[i] = obs_img, obs_rec
 
     # Randomly generate initial placement for vehicles
-    spos = Point2d(randint(30, sc_width-30), randint(30, sc_height-30))
-    pos = [spos for i in range(numveh)]
+    pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
+    #pos = [spos for i in range(numveh)]
     vel = Point2d(20,0)
 
     # Array of vehicles and associated pygame sprites
@@ -107,27 +108,34 @@ if __name__ == "__main__":
     allsprites = pygame.sprite.RenderPlain(rgroup)
 
     ### Vehicle steering behavior defined below ###
-    # Randomly-generated list of waypoints
-    startp = (obj[0].pos.x, obj[0].pos.y)
-    waylist = [startp]
+    # Randomly-generated list of waypoints for all vehicles
+    #startp = (obj[0].pos.x, obj[0].pos.y)
+    waylist = []
     while len(waylist) <= pathlen:
         newp = (randint(30, sc_width-30), randint(30, sc_height-30))
         newp2d = Point2d(*newp)
         d_min_sq = min([(obs.pos - newp2d).sqnorm() for obs in obslist])
         if d_min_sq > min_dist_sq:
             waylist.append(newp)
-    waylist.append(startp)
-    print("Waypoint list: %s " % waylist)
+    waylist.append((obj[0].pos.x, obj[0].pos.y))
 
     # Green (PATHFOLLOW)
-    gpath = SteeringPath([Point2d(*p) for p in waylist],False)
+    glist = [(obj[0].pos.x, obj[0].pos.y)] + waylist
+    gpath = SteeringPath([Point2d(*p) for p in glist],True)
     obj[0].steering.set_target(PATHFOLLOW=gpath)
     obj[0].waypoint = obj[0].pos
 
     # Yellow (PATHRESUME)
-    ypath = SteeringPath([Point2d(*p) for p in waylist],True)
+    ylist = [(obj[1].pos.x, obj[1].pos.y)] + waylist
+    ypath = SteeringPath([Point2d(*p) for p in ylist],True)
     obj[1].steering.set_target(PATHRESUME=ypath)
     obj[1].waypoint = obj[1].pos
+
+    # Red (PATHRESUME, end after second cycle)
+    rlist = [(obj[2].pos.x, obj[2].pos.y)] + 2*waylist
+    rpath = SteeringPath([Point2d(*p) for p in rlist],False)
+    obj[2].steering.set_target(PATHRESUME=rpath)
+    obj[2].waypoint = obj[2].pos
 
     # All vehicles will avoid obstacles and walls
     for i in range(numveh):
