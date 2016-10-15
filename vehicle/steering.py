@@ -499,11 +499,11 @@ def activate_brake(steering, target):
     return True
 
 ##############################################
-### Path-following behaviours start here   ###
+### Path-related behaviours start here     ###
 ##############################################
 
-class SteeringPath(object):
-    """Helper class for managing path-related behaviour.
+class WaypointPath(object):
+    """Helper class for managing path-related behaviour, using waypoints.
 
     Parameters
     ----------
@@ -514,7 +514,7 @@ class SteeringPath(object):
 
     Notes
     -----
-    Instances of SteeringPath should be owned by a SteeringBehaviour, but all
+    Instances of WaypointPath should be owned by a SteeringBehaviour, but all
     path-management code is controlled from within this class.
 
     When using this for vehicle steering, the first waypoint is intended as the
@@ -623,14 +623,14 @@ class SteeringPath(object):
             return len(self.waypoints) - self.wpindex
 
 
-def force_pathfollow(owner, path):
-    """Steering force for PATHFOLLOW behaviour.
+def force_waypathtraverse(owner, path):
+    """Steering force for WAYPATHTRAVERSE behaviour.
 
     Parameters
     ----------
     owner: SimpleVehicle2d
         The vehicle computing this force.
-    path: SteeringPath
+    path: WaypointPath
         Path to be followed by the owner
 
     Notes
@@ -649,7 +649,7 @@ def force_pathfollow(owner, path):
 
     # Otherwise, check if we've reached the next waypoint
     # Note: No force is returned when we switch to the next waypoint
-    if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
+    if (owner.pos - path.newway).sqnorm() <= WAYPOINT_TOLERANCE_SQ:
         path.advance()
         return Point2d(0,0)
 
@@ -658,20 +658,20 @@ def force_pathfollow(owner, path):
 
     return force_seek(owner, path.newway)
 
-def activate_pathfollow(steering, path):
-    """Activate PATHFOLLOW behaviour."""
+def activate_waypathtraverse(steering, path):
+    """Activate WAYPATHTRAVERSE behaviour."""
     # TODO: Error checking here.
-    steering.targets[force_pathfollow] = (path,)
+    steering.targets[force_waypathtraverse] = (path,)
     return True
 
-def force_pathresume(owner, path, invk):
-    """Steering force for PATHRESUME behaviour.
+def force_waypathresume(owner, path, invk):
+    """Steering force for WAYPATHRESUME behaviour.
 
     Parameters
     ----------
     owner: SimpleVehicle2d
         The vehicle computing this force.
-    path: SteeringPath
+    path: WaypointPath
         Path to be followed by the owner
     invk: positive float
         Reciprocal of exponential decay constant. See Notes.
@@ -717,7 +717,7 @@ def force_pathresume(owner, path, invk):
     # the path or a waypoint that is not the last one in the path. So...
     # Check if we're close enough to the next waypoint to switch.
     # Note: No force is returned when we switch to the next waypoint
-    if (owner.pos - path.newway).sqnorm() <= PATHFOLLOW_TOLERANCE_SQ:
+    if (owner.pos - path.newway).sqnorm() <= WAYPOINT_TOLERANCE_SQ:
         path.advance()
         return Point2d(0,0)
 
@@ -732,10 +732,10 @@ def force_pathresume(owner, path, invk):
     return force_seek(owner, target)
 
 
-def activate_pathresume(steering, path, dekay=PATHRESUME_DECAY):
-    """Activate PATHRESUME behaviour."""
+def activate_waypathresume(steering, path, dekay=PATHRESUME_DECAY):
+    """Activate WAYPATHRESUME behaviour."""
     # TODO: Error checking here.
-    steering.targets[force_pathresume] = (path, 1.0/dekay)
+    steering.targets[force_waypathresume] = (path, 1.0/dekay)
     return True
 
 ##############################################
@@ -890,8 +890,8 @@ class SteeringBehavior(object):
                          'PURSUE',
                          'GUARD',
                          'FOLLOW',
-                         'PATHRESUME',
-                         'PATHFOLLOW',
+                         'WAYPATHRESUME',
+                         'WAYPATHTRAVERSE',
                          'COHESION',
                          'ALIGN',
                          'WANDER'
@@ -940,9 +940,9 @@ class SteeringBehavior(object):
             List of walls to be avoided
         GUARD: (BasePointMass2d, BasePointMass2d, float), optional
             (GuardTarget, GuardFrom, AggressivePercent)
-        PATHFOLLOW: (SteeringPath), optional
-            List of waypoints for PATHFOLLOW behaviour.
-        PATHRESUME: (SteeringPath, invk), optional
+        WAYPATHTRAVERSE: (WaypointPath), optional
+            List of waypoints for WAYPATHTRAVERSE behaviour.
+        PATHRESUME: (WaypointPath, invk), optional
             List of waypoints and inverse of decay constant for PATHRESUME.
         FOLLOW: (BasePointMass2d, Point2d), optional
             (Leader, OffsetFromLeader)

@@ -51,7 +51,7 @@ FOLLOW_ARRIVE_HESITANCE = 1.5
 PATH_EPSILON_SQ = 10.0**2
 
 # Used by PATHFOLLOW/RESUME to determine when we're close enough to a waypoint.
-PATHFOLLOW_TOLERANCE_SQ = 10.0**2
+WAYPOINT_TOLERANCE_SQ = 10.0**2
 
 # Exponential decay constnt for PATHRESUME
 PATHRESUME_DECAY = 0.075

@@ -19,7 +19,7 @@ from vpoints.point2d import Point2d
 
 from vehicle.vehicle2d import load_pygame_image
 from vehicle.vehicle2d import SimpleVehicle2d, SimpleObstacle2d, BaseWall2d
-from steering import SteeringPath
+from steering import WaypointPath
 ZERO_VECTOR = Point2d(0,0)
 
 if __name__ == "__main__":
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     # Display constants
     size = sc_width, sc_height = 800, 640
     screen = pygame.display.set_mode(size)
-    pygame.display.set_caption('PATHFOLLOW vs. PATHRESUME demo')
+    pygame.display.set_caption('WaypointPath TRAVERSE vs. RESUME demo')
     bgcolor = 111, 145, 192
 
     # Update Speed
@@ -119,22 +119,22 @@ if __name__ == "__main__":
             waylist.append(newp)
     waylist.append((obj[0].pos.x, obj[0].pos.y))
 
-    # Green (PATHFOLLOW)
+    # Green (WAYPATHTRAVERSE)
     glist = [(obj[0].pos.x, obj[0].pos.y)] + waylist
-    gpath = SteeringPath([Point2d(*p) for p in glist],True)
-    obj[0].steering.set_target(PATHFOLLOW=gpath)
+    gpath = WaypointPath([Point2d(*p) for p in glist],True)
+    obj[0].steering.set_target(WAYPATHTRAVERSE=gpath)
     obj[0].waypoint = obj[0].pos
 
     # Yellow (PATHRESUME)
     ylist = [(obj[1].pos.x, obj[1].pos.y)] + waylist
-    ypath = SteeringPath([Point2d(*p) for p in ylist],True)
-    obj[1].steering.set_target(PATHRESUME=ypath)
+    ypath = WaypointPath([Point2d(*p) for p in ylist],True)
+    obj[1].steering.set_target(WAYPATHRESUME=ypath)
     obj[1].waypoint = obj[1].pos
 
     # Red (PATHRESUME, end after second cycle)
     rlist = [(obj[2].pos.x, obj[2].pos.y)] + 2*waylist
-    rpath = SteeringPath([Point2d(*p) for p in rlist],False)
-    obj[2].steering.set_target(PATHRESUME=rpath)
+    rpath = WaypointPath([Point2d(*p) for p in rlist],False)
+    obj[2].steering.set_target(WAYPATHRESUME=rpath)
     obj[2].waypoint = obj[2].pos
 
     # All vehicles will avoid obstacles and walls
