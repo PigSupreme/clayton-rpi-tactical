@@ -731,11 +731,37 @@ def force_waypathresume(owner, path, invk):
 
     return force_seek(owner, target)
 
-
-def activate_waypathresume(steering, path, dekay=PATHRESUME_DECAY):
+def activate_waypathresume(steering, target):
     """Activate WAYPATHRESUME behaviour."""
     # TODO: Error checking here.
-    steering.targets[force_waypathresume] = (path, 1.0/dekay)
+    if len(target)>1:
+        invk = 1.0/target[1]
+    else:
+        invk = 1.0/PATHRESUME_DECAY
+    steering.targets[force_waypathresume] = (target[0], invk)
+    return True
+
+def force_flowfollow(owner, vel_field, dt=1.0):
+    """Steering force for FLOWFOLLOW behaviour.
+
+    Parameters
+    ----------
+    owner: SimpleVehicle2d
+        The vehicle computing this force.
+    vel_field: function Point2d(Point2d)
+        A velocity vector field; owner will attempt to follow this.
+    dt: Non-negative float
+        Time between steering updates.
+    """
+    new_pos = owner.pos + owner.vel.scale(dt)
+    target_vel = vel_field(new_pos)
+    return (target_vel - owner.vel)
+
+def activate_flowfollow(steering, target):
+    """Activate FLOWFOLLOW behaviour."""
+    # TODO: Error checking here.
+    # owner_field = lambda pos: vel_field(pos).scale(vel_scale)
+    steering.targets[force_flowfollow] = target
     return True
 
 ##############################################
@@ -894,6 +920,7 @@ class SteeringBehavior(object):
                          'WAYPATHTRAVERSE',
                          'COHESION',
                          'ALIGN',
+                         'FLOWFOLLOW',
                          'WANDER'
                          ]
 
@@ -942,8 +969,10 @@ class SteeringBehavior(object):
             (GuardTarget, GuardFrom, AggressivePercent)
         WAYPATHTRAVERSE: (WaypointPath), optional
             List of waypoints for WAYPATHTRAVERSE behaviour.
-        PATHRESUME: (WaypointPath, invk), optional
+        WAYPATHRESUME: (WaypointPath, invk), optional
             List of waypoints and inverse of decay constant for PATHRESUME.
+        FLOWFOLLOW: (vel_field, dt), optional
+            Callable vel_field function and time increment
         FOLLOW: (BasePointMass2d, Point2d), optional
             (Leader, OffsetFromLeader)
         SEPARATE: List of BasePointMass2d, optional
