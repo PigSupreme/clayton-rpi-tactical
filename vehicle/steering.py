@@ -693,18 +693,11 @@ def force_waypathresume(owner, path, invk):
         return Point2d(0,0)
 
     # This is the remaining direct distance to the next waypoint,
-    # using orthogonal projection operator. If the old/new waypoints
-    # are identical, the Point2d code throws the error, and we can
-    # simply SEEK/ARRIVE to the next waypoint
-    # TODO: This try/excecpt shouldn't be needed anymore, since the __init__()
-    # now elminates consecutive waypoints that are close together.
-    try:
-        rl = (path.newway - owner.pos)/path.edgevector
-    except ZeroDivisionError:
-        rl = 0
+    # using orthogonal projection operator.
+    rl = (path.newway - owner.pos)/path.edgevector
 
     # If resume target is beyond the next waypoint, SEEK/ARRIVE to waypoint.
-    # Otherwise, SEEK (never ARRIVE?) to the resume target
+    # Otherwise, SEEK (never ARRIVE) to the resume target
     if invk >= rl: # Resume target is beyond the next waypoint
         target = path.newway
         # ARRIVE if this is the last waypoint; no further computation neeed
@@ -720,16 +713,8 @@ def force_waypathresume(owner, path, invk):
     if (owner.pos - path.newway).sqnorm() <= WAYPOINT_TOLERANCE_SQ:
         path.advance()
         return Point2d(0,0)
-
-    #TODO: If the next line triggers, we have a problem?
-    if path.newway is None:
-        print("[%s PATHRESUME] Wanring: We should have ARRIVED at the last waypoint.")
-        return Point2d(0,0)
-
-    # TODO: This is for testing only?
-    owner.waypoint = path.newway
-
-    return force_seek(owner, target)
+    else:
+        return force_seek(owner, target)
 
 def activate_waypathresume(steering, target):
     """Activate WAYPATHRESUME behaviour."""
@@ -924,7 +909,6 @@ class SteeringBehavior(object):
                          'WANDER'
                          ]
 
-    # TODO: Need some kind of interface to gameworld data here??
     def __init__(self, vehicle, use_budget=True):
         self.vehicle = vehicle
         self.status = {beh: False for beh in BEHAVIOUR_LIST}
@@ -1092,7 +1076,7 @@ class SteeringBehavior(object):
         """
         force = Point2d(0,0)
         owner = self.vehicle
-        # TODO: If any flocking is active, determine neighbors first
+        # If any flocking is active, determine neighbors first
         if self.flocking is True:
             self.flag_neighbor_vehicles(self.flockmates)
 

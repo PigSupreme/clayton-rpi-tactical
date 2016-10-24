@@ -11,8 +11,6 @@ import sys, pygame
 from pygame.locals import QUIT, MOUSEBUTTONDOWN
 from random import randint, shuffle
 
-TARGET_FREQ = 500
-
 INF = float('inf')
 
 # Note: Adjust this depending on where this file ends up.
