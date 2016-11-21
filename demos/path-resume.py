@@ -152,9 +152,8 @@ if __name__ == "__main__":
                 sys.exit()
 
         # Update Vehicles (via manually calling each move() method)
-        for (v,t) in zip(vehicles, targets):
-            v.move(UPDATE_SPEED)
-            t.pos = v.waypoint
+        for veh in vehicles:
+            veh.move(UPDATE_SPEED)
 
         # Update Sprites (via pygame sprite group update)
         allsprites.update(UPDATE_SPEED)

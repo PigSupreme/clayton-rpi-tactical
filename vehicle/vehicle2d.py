@@ -50,8 +50,8 @@ def load_pygame_image(name, colorkey=None):
 
     Note
     ----
-    TODO: This function isn't really needed here; but doesn't yet have a
-    permanent home. Fix this later.
+    TODO: This function is imported by the demos, but perhaps there is a
+    better location for it?
 
     """
     imagefile = os.path.join(os.getcwd(), name)
