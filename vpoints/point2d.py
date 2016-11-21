@@ -109,6 +109,7 @@ class Point2d(object):
 
     def scale(self, scalar):
         """Get a scaled version of this vector.
+        # TODO: Rename this to scaled_by....will be a major refactor.
 
         Example
         -------
@@ -363,7 +364,7 @@ class Point2d(object):
         return parallel, perp
 
     def left_normal(self):
-        """Returns the left-facing normal of this vector
+        """Returns the left-facing normal of this vector.
 
         Example
         -------
@@ -375,7 +376,7 @@ class Point2d(object):
 
     def __setitem__(self, index, value):
         """Allows a value to be assigned to each vector components;
-        indexed starting at 0
+        indexed starting at 0.
 
         Example
         -------
@@ -393,6 +394,42 @@ class Point2d(object):
             self.y = value
         else:
             raise KeyError("Point2d %s has no component %s" % (self, str(index)))
+
+class RollingVectorMean(object):
+    """Helper class for computing rolling averages.
+    
+    Parameters
+    ----------
+    n_size: int
+        Number of previous values to average over; must be at least 2.
+    """
+    def __init__(self, n_size=2):
+        if n_size < 2:
+            raise ValueError("Sample size must be 2 or more; received %s" % n_size)
+        self.vals = [Point2d(0,0) for i in range(n_size)]
+        self.n = n_size
+        self.current = 0
+        self.update = lambda x: self._startup(x)
+
+    def _startup(self, newval):
+        """Used internally to average the first few values."""
+        self.current += 1;
+        for i in range(0, self.current):
+            self.vals[i] += newval
+        if self.current == self.n:
+            self.current = 0
+            self.update = lambda x: self._rollup(x)
+            return self.vals[0].scale(1.0/self.n)
+        else:
+            return self.vals[0].scale(1.0/self.current)
+        
+    def _rollup(self, newval):
+        """Used once the number of values equals the sample size."""
+        self.vals[self.current] = Point2d(0,0)
+        for i in range(0, self.n):
+            self.vals[i] += newval
+        self.current = (self.current + 1) % self.n
+        return self.vals[self.current].scale(1.0/self.n)
 
 if __name__ == "__main__":
     import doctest
