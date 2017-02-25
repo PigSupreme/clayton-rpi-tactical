@@ -57,8 +57,9 @@ def load_pygame_image(name, colorkey=None):
     imagefile = os.path.join(os.getcwd(), name)
     try:
         image_surf = pygame.image.load(imagefile)
-    except pygame.error, message:
-        print('Error: Cannot load image: %s' % name)
+    except pygame.error as message:
+        print('Error: Cannot load image file: %s' % name)
+        print('Current working directory is: %s' % os.getcwd())
         raise SystemExit(message)
 
     # This converts the surface for maximum blitting performance,
