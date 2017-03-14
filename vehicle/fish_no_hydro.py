@@ -42,53 +42,6 @@ SCREEN_DEG = -57.2957795131
 # order to avoid jittery behaviour.
 SPEED_EPSILON = .000000001
 
-def load_pygame_image(name, colorkey=None):
-    """Loads image from current working directory for use in pygame.
-
-    Parameters
-    ----------
-    name: string
-        Image file to load (must be pygame-compatible format)
-    colorkey: pygame.Color
-        Used to set a background color for this image that will be ignored
-        during blitting. If set to -1, the upper-left pixel color will be
-        used as the background color. See pygame.Surface.set_colorkey() for
-        further details.
-
-    Returns
-    -------
-    (pygame.Surface, pygame.rect):
-        For performance reasons, the returned Surface is the same format as
-        the pygame display. The alpha channel is removed.
-
-    Note
-    ----
-    TODO: This function is imported by the demos, but perhaps there is a
-    better location for it?
-
-    """
-    imagefile = os.path.join(os.getcwd(), name)
-    try:
-        image_surf = pygame.image.load(imagefile)
-    except pygame.error as message:
-        print('Error: Cannot load image file: %s' % name)
-        print('Current working directory is: %s' % os.getcwd())
-        raise SystemExit(message)
-
-    # This converts the surface for maximum blitting performance,
-    # including removal of any alpha channel:
-    image_surf = image_surf.convert()
-
-    # This sets the background (ignored during blit) color:
-    if colorkey is not None:
-        if colorkey is -1:
-            colorkey = image_surf.get_at((0,0))
-        image_surf.set_colorkey(colorkey, RLEACCEL)
-    return image_surf, image_surf.get_rect()
-
-
-
-
 class PointMass2dSprite(pygame.sprite.Sprite):
     """A Pygame sprite used to display a BasePointMass2d object."""
 
@@ -105,15 +58,15 @@ class PointMass2dSprite(pygame.sprite.Sprite):
 
     def update(self, delta_t=1.0):
         """Called by pygame.Group.update() to redraw this sprite."""
-        owner = self.owner
+        # owner = self.owner
         # Update position
-        self.rect.center = owner.pos[0], owner.pos[1]
+        self.rect.center = self.owner.pos[0], self.owner.pos[1]
         # Rotate for blitting
-        theta = owner.front.angle()*SCREEN_DEG
-        center = self.rect.center
-        self.image = pygame.transform.rotate(self.orig, theta)
-        self.rect = self.image.get_rect()
-        self.rect.center = center
+#        theta = owner.front.angle()*SCREEN_DEG
+#        center = self.rect.center
+#        self.image = pygame.transform.rotate(self.orig, theta)
+#        self.rect = self.image.get_rect()
+#        self.rect.center = center
 
 class BasePointMass2d(object):
     """A moving object with rectilinear motion and optional sprite.
@@ -154,15 +107,14 @@ class BasePointMass2d(object):
 
         # Normalized front vector in world coordinates.
         # This stays aligned with the object's velocity (using move() below)
-        try:
-            self.front = velocity.unit()
-        except ZeroDivisionError:
-            # If velocity is <0,0>, set facing to screen upwards
-            self.front = Point2d(0,-1)
-        self.left = Point2d(-self.front[1], self.front[0])
+#        try:
+#            self.front = velocity.unit()
+#        except ZeroDivisionError:
+#            # If velocity is <0,0>, set facing to screen upwards
+#            self.front = Point2d(0,-1)
+#        self.left = Point2d(-self.front[1], self.front[0])
 
-        # Movement constraints (defaults from steering_constants.py)
-        ## TODO: Put these in the function argument, perhaps as **kwargs
+        # Movement constraints (defaults from top of file)
         self.mass = POINTMASS2D_MASS
         self.maxspeed = POINTMASS2D_MAXSPEED
         self.maxforce = POINTMASS2D_MAXFORCE
@@ -223,15 +175,15 @@ class SpringMass2d(BasePointMass2d):
         self.accumulated_force = Point2d(0,0)
         
 
-class IdealSpring2d(BasePointMass2d):
+class IdealSpring2d(object):
     """An ideal (massless, stiff) spring attaching two point masses.
     
     Parameters
     ----------
     spring_constant: positive float
         Linear Spring Constant (Hooke's Law).
-    rest_length: positive float
-        Natural/rest lenght of this spring.
+    rest_length: float
+        Natural length. If negative, use the current distance between masses.  
     mass1: BasePointMass2d
         Point mass at the base of this spring; see Notes
     mass2: BasePointMass2d
@@ -252,23 +204,68 @@ class IdealSpring2d(BasePointMass2d):
             self.natlength = (mass1.pos - mass2.pos).norm()
         else:
             self.natlength = rest_length
-        self.minlength = SQUEEZE*self.natlength
-        self.squeeze = 0
+
         self.mass_base = mass1
         self.mass_tip = mass2
         
     def exert_force(self):
         """Compute spring force and and apply it to the attached masses."""
         self.displacement = self.mass_tip.pos - self.mass_base.pos
-        self.curlength = self.displacement.norm()
-        
-        # Compute desired length (from squeeze)
-        target_length = self.natlength + self.squeeze*(self.minlength - self.natlength)        
-        
-        self.curscale = target_length/self.curlength
+        self.curlength = self.displacement.norm()        
+        self.curscale = self.natlength/self.curlength
         magnitude = self.k*(1 - self.curscale)
         self.mass_base.accumulate_force(self.displacement.scale(magnitude))
         self.mass_tip.accumulate_force(self.displacement.scale(-magnitude))
+
+
+class MuscleSpring2d(IdealSpring2d):
+    """A spring with the ability to contract and flex. See Notes.
+    
+    Parameters
+    ----------
+    spring_constant: positive float
+        Linear Spring Constant (Hooke's Law).  
+    mass1: BasePointMass2d
+        Point mass at the base of this spring.
+    mass2: BasePointMass2d
+        Point mass at the end of this spring.
+    contraction_factor: positive float
+        Proportion of original length to which this muscle can be contracted.
+    
+    Notes
+    -----
+    
+    This inherits from IdealSpring2d, so the order of masses is not important.
+    The length between masses is automatically computed on initialization, and
+    the muscle is treated at completely flexed/loose. Contraction is acheived
+    mathematically by changing the natural length of the underlying spring; see
+    the contract() method for further details.
+    """
+    
+    def __init__(self, spring_constant, mass1, mass2, contraction_factor):
+        IdealSpring2d.__init__(self, spring_constant, -1, mass1, mass2)
+        self.flexlength = self.natlength
+        self.conlength = contraction_factor * self.natlength
+        # For later convenience
+        self.conslope = self.flexlength - self.conlength
+        self.contracted = 0
+        
+    def contract(self, squeeze_factor):
+        """Contract this muscle by altering its effective rest length.
+        
+        Parameters
+        ----------
+        squeeze_factor: float
+            Value from 0 (no contraction) to 1 (fully contracted)
+        """
+        # Change the natural/rest length of the underlying IdealSpring2d
+        self.natlength = self.flexlength - squeeze_factor * self.conslope
+        self.contracted = squeeze_factor
+
+
+class MuscleControl(object):
+    """Helper class for controlling muscle movements over time."""
+    pass
 
 
 if __name__ == "__main__":
@@ -291,12 +288,14 @@ if __name__ == "__main__":
     img = list(range(numnodes))
     rec = list(range(numnodes))
         
-    # Node Sprites
+    # Set-up Node Sprites in their initial positions
     obj = []
     img = []
     rec = []
     for i, j, m in nodedata:
-        imgt, rect = load_pygame_image('../images/node.png', -1)
+        imgt = pygame.Surface((10,10))
+        imgt.set_colorkey((0,0,0), RLEACCEL)
+        rect = pygame.draw.circle(imgt,(1,1,1),(5,5),5,0)
         img.append(imgt)
         rec.append(rect)
         nodet = SpringMass2d(Point2d(i+50,j+75).scale(SIZE_SCALE), m , Point2d(0,0), (imgt, rect))
@@ -315,7 +314,10 @@ if __name__ == "__main__":
     muscle_k = MUSCLE_K
     for edge in edge_muscles:
         i, j = edge
-        springs.append(IdealSpring2d(muscle_k, -1, nodelist[i], nodelist[j]))
+        springs.append(MuscleSpring2d(muscle_k, nodelist[i], nodelist[j], SQUEEZE))
+
+    # List of muscles for later use
+    muscles = springs[:]
     muscle_count = len(springs)
         
     edge_solids = [(0,2), (0,3), (2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (10,1), (9,11), (11,1)]
@@ -335,11 +337,11 @@ if __name__ == "__main__":
     freq = FREQ
     ticks = 0
     ticks2 = freq//2
-    springs[1].squeeze = 1
-    springs[4].squeeze = 0
+    muscles[1].contract(1)
+    muscles[4].contract(0)
     
-    springs[2].squeeze = 0
-    springs[5].squeeze = 1
+    muscles[2].contract(0)
+    muscles[5].contract(1)
     
     while 1:
         for event in pygame.event.get():
@@ -351,12 +353,14 @@ if __name__ == "__main__":
         if ticks >= freq:
             ticks = 0
             for i in [1,4]:
-                springs[i].squeeze = 1 - springs[i].squeeze 
+                curcon = muscles[i].contracted
+                muscles[i].contract(1 - curcon) 
         
         if ticks2 >= freq:
             ticks2 = 0
             for i in [2,5]:
-                springs[i].squeeze = 1 - springs[i].squeeze 
+                curcon = muscles[i].contracted
+                muscles[i].contract(1 - curcon) 
 
 
         # Update Spring Forces
@@ -381,9 +385,9 @@ if __name__ == "__main__":
         # Manually render each spring
         for spring in springs:
             scale = spring.curscale
-            if scale > 1:
+            if scale > 1: # Shade green for stretched springs
                 spcolor = min(255, 64*scale), 0, 0
-            else:
+            else: # Shade red for compressed springs
                 spcolor = 0, min(255, 64//scale), 0
             start = spring.mass_base.pos.ntuple()
             stop = spring.mass_tip.pos.ntuple()
