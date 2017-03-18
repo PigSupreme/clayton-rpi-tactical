@@ -44,7 +44,7 @@ INF = float('inf')
 from math import sqrt
 SQRT_HALF = sqrt(0.5)
 
-# Random number generator
+# Random number generator (used by WANDER only)
 from random import Random
 rand_gen = Random()
 rand_gen.seed()
@@ -1025,14 +1025,12 @@ class SteeringBehavior(object):
             print('Warning: Behaviour %s has not been initialized. Ignoring stop.' % steering_type)
 
 
-    def flag_neighbor_vehicles(self, vlist=()):
+    def flag_neighbor_vehicles(self, vehlist=[]):
         """Populates a list of nearby vehicles, for use with flocking.
 
         Parameters
         ----------
-        owner: SimpleVehicle2d
-            Neighbors of this vehicle will be updated. See Notes below.
-        vlist: List of BasePointMass2d
+        vehlist: List of BasePointMass2d
             List of vehicles to be checked against. See Notes below.
 
         Notes
@@ -1042,22 +1040,19 @@ class SteeringBehavior(object):
         owner's radius times FLOCKING_RADIUS_MULTIPLIER. We may consider more
         sophisticated sensing of neighbors in the future.
 
+        Any pre-processing (such as spatial partitioning, sensory perception, or
+        flocking with certain vehicles only) should be done before calling this
+        function; with those results passed in as vehlist.
+
         Results of flagging are stored as owner.neighbor_list to be read later by
-        force_foo functions that require this info. Be sure to run this function
-        before any such force_foo functions (mostly for flocking).
-
-        This is designed to work with pre-processing (such as spatial partitioning
-        or flocking with certain vehicles only); the results of which are passed
-        in as vlist. If this isn't needed,
-
-        TODO: Current implementation does not use vlist(), and the above comment
-        is clearly incomplete. Figure out what's going on here and fix it.
+        force_foo functions (mostly flocking) that require neighbor information.
+        Run this function before any such force_foo functions).
         """
         owner = self.vehicle
         n_radius = owner.radius * FLOCKING_RADIUS_MULTIPLIER
         neighbor_list = list()
         # TODO: Pre-process self.flockmates and loop over that result.
-        for other in self.flockmates:
+        for other in vehlist:
             if other is not owner:
                 min_range = n_radius + other.radius
                 offset = other.pos - owner.pos
