@@ -921,7 +921,7 @@ class SteeringBehavior(object):
             self.compute_force = self.compute_force_budgeted
             # Kludge function to sort behaviours by order in PRIORITY_DEFAULTS
             # This removes each 'force_' part and converts to UPPERCASE
-            self.priority_key = lambda fnc: SteeringBehavior.PRIORITY_DEFAULTS.index(fnc[0].func_name[6:].upper())
+            self.priority_key = lambda fnc: SteeringBehavior.PRIORITY_DEFAULTS.index(fnc[0].__name__[6:].upper())
             self.set_priorities()
         else:
             self.compute_force = self.compute_force_simple
@@ -1112,7 +1112,7 @@ class SteeringBehavior(object):
         for (f, t) in self.priorities:
             # Check if this behaviour is actually active
             # If not, continue to the next behaviour
-            status_key = f.func_name[6:].upper()
+            status_key = f.__name__[6:].upper()
             if self.status[status_key] is not True:
                 continue
 
