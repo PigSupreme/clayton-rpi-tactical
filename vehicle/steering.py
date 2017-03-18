@@ -857,7 +857,7 @@ def activate_cohesion(steering, n_list):
 ## This allows us to easily add behaviours later; see
 ## the module docstring for instructions.
 ########################################################
-BEHAVIOUR_LIST = [x[6:].upper() for x in locals().keys()[:] if (x[:6]=='force_')]
+BEHAVIOUR_LIST = [x[6:].upper() for x in locals().keys() if (x[:6]=='force_')]
 FORCE_FNC = dict()
 ACTIVATE_FNC = dict()
 for behaviour in BEHAVIOUR_LIST[:]:
