@@ -967,6 +967,11 @@ class SteeringBehavior(object):
             List of targets to flock with
         BRAKE: float, optional
             Speed decay factor (0 < decay < 1)
+            
+        Returns
+        -------
+        list of boolean (or single boolean)
+            Each item True/False according to whether initialization succeeded.
 
         Notes
         -----
@@ -974,6 +979,7 @@ class SteeringBehavior(object):
         self.flocking to True; this is used by force_foo functions so that
         neighbors need only be tagged once per cycle (for efficiency).
         """
+        all_res = []
         for (behaviour, target) in kwargs.items():
             # Find and call correponding activate function
             try:
@@ -983,46 +989,97 @@ class SteeringBehavior(object):
                 if result is True:
                     self.status[behaviour] = True
                     print('%s successfully initiated.' % behaviour)
+                    all_res.append(True)
             except KeyError:
                 print("Warning: %s behaviour improperly defined; cannot activate." % behaviour)
-
+                all_res.append(False)
         self.set_priorities()
+        # If we only initialized one behaviour, don't return a list.
+        if len(all_res) == 1:
+            return all_res[0]
+        else:
+            return all_res
 
     def pause(self, steering_type):
-        """Temporarilily turns off a steering behaviour, keeping targets."""
+        """Temporarilily turns off a steering behaviour, storing targets for later.
+        
+        Parameters
+        ----------
+        steering_type: string
+            Name of the behaviour to be paused.        
+        
+        Returns
+        -------
+        boolean
+            True if the pause was successful, False otherwise.
+        """
+        fnc = FORCE_FNC[steering_type]
+        # If behaviour has not been properly activated, warn and exit.
         try:
-            fnc = FORCE_FNC[steering_type]
             self.inactive_targets[steering_type] = self.targets[fnc]
-            del self.targets[fnc]
-            self.status[steering_type] = False
-            self.set_priorities()
-            print('%s paused.' % steering_type)
         except KeyError:
             print('Warning: Behaviour %s has not been initialized. Ignoring pause.' % steering_type)
+            return False
+        # Otherwise, pause until later resumed.            
+        del self.targets[fnc]
+        self.status[steering_type] = False
+        self.set_priorities()
+        print('%s paused.' % steering_type)
+        return True
 
     def resume(self, steering_type):
-        """Turns on a previously paused behaviour, using old targets."""
-        # TODO: Check that this behaviour was previous initialized
+        """Turns on a previously paused behaviour, using old targets.
+        
+        Parameters
+        ----------
+        steering_type: string
+            Name of the behaviour to be resumed.
+        
+        Returns
+        -------
+        boolean
+            True if the resume was successful, False otherwise.
+        """
+        fnc = FORCE_FNC[steering_type]
+        # If behaviour was not previously paused, warn and exit.
         try:
-            fnc = FORCE_FNC[steering_type]
             target = self.inactive_targets[steering_type]
-            self.targets[fnc] = target
-            del self.inactive_targets[fnc]
-            self.status[steering_type] = True
-            self.set_priorities()
         except KeyError:
             print('Warning: Behaviour %s was not paused. Ignoring resume.' % steering_type)
+            return False
+        # Otherwise, retreive previously-saved targets and resume.
+        self.targets[fnc] = target
+        del self.inactive_targets[steering_type]
+        self.status[steering_type] = True
+        self.set_priorities()
+        print('%s resumed.' % steering_type)
+        return True
 
     def stop(self, steering_type):
-        """Permanently turns off a steering behaviour until re-initialized."""
-        try:
-            fnc = FORCE_FNC[steering_type]
+        """Permanently turns off a steering behaviour until re-initialized.
+           
+        Parameters
+        ----------
+        steering_type: string
+            Name of the behaviour to be stopped.        
+        
+        Returns
+        -------
+        boolean
+            True if the stop was successful, False otherwise.
+        """
+        fnc = FORCE_FNC[steering_type]
+        # If behaviour has not been properly activated, warn and exit.
+        try:        
             del self.targets[fnc]
-            self.status[steering_type] = False
-            self.set_priorities()
-            print('%s stopped.' % steering_type)
         except KeyError:
             print('Warning: Behaviour %s has not been initialized. Ignoring stop.' % steering_type)
+            return False
+        # Otherwise, stop this behaviour (without storing prior targets)
+        self.status[steering_type] = False
+        self.set_priorities()
+        print('%s stopped.' % steering_type)
+
 
 
     def flag_neighbor_vehicles(self, vehlist=[]):

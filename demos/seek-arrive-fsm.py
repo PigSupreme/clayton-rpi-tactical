@@ -96,10 +96,11 @@ class WanderState(State):
     """Vehicle will WANDER until it receives MSG_AWAKEN."""
 
     def enter(self, agent):
-        agent.steering.set_target(WANDER=(70, 15, 3))
+        if not agent.steering.resume('WANDER'):
+            agent.steering.set_target(WANDER=(70, 15, 3))
 
     def leave(self, agent):
-        agent.steering.stop('WANDER')
+        agent.steering.pause('WANDER')
 
     def on_msg(self, agent, message):
         if message == 'MSG_AWAKEN':
