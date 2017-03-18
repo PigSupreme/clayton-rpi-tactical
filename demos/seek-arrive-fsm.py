@@ -27,6 +27,7 @@ ZERO_VECTOR = Point2d(0,0)
 from fsm_ex.state_machine import State, StateMachine
 
 class InitialState(State):
+    """Dummy initial state for first update cycle."""
 
     def execute(self, agent):
         print('Inital state: Vehicle %d' % agent.ent_id)
@@ -49,7 +50,7 @@ class SeekingState(State):
             goal_pos.append(agent.hesitance)
             agent.steering.set_target(ARRIVE=goal_pos)
         except AttributeError:
-                agent.steering.set_target(SEEK=goal_pos)
+            agent.steering.set_target(SEEK=goal_pos)
 
     def execute(self, agent):
         # If we take too long to reach target, switch to wandering

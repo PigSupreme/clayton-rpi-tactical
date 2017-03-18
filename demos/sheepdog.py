@@ -106,7 +106,25 @@ if __name__ == "__main__":
         sheep.steering.set_target(EVADE=dog)
         sheep.steering.set_target(WANDER=(250, 10, 3))
 
+    FREQ = 1200
+    ticks = 0
+    align_on = True
     while 1:
+        ticks = ticks + 1
+        
+        if align_on and ticks > FREQ/2:
+            align_on = False
+            for sheep in vehlist[1:]:
+                sheep.steering.pause('ALIGN')
+                sheep.steering.pause('COHESION')
+                
+        if ticks > FREQ:
+            ticks = 0
+            align_on = True
+            for sheep in vehlist[1:]:
+                sheep.steering.resume('ALIGN')
+                sheep.steering.resume('COHESION')
+                
         for event in pygame.event.get():
             if event.type in [QUIT, MOUSEBUTTONDOWN]:
                 pygame.quit()
