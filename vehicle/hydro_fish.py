@@ -1,5 +1,5 @@
-# vehicle2d.py
-"""Module containing Vehicle class, for use with Pygame."""
+#!/usr/bin/python
+"""Springmass fish with hydro forces. Modified from fish_no_hydro.py"""
 
 # for python3 compat
 from __future__ import unicode_literals
@@ -11,21 +11,25 @@ import sys, pygame
 from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
 
 POINTMASS2D_MASS = 5
-POINTMASS2D_MAXSPEED = 50000
-POINTMASS2D_MAXFORCE = 10000
+POINTMASS2D_MAXSPEED = 80
+POINTMASS2D_MAXFORCE = 50000
 DAMPING_COEFF = 10
 SPRING_CONST = 3
 MUSCLE_K = 70
 SOLIDS_K = 100
 CROSS_K = 150
+TAIL_K = 50
 FISH = True
-FREQ = 225
+FREQ = 220
 SQUEEZE = 0.88
+HYDRO_FORCE_SCALE = 0.6
+
 
 UPDATE_SPEED = 0.02
 
 #from random import randint
 
+from math import sqrt
 INF = float('inf')
 
 # TODO: Adjust this depending on where this file ends up.
@@ -264,9 +268,79 @@ class MuscleSpring2d(IdealSpring2d):
 
 
 class MuscleControl(object):
-    """Helper class for controlling muscle movements over time."""
+    """TODO: Helper class for controlling muscle movements over time."""
     pass
 
+
+class HydroQuad2d(object):
+    """Two-dimension segment representing a quad under fluidic force.
+
+    Parameters
+    ----------
+
+    base_mass: BasePointMass2d
+        Point mass at the 2D coordinates of the quad base. 
+    base_height: non-negative float
+        Height of the quad at the base coordinates.
+    tip_mass: BasePointMass2d
+        Point mass at the 2D coordinates of the quad tip. 
+    tip_height: non-negative float
+        Height of the quad at the tip coordinates.
+
+    Notes
+    -----
+    
+    This models a 2D trapezoid seen from directly above as a line segment. For
+    our spring-mass fish, this segment connects two nodes, so each HydroQuad2d
+    overlaps one of the fish springs. I'm seperating this class from the springs
+    for future flexibility; our quads here may become 3D polys later.
+    
+    The fish should be on the left of vector from base to tip.    
+    """
+    def __init__(self, base_mass, base_height, tip_mass, tip_height):
+        self.base_m = base_mass
+        self.base_h = base_height
+        self.tip_m = tip_mass
+        self.tip_h = tip_height
+        
+        # Location of center of mass as a proportion of total segment length
+        # This is computed using center of mass of a trapezoid
+        if base_height == tip_height:
+            self.center_t = 0.5
+        else:
+            numer = sqrt(2*(tip_height**2 + base_height**2)) - 2*base_height
+            self.center_t = numer/(2*(tip_height - base_height))
+
+    def exert_fluid_force(self, delta_t=1.0):
+        """Compute and apply force to end masses based on surface velocity.
+        
+        TODO: Better explain the fluid dynamics being used here.
+        """
+        # Compute position and velocity of center of area
+        ct = self.center_t  # For convenience in formulas belotw
+        self.pos = self.base_m.pos.scale(ct) + self.tip_m.pos.scale(1-ct)
+        self.vel = self.base_m.vel.scale(ct) + self.tip_m.vel.scale(1-ct)
+        
+        # Compute total fluidic force
+        front_vec = self.tip_m.pos - self.base_m.pos
+        normal_in = front_vec.left_normal()
+        dotp = self.vel * normal_in
+        
+        # Only apply force if center is moving in an outward direction from body
+        # Force is proportional (somehow...) to volume of displaced fluid
+        area = 0.5*(self.base_h + self.tip_h)*front_vec.norm()
+        if dotp < 0:
+            # Compute the area of this quad (trapezoid)
+            area = 0.5*(self.base_h + self.tip_h)*front_vec.norm()
+            total_force = normal_in.scale(-dotp*area*delta_t/normal_in.sqnorm())
+            # Apply to masses at base and tip
+            self.base_m.accumulate_force(total_force.scale(ct))
+            self.tip_m.accumulate_force(total_force.scale(1-ct))
+## current force is for test with rendering
+            self.current_force = total_force.scale(HYDRO_FORCE_SCALE)
+        else:
+            self.current_force = None
+        
 
 if __name__ == "__main__":
     pygame.init()
@@ -278,9 +352,9 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Fish coordinate nodes
-    MASS_SCALE = 12
+    MASS_SCALE = 15
     SIZE_SCALE = 5
-    nodedata = [(0,0,1.1), (65,0,0.0995)]  # Head and tail
+    nodedata = [(0,0,1.1), (62,0,0.004)]  # Head and tail
     for i, j, m in [(8,4,6.6), (20,6,11.0), (35,6,8.6), (47,4,1.1), (57,2,1.1)]:
         nodedata.append((i,j,m*MASS_SCALE))
         nodedata.append((i,-j,m*MASS_SCALE))
@@ -320,17 +394,36 @@ if __name__ == "__main__":
     muscles = springs[:]
     muscle_count = len(springs)
         
-    edge_solids = [(0,2), (0,3), (2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (10,1), (9,11), (11,1)]
+    edge_solids = [(0,2), (0,3), (2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (9,11)]
     solids_k = SOLIDS_K
     for edge in edge_solids:
         i, j = edge
         springs.append(IdealSpring2d(solids_k, -1, nodelist[i], nodelist[j]))
+        
+    edge_tail = [(1,10), (11,1)]
+    tail_k = TAIL_K
+    for edge in edge_tail:
+        i, j = edge
+        springs.append(IdealSpring2d(tail_k, -1, nodelist[i], nodelist[j]))
         
     edge_cross = [(2,5), (3,4), (4,7), (5,6), (6,9), (7,8), (9,10), (8,11)]
     cross_k = CROSS_K
     for edge in edge_cross:
         i, j = edge
         springs.append(IdealSpring2d(cross_k, -1, nodelist[i], nodelist[j]))
+
+    ################################        
+    # This fish is hyyyyydromatic...
+    ################################
+
+
+    quaddata = [(1,10,4.3,0.6),(10,8,1,2),(8,6,2,3),(6,4,3,3),(4,2,3,2),(2,0,2,0),
+                (11,1,0.6,4.3),(9,11,2,1),(7,9,3,2),(5,7,3,3),(3,5,2,3),(0,3,0,2)
+                ]
+
+    hquadlist = []
+    for b,t,bh,th in quaddata:
+        hquadlist.append(HydroQuad2d(nodelist[b], bh, nodelist[t], th))
     
     ############  Main Loop  ######################
 
@@ -370,17 +463,23 @@ if __name__ == "__main__":
         # Update Nodes
         for node in nodelist:
             node.apply_force(UPDATE_SPEED)
-
-        # Shift sprites so that node 0 stays fixed
-#        ref_pos = nodelist[0].pos
-#        for node in nodelist:
-#            node.pos = node.pos - ref_pos + Point2d(sc_width/4, sc_height/2)            
+            
+        # Update hydroquads
+        for quad in hquadlist:
+            quad.exert_fluid_force()
 
         # Update Sprites (via pygame sprite group update)
         allsprites.update(UPDATE_SPEED)
 
+        # Shift sprites so that node 0 stays fixed
+#        old_nose = nodelist[0].pos
+#        nose_tip = Point2d(sc_width/4, sc_height/2)
+#        for node in nodelist:
+#            node.pos = node.pos - old_nose + nose_tip
+
         # Render
         screen.fill(bgcolor)
+        
 
         # Manually render each spring
         for spring in springs:
@@ -392,6 +491,15 @@ if __name__ == "__main__":
             start = spring.mass_base.pos.ntuple()
             stop = spring.mass_tip.pos.ntuple()
             pygame.draw.line(screen, spcolor, start, stop, 2)
+
+        # Manually render each quad's hyrdo-force
+        for quad in hquadlist:
+            if quad.current_force is not None:
+                center = [int(x) for x in quad.pos.ntuple()]
+                pygame.draw.circle(screen,(0,90,190),center,3,0)
+                tipvec = quad.pos - quad.current_force
+                tip = [int(x) for x in tipvec.ntuple()]
+                pygame.draw.line(screen, (0,90,190), center, tip, 2)
 
         # Render regular sprites (point masses)
         allsprites.draw(screen)            
