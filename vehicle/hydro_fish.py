@@ -15,19 +15,16 @@ POINTMASS2D_MAXSPEED = 80
 POINTMASS2D_MAXFORCE = 50000
 DAMPING_COEFF = 10
 SPRING_CONST = 3
-MUSCLE_K = 70
+MUSCLE_K = 90
 SOLIDS_K = 100
 CROSS_K = 150
-TAIL_K = 50
+TAIL_K = 80
 FISH = True
-FREQ = 220
+FREQ = 240
 SQUEEZE = 0.88
-HYDRO_FORCE_SCALE = 0.3
+HYDRO_FORCE_SCALE = 0.02
 
-PIXEL_SCALE = 0.05
 UPDATE_SPEED = 0.02
-
-#from random import randint
 
 from math import sqrt
 INF = float('inf')
@@ -354,10 +351,11 @@ if __name__ == "__main__":
     # Fish coordinate nodes
     MASS_SCALE = 15
     SIZE_SCALE = 5
-    nodedata = [(0,0,1.1), (62,0,0.004)]  # Head and tail
+    X_OFFSET = 100
+    nodedata = [(X_OFFSET+0,0,0.5), (X_OFFSET+62,0,0.004)]  # Head and tail
     for i, j, m in [(8,4,6.6), (20,6,11.0), (35,6,8.6), (47,4,1.1), (57,2,1.1)]:
-        nodedata.append((i,j,m*MASS_SCALE))
-        nodedata.append((i,-j,m*MASS_SCALE))
+        nodedata.append((X_OFFSET+i,j,m*MASS_SCALE))
+        nodedata.append((X_OFFSET+i,-j,m*MASS_SCALE))
     numnodes = len(nodedata)
     img = list(range(numnodes))
     rec = list(range(numnodes))
@@ -415,8 +413,6 @@ if __name__ == "__main__":
     ################################        
     # This fish is hyyyyydromatic...
     ################################
-
-
     quaddata = [(1,10,4.3,0.6),(10,8,1,2),(8,6,2,3),(6,4,3,3),(4,2,3,2),(2,0,2,0),
                 (11,1,0.6,4.3),(9,11,2,1),(7,9,3,2),(5,7,3,3),(3,5,2,3),(0,3,0,2)
                 ]
