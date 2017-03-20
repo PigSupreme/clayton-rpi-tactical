@@ -22,9 +22,9 @@ TAIL_K = 50
 FISH = True
 FREQ = 220
 SQUEEZE = 0.88
-HYDRO_FORCE_SCALE = 0.6
+HYDRO_FORCE_SCALE = 0.3
 
-
+PIXEL_SCALE = 0.05
 UPDATE_SPEED = 0.02
 
 #from random import randint
@@ -318,8 +318,8 @@ class HydroQuad2d(object):
         """
         # Compute position and velocity of center of area
         ct = self.center_t  # For convenience in formulas belotw
-        self.pos = self.base_m.pos.scale(ct) + self.tip_m.pos.scale(1-ct)
-        self.vel = self.base_m.vel.scale(ct) + self.tip_m.vel.scale(1-ct)
+        self.pos = self.base_m.pos.scale(1-ct) + self.tip_m.pos.scale(ct)
+        self.vel = self.base_m.vel.scale(1-ct) + self.tip_m.vel.scale(ct)
         
         # Compute total fluidic force
         front_vec = self.tip_m.pos - self.base_m.pos
@@ -334,8 +334,8 @@ class HydroQuad2d(object):
             area = 0.5*(self.base_h + self.tip_h)*front_vec.norm()
             total_force = normal_in.scale(-dotp*area*delta_t/normal_in.sqnorm())
             # Apply to masses at base and tip
-            self.base_m.accumulate_force(total_force.scale(ct))
-            self.tip_m.accumulate_force(total_force.scale(1-ct))
+            self.base_m.accumulate_force(total_force.scale(1-ct))
+            self.tip_m.accumulate_force(total_force.scale(ct))
 ## current force is for test with rendering
             self.current_force = total_force.scale(HYDRO_FORCE_SCALE)
         else:
@@ -447,26 +447,24 @@ if __name__ == "__main__":
             ticks = 0
             for i in [1,4]:
                 curcon = muscles[i].contracted
-                muscles[i].contract(1 - curcon) 
-        
+                muscles[i].contract(1 - curcon)         
         if ticks2 >= freq:
             ticks2 = 0
             for i in [2,5]:
                 curcon = muscles[i].contracted
                 muscles[i].contract(1 - curcon) 
 
-
         # Update Spring Forces
         for spring in springs:
             spring.exert_force()
-
-        # Update Nodes
-        for node in nodelist:
-            node.apply_force(UPDATE_SPEED)
             
         # Update hydroquads
         for quad in hquadlist:
             quad.exert_fluid_force()
+
+        # Update Nodes
+        for node in nodelist:
+            node.apply_force(UPDATE_SPEED)
 
         # Update Sprites (via pygame sprite group update)
         allsprites.update(UPDATE_SPEED)
@@ -500,6 +498,8 @@ if __name__ == "__main__":
                 tipvec = quad.pos - quad.current_force
                 tip = [int(x) for x in tipvec.ntuple()]
                 pygame.draw.line(screen, (0,90,190), center, tip, 2)
+                
+        # 
 
         # Render regular sprites (point masses)
         allsprites.draw(screen)            
