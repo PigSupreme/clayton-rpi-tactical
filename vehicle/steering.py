@@ -19,6 +19,15 @@ add additional behaviours with minimal changes to the existing code (besides
 writing the force/activate functions, SteeringBehaviour.PRIORITY_LIST would
 need to be modified with any new behaviours if we use budgeted force).
 
+TODO: SteeringBehaviuor.targets and .inactive_targets use different dictionary
+keys; the former is keyed by function name (force_foo) but the latter is keyed
+by the name of the behaviour (FOO). Suggest cleaning this up to use behaviour
+names; this would save some time on needless string conversion and get rid of
+some kludge-iness in the code. All of the activate_foo functions would need
+minor modification, since they set self.targets by function name. Functions to
+set/pause/resume/stop behaviours would probably need a re-write as well, along
+with the compute_force_ functions. But seriously, consider doing this!
+
 TODO: set/pause/resume/stop behaviour functions always call set_priorities()
 regardless of whether budgeted force is actually used. Since we're currently
 using budgeted force all the time, this issue is pretty much unimportant.
@@ -776,7 +785,7 @@ def activate_flowfollow(steering, target):
 ##############################################
 
 def force_separate(owner):
-    """Steering force for SEPARATE group behaviour.
+    """Steering force for SEPARATE group behaviour (flocking).
 
     Parameters
     ----------
@@ -785,8 +794,8 @@ def force_separate(owner):
 
     Notes
     -----
-    All flocking forces use owner.neighbor_list to find a flock; set this list
-    before calling this function.
+    Flocking forces use owner.neighbor_list to decide which vehicles to flock
+    with; update this list before calling this function.
 
     For each neighbor, include a force away from that neighbor with magnitude
     proportional to the neighbor radius and inversely proprotional to distance.
@@ -808,7 +817,7 @@ def activate_separate(steering, n_list):
     return True
 
 def force_align(owner):
-    """Steering force for ALIGN group behaviour.
+    """Steering force for ALIGN group behaviour (flocking).
 
     Parameters
     ----------
@@ -817,8 +826,8 @@ def force_align(owner):
 
     Notes
     -----
-    All flocking forces use owner.neighbor_list to find a flock; set this list
-    before calling this function.
+    Flocking forces use owner.neighbor_list to decide which vehicles to flock
+    with; update this list before calling this function.
 
     Unlike(?) traditional boids, we ALIGN with the average of neighbors'
     velocity vectors. Align with heading (normalize velocity) looked weird.
@@ -852,8 +861,8 @@ def force_cohesion(owner):
 
     Notes
     -----
-    All flocking forces use owner.neighbor_list to find a flock; set this list
-    before calling this function.
+    Flocking forces use owner.neighbor_list to decide which vehicles to flock
+    with; update this list before calling this function.
     """
 
     center = Point2d(0,0)
@@ -1210,6 +1219,8 @@ class SteeringBehavior(object):
             status_key = f.__name__[6:].upper()
             if self.status[status_key] is not True:
                 continue
+            # TODO: 
+            #print("Name: %s with status key %s" % (f.__name__,status_key))
 
             newforce = f(owner, *t)
             newnorm = newforce.norm()
