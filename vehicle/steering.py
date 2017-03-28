@@ -954,8 +954,9 @@ class SteeringBehavior(object):
         # Set the appropriate compute_force_ function here.
         if use_budget is True:
             self.compute_force = self.compute_force_budgeted
-            # This will sort behaviours by their order in PRIORITY_DEFAULTS
-            self.priority_key = lambda x: SteeringBehavior.PRIORITY_DEFAULTS.index(x[0])
+            # Unless this is overridden, sort behaviours by order in PRIORITY_DEFAULTS
+            self.priority_order = SteeringBehavior.PRIORITY_DEFAULTS
+            self.priority_key = lambda x: self.priority_order.index(x[0])
             self.set_priorities()
         else:
             self.compute_force = self.compute_force_simple
@@ -1181,7 +1182,8 @@ class SteeringBehavior(object):
 
     def set_priorities(self):
         """Create a prioritized list of steering behaviours for later use."""
-        self.priorities = sorted(self.targets.items(), key=self.priority_key)
+        pkey = lambda x: self.priority_order.index(x[0])
+        self.priorities = sorted(self.targets.items(), key=pkey)
         self.update_flocking_status()
 
     def compute_force_budgeted(self):
