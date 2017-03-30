@@ -163,9 +163,8 @@ def force_pursue(owner, prey):
     prey_offset = prey.pos - owner.pos
     # If prey is in front and moving our way, SEEK to prey's position
     # Compute this using dot products; constant below is cos(10 degrees)
-    # TODO: Double-check the math on this. Do we need to account for the
-    #   vectors being non-unit, or check that we're actually facing prey?
-    if prey_offset * prey.vel < -0.966:
+    # TODO: Test this and allow for angles other than 10 degrees
+    if prey_offset * prey.front < -0.966 * prey_offset.norm():
         return force_seek(owner, prey.pos)
 
     # Otherwise, predict the future position of prey, assuming it has a
