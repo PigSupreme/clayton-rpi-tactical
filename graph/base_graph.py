@@ -90,7 +90,7 @@ class EasyGraphNode(BaseGraphNode):
         but any future queries to node_from_id[] will return None. This gives
         the ability to temporarily ignore nodes without the overhead of
         deleting them. Provided that we keep an external reference, we can
-        reactivate this node later, using make_valid() below.
+        reactivate this node later, using unignore_me() below.
         """
         super(EasyGraphNode, self).node_from_id[self._node_id] = None
 
