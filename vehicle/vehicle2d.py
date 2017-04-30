@@ -7,7 +7,7 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import os, sys, pygame
+import os, sys, pygame, copy
 from pygame.locals import RLEACCEL
 
 INF = float('inf')
@@ -112,7 +112,7 @@ class BaseWall2d(object):
             self.rect.center = owner.pos[0], owner.pos[1]
 
         def update(self, delta_t=1.0):
-            """Update for use by pygame.Sprite parent class."""
+            """Update placeholder for pygame.Sprite parent class. Does nothing."""
             pass
 
     def __init__(self, center, length, thick, f_normal, color=None):
@@ -187,11 +187,9 @@ class BasePointMass2d(object):
 
     def __init__(self, position, radius, velocity, spritedata=None):
         # Basic object physics
-        # Note: We can't use self.pos = position here because of Point2d's
-        # __init__ method (and lack of __copy__), ditto for self.vel.
-        self.pos = Point2d(position[0], position[1])  # Center of object
-        self.radius = radius                          # Bounding radius
-        self.vel = Point2d(velocity[0], velocity[1])  # Current Velocity
+        self.pos = copy.copy(position)  # Center of object
+        self.radius = radius            # Bounding radius
+        self.vel = copy.copy(velocity)  # Current Velocity
 
         # Normalized front vector in world coordinates.
         # This stays aligned with the object's velocity (using move() below)
