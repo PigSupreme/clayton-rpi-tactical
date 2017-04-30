@@ -77,7 +77,7 @@ def force_seek(owner, target):
 def activate_seek(steering, target):
     """Activate SEEK behaviour."""
     # TODO: Error checking here.
-    steering.targets[force_seek] = (Point2d(*target),)
+    steering.targets['SEEK'] = (Point2d(*target),)
     return True
 
 def force_flee(owner, target, panic_squared=FLEE_PANIC_SQ):
@@ -106,7 +106,7 @@ def activate_flee(steering, target):
     """Activate FLEE behaviour."""
     # TODO: Error checking here.
     # TODO: Provide a way to set individual panic_squared values??
-    steering.targets[force_flee] = (Point2d(*target),)
+    steering.targets['FLEE'] = (Point2d(*target),)
     return True
 
 def force_arrive(owner, target, hesitance=2.0):
@@ -142,9 +142,9 @@ def force_arrive(owner, target, hesitance=2.0):
 def activate_arrive(steering, target):
     """Activate ARRIVE behaviour."""
     if len(target) == 2:
-        steering.targets[force_arrive] = (Point2d(*target),)
+        steering.targets['ARRIVE'] = (Point2d(*target),)
     else:
-        steering.targets[force_arrive] = (Point2d(target[0], target[1]), target[2])
+        steering.targets['ARRIVE'] = (Point2d(target[0], target[1]), target[2])
     return True
 
 def force_pursue(owner, prey):
@@ -163,9 +163,8 @@ def force_pursue(owner, prey):
     prey_offset = prey.pos - owner.pos
     # If prey is in front and moving our way, SEEK to prey's position
     # Compute this using dot products; constant below is cos(10 degrees)
-    # TODO: Double-check the math on this. Do we need to account for the
-    #   vectors being non-unit, or check that we're actually facing prey?
-    if prey_offset * prey.vel < -0.966:
+    # TODO: Test this and allow for angles other than 10 degrees
+    if prey_offset * prey.front < -0.966 * prey_offset.norm():
         return force_seek(owner, prey.pos)
 
     # Otherwise, predict the future position of prey, assuming it has a
@@ -177,7 +176,7 @@ def force_pursue(owner, prey):
 def activate_pursue(steering, prey):
     """Activate PURSUE behaviour."""
     # TODO: Error checking here.
-    steering.targets[force_pursue] = (prey,)
+    steering.targets['PURSUE'] = (prey,)
     return True
 
 def force_evade(owner, predator):
@@ -204,7 +203,7 @@ def force_evade(owner, predator):
 def activate_evade(steering, predator):
     """Activate EVADE behaviour."""
     # TODO: Error checking here.
-    steering.targets[force_evade] = (predator,)
+    steering.targets['EVADE'] = (predator,)
     return True
 
 def force_wander(owner, steering):
@@ -239,7 +238,7 @@ def activate_wander(steering, target):
     steering.wander_params = target
     steering.wander_target = steering.vehicle.front
     # Next line may seem weird, but needed for unified interface.
-    steering.targets[force_wander] = (steering,)
+    steering.targets['WANDER'] = (steering,)
     return True
 
 def force_avoid(owner, obs_list):
@@ -294,7 +293,7 @@ def force_avoid(owner, obs_list):
 
 def activate_avoid(steering, target):
     """Activate AVOID behaviour."""
-    steering.targets[force_avoid] = (target,)
+    steering.targets['AVOID'] = (target,)
     # TODO: Fix arguments, check errors
     # Currently we're passing a list of SimpleObstacle2d
     return True
@@ -349,7 +348,7 @@ def force_takecover(owner, target, obs_list, max_range, stalk=False):
 def activate_takecover(steering, target):
     """Activate TAKECOVER behaviour."""
     # TODO: Error checking
-    steering.targets[force_takecover] = target
+    steering.targets['TAKECOVER'] = target
     return True
 
 def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
@@ -426,7 +425,7 @@ def activate_wallavoid(steering, info):
     # Three whiskers: Front and left/right by 45 degrees
     whiskers = [Point2d(1,0), Point2d(SQRT_HALF, SQRT_HALF), Point2d(SQRT_HALF, -SQRT_HALF)]
     whisker_lengths = [info[0]] + 2*[info[0]*WALLAVOID_WHISKER_SCALE]
-    steering.targets[force_wallavoid] = [whiskers, whisker_lengths, info[1]]
+    steering.targets['WALLAVOID'] = [whiskers, whisker_lengths, info[1]]
     return True
 
 def force_guard(owner, guard_this, guard_from, aggro):
@@ -469,7 +468,7 @@ def force_guard(owner, guard_this, guard_from, aggro):
 
 def activate_guard(steering, target):
     """Activate GUARD behaviour."""
-    steering.targets[force_guard] = target
+    steering.targets['GUARD'] = target
     # TODO: Check for errors
     return True
 
@@ -494,7 +493,7 @@ def force_follow(owner, leader, offset):
 
 def activate_follow(steering, target):
     """Activate FOLLOW behaviour."""
-    steering.targets[force_follow] = target
+    steering.targets['FOLLOW'] = target
     # TODO: Check for errors
     return True
 
@@ -515,9 +514,9 @@ def activate_brake(steering, target):
     """Activate BRAKE behaviour."""
     # TODO: Error checking here.
     if 0 < target < 1:
-        steering.targets[force_brake] = (target,)
+        steering.targets['BRAKE'] = (target,)
     else:
-        steering.targets[force_brake] = (0.5,)
+        steering.targets['BRAKE'] = (0.5,)
     return True
 
 ##############################################
@@ -683,7 +682,7 @@ def force_waypathtraverse(owner, path):
 def activate_waypathtraverse(steering, path):
     """Activate WAYPATHTRAVERSE behaviour."""
     # TODO: Error checking here.
-    steering.targets[force_waypathtraverse] = (path,)
+    steering.targets['WAYPATHTRAVERSE'] = (path,)
     return True
 
 def force_waypathresume(owner, path, invk):
@@ -745,7 +744,7 @@ def activate_waypathresume(steering, target):
         invk = 1.0/target[1]
     else:
         invk = 1.0/PATHRESUME_DECAY
-    steering.targets[force_waypathresume] = (target[0], invk)
+    steering.targets['WAYPATHRESUME'] = (target[0], invk)
     return True
 
 def force_flowfollow(owner, vel_field, dt=1.0):
@@ -768,7 +767,7 @@ def activate_flowfollow(steering, target):
     """Activate FLOWFOLLOW behaviour."""
     # TODO: Error checking here.
     # owner_field = lambda pos: vel_field(pos).scale(vel_scale)
-    steering.targets[force_flowfollow] = target
+    steering.targets['FLOWFOLLOW'] = target
     return True
 
 ##############################################
@@ -776,7 +775,7 @@ def activate_flowfollow(steering, target):
 ##############################################
 
 def force_separate(owner):
-    """Steering force for SEPARATE group behaviour.
+    """Steering force for SEPARATE group behaviour (flocking).
 
     Parameters
     ----------
@@ -785,8 +784,8 @@ def force_separate(owner):
 
     Notes
     -----
-    All flocking forces use owner.neighbor_list to find a flock; set this list
-    before calling this function.
+    Flocking forces use owner.neighbor_list to decide which vehicles to flock
+    with; update this list before calling this function.
 
     For each neighbor, include a force away from that neighbor with magnitude
     proportional to the neighbor radius and inversely proprotional to distance.
@@ -803,12 +802,12 @@ def activate_separate(steering, n_list):
     """Activate SEPARATE behaviour."""
     steering.flocking = True
     # TODO: Check for errors
-    steering.targets[force_separate] = ()
+    steering.targets['SEPARATE'] = ()
     steering.flockmates = n_list[:]
     return True
 
 def force_align(owner):
-    """Steering force for ALIGN group behaviour.
+    """Steering force for ALIGN group behaviour (flocking).
 
     Parameters
     ----------
@@ -817,8 +816,8 @@ def force_align(owner):
 
     Notes
     -----
-    All flocking forces use owner.neighbor_list to find a flock; set this list
-    before calling this function.
+    Flocking forces use owner.neighbor_list to decide which vehicles to flock
+    with; update this list before calling this function.
 
     Unlike(?) traditional boids, we ALIGN with the average of neighbors'
     velocity vectors. Align with heading (normalize velocity) looked weird.
@@ -838,7 +837,7 @@ def activate_align(steering, n_list):
     """Activate ALIGN behaviour."""
     steering.flocking = True
     # TODO: Check for errors
-    steering.targets[force_align] = ()
+    steering.targets['ALIGN'] = ()
     steering.flockmates = n_list[:]
     return True
 
@@ -852,8 +851,8 @@ def force_cohesion(owner):
 
     Notes
     -----
-    All flocking forces use owner.neighbor_list to find a flock; set this list
-    before calling this function.
+    Flocking forces use owner.neighbor_list to decide which vehicles to flock
+    with; update this list before calling this function.
     """
 
     center = Point2d(0,0)
@@ -872,7 +871,7 @@ def activate_cohesion(steering, n_list):
     """Activate COHESION behaviour."""
     steering.flocking = True
     # TODO: Check for errors
-    steering.targets[force_cohesion] = ()
+    steering.targets['COHESION'] = ()
     steering.flockmates = n_list[:]
     return True
 
@@ -954,9 +953,9 @@ class SteeringBehavior(object):
         # Set the appropriate compute_force_ function here.
         if use_budget is True:
             self.compute_force = self.compute_force_budgeted
-            # Kludge function to sort behaviours by order in PRIORITY_DEFAULTS
-            # This removes each 'force_' part and converts to UPPERCASE
-            self.priority_key = lambda fnc: SteeringBehavior.PRIORITY_DEFAULTS.index(fnc[0].__name__[6:].upper())
+            # Unless this is overridden, sort behaviours by order in PRIORITY_DEFAULTS
+            self.priority_order = SteeringBehavior.PRIORITY_DEFAULTS
+            self.priority_key = lambda x: self.priority_order.index(x[0])
             self.set_priorities()
         else:
             self.compute_force = self.compute_force_simple
@@ -1019,8 +1018,8 @@ class SteeringBehavior(object):
             # Find and call correponding activate function
             try:
                 # The activate_foo function must be defined above
-                activate_fnc = ACTIVATE_FNC[behaviour]
-                result = activate_fnc(self, target)
+                activate = ACTIVATE_FNC[behaviour]
+                result = activate(self, target)
                 if result is True:
                     self.status[behaviour] = True
                     print('%s successfully initiated.' % behaviour)
@@ -1048,15 +1047,14 @@ class SteeringBehavior(object):
         boolean
             True if the pause was successful, False otherwise.
         """
-        fnc = FORCE_FNC[steering_type]
         # If behaviour has not been properly activated, warn and exit.
         try:
-            self.inactive_targets[steering_type] = self.targets[fnc]
+            self.inactive_targets[steering_type] = self.targets[steering_type]
         except KeyError:
             print('Warning: Behaviour %s has not been initialized. Ignoring pause.' % steering_type)
             return False
         # Otherwise, pause until later resumed.
-        del self.targets[fnc]
+        del self.targets[steering_type]
         self.status[steering_type] = False
         self.set_priorities()
         print('%s paused.' % steering_type)
@@ -1075,7 +1073,6 @@ class SteeringBehavior(object):
         boolean
             True if the resume was successful, False otherwise.
         """
-        fnc = FORCE_FNC[steering_type]
         # If behaviour was not previously paused, warn and exit.
         try:
             target = self.inactive_targets[steering_type]
@@ -1083,7 +1080,7 @@ class SteeringBehavior(object):
             print('Warning: Behaviour %s was not paused. Ignoring resume.' % steering_type)
             return False
         # Otherwise, retreive previously-saved targets and resume.
-        self.targets[fnc] = target
+        self.targets[steering_type] = target
         del self.inactive_targets[steering_type]
         self.status[steering_type] = True
         self.set_priorities()
@@ -1103,10 +1100,9 @@ class SteeringBehavior(object):
         boolean
             True if the stop was successful, False otherwise.
         """
-        fnc = FORCE_FNC[steering_type]
         # If behaviour has not been properly activated, warn and exit.
         try:
-            del self.targets[fnc]
+            del self.targets[steering_type]
         except KeyError:
             print('Warning: Behaviour %s has not been initialized. Ignoring stop.' % steering_type)
             return False
@@ -1150,7 +1146,6 @@ class SteeringBehavior(object):
         owner = self.vehicle
         n_radius = owner.radius * FLOCKING_RADIUS_MULTIPLIER
         neighbor_list = list()
-        # TODO: Pre-process self.flockmates and loop over that result.
         for other in vehlist:
             if other is not owner:
                 min_range = n_radius + other.radius
@@ -1162,31 +1157,32 @@ class SteeringBehavior(object):
         owner.neighbor_list = neighbor_list
 
     def compute_force_simple(self):
-        """Find the required steering force based on current behaviors.
+        """Compute steering force using all currently-active behaviors.
 
         Returns
         -------
         Point2d: Steering force.
+        
+        Note
+        ----
+        This considers all active behaviours, but will still limit the final
+        force vector's magnitude to the owner's maxforce.
         """
         force = Point2d(0,0)
         owner = self.vehicle
         # If any flocking is active, determine neighbors first
         if self.flocking is True:
             self.flag_neighbor_vehicles(self.flockmates)
-
-        # This assumes self.targets is a dictionary with keys equal to
-        # appropriate force_foo functons, and values equal to the parameters
-        # to be passed. All force_ functions take a vehicle as their first
-        # argument; we look this up here and do not store in self.targets.
-        for f, t in self.targets.iteritems():
-            force += f(owner, *t)
-            # TODO: Check for active behaviours; see budgeted version below
+        # Iterate over active behaviours and accumulate force from each
+        for (behaviour, targets) in self.targets.iteritems():
+            force += FORCE_FNC[behaviour](owner, *targets)
         force.truncate(owner.maxforce)
         return force
 
     def set_priorities(self):
         """Create a prioritized list of steering behaviours for later use."""
-        self.priorities = sorted(self.targets.items(), key=self.priority_key)
+        pkey = lambda x: self.priority_order.index(x[0])
+        self.priorities = sorted(self.targets.items(), key=pkey)
         self.update_flocking_status()
 
     def compute_force_budgeted(self):
@@ -1203,15 +1199,12 @@ class SteeringBehavior(object):
             self.flag_neighbor_vehicles(self.flockmates)
 
         budget = owner.maxforce
-        # TODO: Rewrite this to use FORCE_FNC directory??
-        for (f, t) in self.priorities:
+        for (behaviour, targets) in self.priorities:
             # Check if this behaviour is actually active
-            # If not, continue to the next behaviour
-            status_key = f.__name__[6:].upper()
-            if self.status[status_key] is not True:
+            if self.status[behaviour] is not True:
                 continue
-
-            newforce = f(owner, *t)
+            # If so, call the behaviour's force_ function
+            newforce = FORCE_FNC[behaviour](owner, *targets)
             newnorm = newforce.norm()
             if budget > newnorm:
                 # If there is enough force budget left, continue as usual

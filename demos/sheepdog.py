@@ -66,7 +66,6 @@ if __name__ == "__main__":
     yvals.append(yoffset)
     shuffle(yvals)
     for i in range(numveh, numveh + numobs):
-        print('i = %d, i-numveh = %d' % (i, i-numveh))
         offset = (i+1.0-numveh)/(numobs+1)
         rany = yvals[i-numveh]
         pos.append(Point2d(offset*sc_width, rany))

@@ -29,6 +29,9 @@ class Point2d(object):
     def __init__(self, x=0, y=0):
         self.x = float(x)
         self.y = float(y)
+        
+    def __len__(self):
+        return 2
 
     def __str__(self):
         return "Point2d: <%f, %f>" % (self.x, self.y)
@@ -48,7 +51,6 @@ class Point2d(object):
         Point2d: <-1.000000, 2.000000>
         """
         return Point2d(-self.x, -self.y)
-
 
     def __add__(self, term):
         """Coordinatewise addition; overrides the + operator.
