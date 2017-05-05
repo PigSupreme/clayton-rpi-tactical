@@ -1131,7 +1131,7 @@ class SteeringBehavior(object):
         Notes
         -----
         This function checks other vehicles based on their distance to owner and
-        includes only vehicles in front of the owner. Maximum distnance is the
+        includes only vehicles in front of the owner. Maximum distance is the
         owner's radius times FLOCKING_RADIUS_MULTIPLIER. We may consider more
         sophisticated sensing of neighbors in the future.
 

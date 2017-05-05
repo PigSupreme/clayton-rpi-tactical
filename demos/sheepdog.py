@@ -138,6 +138,14 @@ if __name__ == "__main__":
 
         # Render
         screen.fill(bgcolor)
+        
+        # Show neighbor links if flocking is currently active
+        if align_on:
+            for sheep in vehlist[1:]:
+                for other in sheep.neighbor_list:
+                    if other is not dog:
+                        pygame.draw.line(screen, (0,128,0), sheep.pos.ntuple(), other.pos.ntuple())
+        
         allsprites.draw(screen)
         pygame.display.flip()
         
