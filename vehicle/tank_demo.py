@@ -32,9 +32,9 @@ class NewTank2d(SimpleRigidBody2d):
         net_torque = tractive_torque + damping_torque
         
         # Tractive force (sum of both treads)
-        tractive_force = self.front.scale(vr+vl)
+        tractive_force = self.front.scm(vr+vl)
         
-        drag_force = self.vel.scale(-0.5)
+        drag_force = self.vel.scm(-0.5)
         net_force = tractive_force + drag_force
     
         # Movement here

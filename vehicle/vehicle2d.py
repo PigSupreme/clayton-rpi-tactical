@@ -220,13 +220,13 @@ class BasePointMass2d(object):
             Constant force during for this update.
         """
         # Update position using current velocity
-        self.pos = self.pos + self.vel.scale(delta_t)
+        self.pos = self.pos + self.vel.scm(delta_t)
 
         # Apply force, if any...
         if force_vector:
             # Don't exceed our maximum force; compute acceleration/velocity
             force_vector.truncate(self.maxforce)
-            accel = force_vector.scale(delta_t/self.mass)
+            accel = force_vector.scm(delta_t/self.mass)
             self.vel = self.vel + accel
         # ..but don't exceed our maximum speed
         self.vel.truncate(self.maxspeed)
@@ -307,13 +307,13 @@ class SimpleRigidBody2d(BasePointMass2d):
         """
 
         # Update position using current velocity
-        self.pos = self.pos + self.vel.scale(delta_t)
+        self.pos = self.pos + self.vel.scm(delta_t)
 
         # Apply force, if any...
         if force_vector:
             # Don't exceed our maximum force; compute acceleration/velocity
             force_vector.truncate(self.maxforce)
-            accel = force_vector.scale(delta_t/self.mass)
+            accel = force_vector.scm(delta_t/self.mass)
             self.vel = self.vel + accel
         # ..but don't exceed our maximum speed
         self.vel.truncate(self.maxspeed)

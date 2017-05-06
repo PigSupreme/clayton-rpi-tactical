@@ -54,7 +54,7 @@ class SpringMass2d(vehicle2d.BasePointMass2d):
         
     def apply_force(self, delta_t=1.0):
         # Compute damping force
-        force = self.accumulated_force - self.vel.scale(DAMPING_COEFF)
+        force = self.accumulated_force - self.vel.scm(DAMPING_COEFF)
         
         self.move(delta_t, force)
         self.accumulated_force = Point2d(0,0)
@@ -98,8 +98,8 @@ class IdealSpring2d(object):
         self.curlength = self.displacement.norm()        
         self.curscale = self.natlength/self.curlength
         magnitude = self.k*(1 - self.curscale)
-        self.mass_base.accumulate_force(self.displacement.scale(magnitude))
-        self.mass_tip.accumulate_force(self.displacement.scale(-magnitude))
+        self.mass_base.accumulate_force(self.displacement.scm(magnitude))
+        self.mass_tip.accumulate_force(self.displacement.scm(-magnitude))
 
 
 class MuscleSpring2d(IdealSpring2d):
@@ -197,8 +197,8 @@ class HydroQuad2d(object):
         """
         # Compute position and velocity of center of area
         ct = self.center_t  # For convenience in formulas belotw
-        self.pos = self.base_m.pos.scale(1-ct) + self.tip_m.pos.scale(ct)
-        self.vel = self.base_m.vel.scale(1-ct) + self.tip_m.vel.scale(ct)
+        self.pos = self.base_m.pos.scm(1-ct) + self.tip_m.pos.scm(ct)
+        self.vel = self.base_m.vel.scm(1-ct) + self.tip_m.vel.scm(ct)
         
         # Compute total fluidic force
         front_vec = self.tip_m.pos - self.base_m.pos
@@ -211,12 +211,12 @@ class HydroQuad2d(object):
         if dotp < 0:
             # Compute the area of this quad (trapezoid)
             area = 0.5*(self.base_h + self.tip_h)*front_vec.norm()
-            total_force = normal_in.scale(-dotp*area*delta_t/normal_in.sqnorm())
+            total_force = normal_in.scm(-dotp*area*delta_t/normal_in.sqnorm())
             # Apply to masses at base and tip
-            self.base_m.accumulate_force(total_force.scale(1-ct))
-            self.tip_m.accumulate_force(total_force.scale(ct))
+            self.base_m.accumulate_force(total_force.scm(1-ct))
+            self.tip_m.accumulate_force(total_force.scm(ct))
 ## current force is for test with rendering
-            self.current_force = total_force.scale(HYDRO_FORCE_SCALE)
+            self.current_force = total_force.scm(HYDRO_FORCE_SCALE)
         else:
             self.current_force = None
         
@@ -252,7 +252,7 @@ if __name__ == "__main__":
         rect = pygame.draw.circle(imgt,(1,1,1),(5,5),5,0)
         img.append(imgt)
         rec.append(rect)
-        nodet = SpringMass2d(Point2d(i+50,j+75).scale(SIZE_SCALE), m , Point2d(0,0), (imgt, rect))
+        nodet = SpringMass2d(Point2d(i+50,j+75).scm(SIZE_SCALE), m , Point2d(0,0), (imgt, rect))
         obj.append(nodet)
         
     # List of nodes only, for later use

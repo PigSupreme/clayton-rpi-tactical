@@ -72,7 +72,7 @@ def force_seek(owner, target):
         The target point that owner is seeking to.
     """
     targetvel = (target - owner.pos).unit()
-    targetvel = targetvel.scale(owner.maxspeed)
+    targetvel = targetvel.scm(owner.maxspeed)
     return targetvel - owner.vel
 
 def activate_seek(steering, target):
@@ -98,7 +98,7 @@ def force_flee(owner, target, panic_squared=FLEE_PANIC_SQ):
     """
     targetvel = (owner.pos - target)
     if 1 < targetvel.sqnorm() < panic_squared:
-        targetvel = targetvel.unit().scale(owner.maxspeed)
+        targetvel = targetvel.unit().scm(owner.maxspeed)
         return targetvel - owner.vel
     else:
         return Point2d(0,0)
@@ -135,7 +135,7 @@ def force_arrive(owner, target, hesitance=2.0):
         speed = dist / (ARRIVE_DECEL_TWEAK * hesitance)
         if speed > owner.maxspeed:
             speed = owner.maxspeed
-        targetvel = target_offset.scale(speed/dist)
+        targetvel = target_offset.scm(speed/dist)
         return targetvel - owner.vel
     else:
         return Point2d(0,0)
@@ -172,7 +172,7 @@ def force_pursue(owner, prey):
     # constant velocity. Prediction time is the distance to prey, divided
     # by the sum of our max speed and prey's current speed.
     ptime = prey_offset.norm()/(owner.maxspeed + prey.vel.norm())
-    return force_seek(owner, prey.vel.scale(ptime) + prey.pos)
+    return force_seek(owner, prey.vel.scm(ptime) + prey.pos)
 
 def activate_pursue(steering, prey):
     """Activate PURSUE behaviour."""
@@ -199,7 +199,7 @@ def force_evade(owner, predator):
     # velocity. Prediction time is the distance to predator divided
     # by the sum of our max speed and predator's current speed.
     ptime = predator_offset.norm()/(owner.maxspeed + predator.vel.norm())
-    return force_flee(owner, predator.vel.scale(ptime) + predator.pos, EVADE_PANIC_SQ)
+    return force_flee(owner, predator.vel.scm(ptime) + predator.pos, EVADE_PANIC_SQ)
 
 def activate_evade(steering, predator):
     """Activate EVADE behaviour."""
@@ -229,9 +229,9 @@ def force_wander(owner, steering):
     # Add a random displacement to previous target and reproject
     target = steering.wander_target + Point2d(rand_uni(jitter), rand_uni(jitter))
     target.normalize()
-    target = target.scale(params[1])
+    target = target.scm(params[1])
     steering.wander_target = target
-    return force_seek(owner, owner.pos + target + owner.front.scale(params[0]))
+    return force_seek(owner, owner.pos + target + owner.front.scm(params[0]))
 
 def activate_wander(steering, target):
     """Activate WANDER behaviour."""
@@ -287,7 +287,7 @@ def force_avoid(owner, obs_list):
         lr = obs_closest.radius
         lat_scale = (lr - ly)*(2.0 - lr / front_d)
         brake_scale = (lr - lx)*AVOID_BRAKE_WEIGHT
-        result = owner.front.scale(brake_scale) + owner.left.scale(lat_scale)
+        result = owner.front.scm(brake_scale) + owner.left.scm(lat_scale)
         return result
     else:
         return Point2d(0,0)
@@ -334,7 +334,7 @@ def force_takecover(owner, target, obs_list, max_range, stalk=False):
     for obs in obs_list:
         # Find the hiding point for this obstacle
         hide_dir = (obs.pos - target.pos).unit()
-        hide_pos = obs.pos + hide_dir.scale(obs.radius + owner.radius)
+        hide_pos = obs.pos + hide_dir.scm(obs.radius + owner.radius)
         hide_dsq = (hide_pos - owner.pos).sqnorm()
         # Update distance and position if this obstacle is better
         if hide_dsq < best_dsq:
@@ -379,7 +379,7 @@ def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
     # Covert unit vectors for each whisker to global coordinates
     for i in range(n):
         whisker = whisk_units[i]
-        unit_whisker = owner.front.scale(whisker[0]) + owner.left.scale(whisker[1])
+        unit_whisker = owner.front.scm(whisker[0]) + owner.left.scm(whisker[1])
         whisk_front[i] = unit_whisker
         t_min = whisk_lens[:]
 
@@ -398,7 +398,7 @@ def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
                 continue
             if 0 < t < t_min[i]:
                 # Is the point of intersection actually on the wall segment?
-                poi = owner.pos + whisk_front[i].scale(t)
+                poi = owner.pos + whisk_front[i].scm(t)
                 if (wall.pos - poi).sqnorm() <= wall.rsq:
                     # This is the closest intersecting wall so far
                     closest_wall[i] = wall
@@ -409,10 +409,10 @@ def force_wallavoid(owner, whisk_units, whisk_lens, wall_list):
     for i in range(n):
         if closest_wall[i] is not None:
             depth = whisk_lens[i] - t_min[i]
-            result += closest_wall[i].front.scale(depth)
+            result += closest_wall[i].front.scm(depth)
 
     # Scale by owner radius; bigger objects should tend to stay away
-    return result.scale(owner.radius)
+    return result.scm(owner.radius)
 
 def activate_wallavoid(steering, info):
     """Activate WALLAVOID behaviour.
@@ -457,13 +457,13 @@ def force_guard(owner, guard_this, guard_from, aggro):
     # Find the desired position between the two objects as of now:
     target_pos = guard_this.pos
     from_pos = guard_from.pos
-    want_pos = target_pos + (from_pos - target_pos).scale(aggro)
+    want_pos = target_pos + (from_pos - target_pos).scm(aggro)
 
     # Predict future positions based on owner's distance/maxspeed to want_pos
     est_time = (want_pos - owner.pos).norm()/owner.maxspeed
-    target_pos += guard_this.vel.scale(est_time)
-    from_pos += guard_from.vel.scale(est_time)
-    want_pos = target_pos + (from_pos - target_pos).scale(aggro)
+    target_pos += guard_this.vel.scm(est_time)
+    from_pos += guard_from.vel.scm(est_time)
+    want_pos = target_pos + (from_pos - target_pos).scm(aggro)
 
     return force_arrive(owner, want_pos, 1.0)
 
@@ -486,10 +486,10 @@ def force_follow(owner, leader, offset):
         Offset from leader (in leader's local coordinates, front = +x)
     """
 
-    target_pos = leader.pos + leader.front.scale(offset[0]) + leader.left.scale(offset[1])
+    target_pos = leader.pos + leader.front.scm(offset[0]) + leader.left.scm(offset[1])
     diff = target_pos - owner.pos
     ptime = diff.norm() / (owner.maxspeed + leader.vel.norm())
-    target_pos += leader.vel.scale(ptime)
+    target_pos += leader.vel.scm(ptime)
     return force_arrive(owner, target_pos, FOLLOW_ARRIVE_HESITANCE)
 
 def activate_follow(steering, target):
@@ -509,7 +509,7 @@ def force_brake(owner, decay=0.5):
         Discrete exponential decay constant for speed; 0 < decay < 1.
     """
     speed = owner.vel.norm()
-    return owner.vel.scale(-decay * speed)
+    return owner.vel.scm(-decay * speed)
 
 def activate_brake(steering, target):
     """Activate BRAKE behaviour."""
@@ -565,7 +565,7 @@ class WaypointPath(object):
         # Length of this edge and unit vector (oldway to newway)
         offset = self.newway - self.oldway
         self.edgelength = offset.norm()
-        self.edgevector = offset.scale(1/self.edgelength)
+        self.edgevector = offset.scm(1/self.edgelength)
 
         self.is_cyclic = is_cyclic
 
@@ -615,7 +615,7 @@ class WaypointPath(object):
             # Compute new length and unit vector
             offset = self.newway - self.oldway
             self.edgelength = offset.norm()
-            self.edgevector = offset.scale(1/self.edgelength)
+            self.edgevector = offset.scm(1/self.edgelength)
 
         # This throws if we are at the last waypoint in the list.
         except IndexError:
@@ -625,7 +625,7 @@ class WaypointPath(object):
                 self.newway = self.waypoints[0]
                 offset = self.newway - self.oldway
                 self.edgelength = offset.norm()
-                self.edgevector = offset.scale(1/self.edgelength)
+                self.edgevector = offset.scm(1/self.edgelength)
             else:
                 self.newway = None
                 self.edgelength = 0
@@ -726,7 +726,7 @@ def force_waypathresume(owner, waypath, invk):
         if waypath.num_left() <= 1:
             return force_arrive(owner, waypath.newway)
     else: # Resume target is between last/next waypoints
-        target = waypath.newway + waypath.edgevector.scale(invk - rl)
+        target = waypath.newway + waypath.edgevector.scm(invk - rl)
 
     # If we reach this part of the code, we must SEEK to either a target on
     # the path or a waypoint that is not the last one in the path. So...
@@ -760,14 +760,14 @@ def force_flowfollow(owner, vel_field, dt=1.0):
     dt: Non-negative float
         Time between steering updates.
     """
-    new_pos = owner.pos + owner.vel.scale(dt)
+    new_pos = owner.pos + owner.vel.scm(dt)
     target_vel = vel_field(new_pos)
     return (target_vel - owner.vel)
 
 def activate_flowfollow(steering, target):
     """Activate FLOWFOLLOW behaviour."""
     # TODO: Error checking here.
-    # owner_field = lambda pos: vel_field(pos).scale(vel_scale)
+    # owner_field = lambda pos: vel_field(pos).scm(vel_scale)
     steering.targets['FLOWFOLLOW'] = target
     return True
 
@@ -796,7 +796,7 @@ def force_separate(owner):
     for other in owner.neighbor_list:
         if other is not owner:
             offset = owner.pos - other.pos
-            result += offset.scale(FLOCKING_SEPARATE_SCALE*other.radius/offset.sqnorm())
+            result += offset.scm(FLOCKING_SEPARATE_SCALE*other.radius/offset.sqnorm())
     return result
 
 def activate_separate(steering, n_list):
@@ -830,7 +830,7 @@ def force_align(owner):
             result += other.vel
             n += 1
     if n > 0:
-        result = result.scale(1.0/n)
+        result = result.scm(1.0/n)
         result -= owner.front
     return result
 
@@ -863,7 +863,7 @@ def force_cohesion(owner):
             center += other.pos
             n += 1
     if n > 0:
-        center = center.scale(1.0/n)
+        center = center.scm(1.0/n)
         return force_arrive(owner, center, FLOCKING_COHESHION_HESITANCE)
     else:
         return Point2d(0,0)
@@ -1213,7 +1213,7 @@ class SteeringBehavior(object):
                 budget -= newnorm
             else:
                 # Scale newforce to remaining budget, apply, and exit
-                newforce.scale(budget/newnorm)
+                newforce.scm(budget/newnorm)
                 force += newforce
                 return force
 

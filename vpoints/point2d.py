@@ -106,14 +106,13 @@ class Point2d(object):
         """
         return self.nt[index]
 
-    def scale(self, scalar):
-        """Get a scaled version of this vector.
-        # TODO: Rename this to scaled_by....will be a major refactor.
+    def scm(self, scalar):
+        """Scalar multiplication of this vector.
 
         Example
         -------
         >>> a = Point2d(1,-2)
-        >>> print(a.scale(-2))
+        >>> print(a.scm(-2))
         Point2d: <-2.000000, 4.000000>
         """
         return Point2d(scalar*self.nt[0], scalar*self.nt[1])
@@ -180,7 +179,7 @@ class Point2d(object):
         >>> a.unit().norm()
         0.9999999999999999
         """
-        return self.scale(1.0/self.norm())
+        return self.scm(1.0/self.norm())
 
     def normalize(self):
         """Rescale this vector to have length 1.
@@ -339,7 +338,7 @@ class Point2d(object):
         """
         # Note: * is the dot product, using __mul__ to override above.
         r = (self*direction)/direction.sqnorm()
-        proj = direction.scale(r)
+        proj = direction.scm(r)
         return proj
 
     def resolve(self, direction):
@@ -432,9 +431,9 @@ class RollingVectorMean(object):
         if self.current == self.n:
             self.current = 0
             self.update = lambda x: self._rollup(x)
-            return self.vals[0].scale(1.0/self.n)
+            return self.vals[0].scm(1.0/self.n)
         else:
-            return self.vals[0].scale(1.0/self.current)
+            return self.vals[0].scm(1.0/self.current)
 
     def _rollup(self, newval):
         """Used once the number of values equals the sample size."""
@@ -442,7 +441,7 @@ class RollingVectorMean(object):
         for i in range(0, self.n):
             self.vals[i] += newval
         self.current = (self.current + 1) % self.n
-        return self.vals[self.current].scale(1.0/self.n)
+        return self.vals[self.current].scm(1.0/self.n)
 
 if __name__ == "__main__":
     import doctest
