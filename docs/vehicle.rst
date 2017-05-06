@@ -2,7 +2,7 @@
 BOID/Vehicle Code
 *******************
 
-Still working on this section...
+Two-dimensional Reynolds-style BOIDS and steering behaviours.
 
 ------------
 
@@ -15,3 +15,8 @@ steering.py
 ===========
 
 .. automodule:: steering
+
+steering_constants.py
+=====================
+
+.. automodule:: steering_constants

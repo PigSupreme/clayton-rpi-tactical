@@ -41,7 +41,7 @@ Homegrown graph theory code for use in Python.
 Documentation for BOID/Vehicle Code
 ===================================
 
-Still working on this...
+Homegrown BOID-type vehicles and steering behaviours.
 
 .. toctree::
 

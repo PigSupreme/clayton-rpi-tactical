@@ -49,6 +49,7 @@ from steering_constants import *
 INF = float('inf')
 from math import sqrt
 SQRT_HALF = sqrt(0.5)
+ZERO_VECTOR = Point2d(0,0)
 
 # Random number generator (used by WANDER only)
 from random import Random
@@ -644,14 +645,14 @@ class WaypointPath(object):
             return len(self.waypoints) - self.wpindex
 
 
-def force_waypathtraverse(owner, path):
+def force_waypathtraverse(owner, waypath):
     """Steering force for WAYPATHTRAVERSE behaviour.
 
     Parameters
     ----------
     owner: SimpleVehicle2d
         The vehicle computing this force.
-    path: WaypointPath
+    waypath: WaypointPath
         Path to be followed by the owner
 
     Notes
@@ -660,39 +661,39 @@ def force_waypathtraverse(owner, path):
     If there is only one waypoint left, we ARRIVE at it. Otherwise, we SEEK.
     """
     # If no waypoint left, exit immediately
-    if path.newway is None:
-        return Point2d(0,0)
+    if waypath.newway is None:
+        return ZERO_VECTOR
 
     # If current destination is the last waypoint on this path, ARRIVE
     # at that waypoint
-    if path.num_left() <= 1:
-        return force_arrive(owner, path.newway)
+    if waypath.num_left() <= 1:
+        return force_arrive(owner, waypath.newway)
 
     # Otherwise, check if we've reached the next waypoint
     # Note: No force is returned when we switch to the next waypoint
-    if (owner.pos - path.newway).sqnorm() <= WAYPOINT_TOLERANCE_SQ:
-        path.advance()
-        return Point2d(0,0)
+    if (owner.pos - waypath.newway).sqnorm() <= WAYPOINT_TOLERANCE_SQ:
+        waypath.advance()
+        return ZERO_VECTOR
 
     # TODO: This is for testing only?
-    owner.waypoint = path.newway
+    owner.waypoint = waypath.newway
 
-    return force_seek(owner, path.newway)
+    return force_seek(owner, waypath.newway)
 
-def activate_waypathtraverse(steering, path):
+def activate_waypathtraverse(steering, waypath):
     """Activate WAYPATHTRAVERSE behaviour."""
     # TODO: Error checking here.
-    steering.targets['WAYPATHTRAVERSE'] = (path,)
+    steering.targets['WAYPATHTRAVERSE'] = (waypath,)
     return True
 
-def force_waypathresume(owner, path, invk):
+def force_waypathresume(owner, waypath, invk):
     """Steering force for WAYPATHRESUME behaviour.
 
     Parameters
     ----------
     owner: SimpleVehicle2d
         The vehicle computing this force.
-    path: WaypointPath
+    waypath: WaypointPath
         Path to be followed by the owner
     invk: positive float
         Reciprocal of exponential decay constant. See Notes.
@@ -710,30 +711,30 @@ def force_waypathresume(owner, path, invk):
     more immediate return to the path.
     """
     # If no waypoint left, exit immediately
-    if path.newway is None:
-        return Point2d(0,0)
+    if waypath.newway is None:
+        return ZERO_VECTOR
 
     # This is the remaining direct distance to the next waypoint,
     # using orthogonal projection operator.
-    rl = (path.newway - owner.pos)/path.edgevector
+    rl = (waypath.newway - owner.pos)/waypath.edgevector
 
     # If resume target is beyond the next waypoint, SEEK/ARRIVE to waypoint.
     # Otherwise, SEEK (never ARRIVE) to the resume target
     if invk >= rl: # Resume target is beyond the next waypoint
-        target = path.newway
+        target = waypath.newway
         # ARRIVE if this is the last waypoint; no further computation neeed
-        if path.num_left() <= 1:
-            return force_arrive(owner, path.newway)
+        if waypath.num_left() <= 1:
+            return force_arrive(owner, waypath.newway)
     else: # Resume target is between last/next waypoints
-        target = path.newway + path.edgevector.scale(invk - rl)
+        target = waypath.newway + waypath.edgevector.scale(invk - rl)
 
     # If we reach this part of the code, we must SEEK to either a target on
     # the path or a waypoint that is not the last one in the path. So...
     # Check if we're close enough to the next waypoint to switch.
     # Note: No force is returned when we switch to the next waypoint
-    if (owner.pos - path.newway).sqnorm() <= WAYPOINT_TOLERANCE_SQ:
-        path.advance()
-        return Point2d(0,0)
+    if (owner.pos - waypath.newway).sqnorm() <= WAYPOINT_TOLERANCE_SQ:
+        waypath.advance()
+        return ZERO_VECTOR
     else:
         return force_seek(owner, target)
 
@@ -884,7 +885,7 @@ FLOCKING_LIST = ['SEPARATE', 'ALIGN', 'COHESION']
 ## This allows us to easily add behaviours later; see
 ## the module docstring for instructions.
 ########################################################
-BEHAVIOUR_LIST = [x[6:].upper() for x in locals().keys() if (x[:6] == 'force_')]
+BEHAVIOUR_LIST = [x[6:].upper() for x in locals().keys() if x[:6] == 'force_']
 FORCE_FNC = dict()
 ACTIVATE_FNC = dict()
 for behaviour in BEHAVIOUR_LIST[:]:
@@ -940,7 +941,7 @@ class SteeringBehavior(object):
                          'ALIGN',
                          'FLOWFOLLOW',
                          'WANDER'
-                         ]
+                        ]
 
     def __init__(self, vehicle, use_budget=True):
         self.vehicle = vehicle
@@ -1115,7 +1116,7 @@ class SteeringBehavior(object):
         """Sets or clears flocking status based on currently-active behaviours."""
         flock_yes = False
         for steering_type in FLOCKING_LIST:
-            if self.status[steering_type] == True:
+            if self.status[steering_type] is True:
                 flock_yes = True
                 break
         self.flocking = flock_yes
@@ -1162,7 +1163,7 @@ class SteeringBehavior(object):
         Returns
         -------
         Point2d: Steering force.
-        
+
         Note
         ----
         This considers all active behaviours, but will still limit the final

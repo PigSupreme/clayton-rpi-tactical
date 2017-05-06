@@ -24,9 +24,9 @@ from steering_constants import *
 # math radians result by SCREEN_DEG to get pygame screen-appropriate degrees.
 SCREEN_DEG = -57.2957795131
 
-# A PointMass has its heading aligned with velocity. However, if the speed is
-# almost zero (squared speed is below this threshold), we skip alignment in
-# order to avoid jittery behaviour.
+#: A BasePointMass2d has velocity-aligned heading. However, if the speed is
+#: almost zero (squared speed is below this threshold), we skip alignment in
+#: order to avoid jittery behaviour.
 SPEED_EPSILON = .000000001
 
 def load_pygame_image(name, colorkey=None):

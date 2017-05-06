@@ -29,7 +29,7 @@ class Point2d(object):
     def __init__(self, x=0, y=0):
         self.x = float(x)
         self.y = float(y)
-        
+
     def __len__(self):
         return 2
 
@@ -37,8 +37,14 @@ class Point2d(object):
         return "Point2d: <%f, %f>" % (self.x, self.y)
 
     def ntuple(self):
-        """Returns the coordinates of this point in a Python tuple."""
-        # TODO: Example
+        """Returns the coordinates of this point in a Python tuple.
+
+        Example
+        -------
+        >>> a = Point2d(3,-2)
+        >>> a.ntuple()
+        (3.0, -2.0)
+        """
         return (self.x, self.y)
 
     def __neg__(self):
@@ -399,23 +405,28 @@ class Point2d(object):
 
 class RollingVectorMean(object):
     """Helper class for computing rolling averages.
-    
+
     Parameters
     ----------
     n_size: int
         Number of previous values to average over; must be at least 2.
+
+    Note
+    ----
+    Experimental.
     """
     def __init__(self, n_size=2):
         if n_size < 2:
             raise ValueError("Sample size must be 2 or more; received %s" % n_size)
-        self.vals = [Point2d(0,0) for i in range(n_size)]
+        self.vals = n_size*[Point2d(0,0)]
         self.n = n_size
         self.current = 0
         self.update = lambda x: self._startup(x)
+        raise NotImplementedError("point2d.RollingVectorMean.__init__: Still experimental.")
 
     def _startup(self, newval):
         """Used internally to average the first few values."""
-        self.current += 1;
+        self.current += 1
         for i in range(0, self.current):
             self.vals[i] += newval
         if self.current == self.n:
@@ -424,7 +435,7 @@ class RollingVectorMean(object):
             return self.vals[0].scale(1.0/self.n)
         else:
             return self.vals[0].scale(1.0/self.current)
-        
+
     def _rollup(self, newval):
         """Used once the number of values equals the sample size."""
         self.vals[self.current] = Point2d(0,0)
@@ -436,3 +447,4 @@ class RollingVectorMean(object):
 if __name__ == "__main__":
     import doctest
     doctest.testmod()
+    print("Point2d functions. Import this module elsewhere.")
