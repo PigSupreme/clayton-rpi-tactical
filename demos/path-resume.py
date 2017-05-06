@@ -117,22 +117,22 @@ if __name__ == "__main__":
         d_min_sq = min([(obs.pos - newp2d).sqnorm() for obs in obslist])
         if d_min_sq > min_dist_sq:
             waylist.append(newp)
-    waylist.append((obj[0].pos.x, obj[0].pos.y))
+    waylist.append(obj[0].pos.ntuple())
 
     # Green (WAYPATHTRAVERSE)
-    glist = [(obj[0].pos.x, obj[0].pos.y)] + waylist
+    glist = [obj[0].pos.ntuple()] + waylist
     gpath = WaypointPath([Point2d(*p) for p in glist],True)
     obj[0].steering.set_target(WAYPATHTRAVERSE=gpath)
     obj[0].waypoint = obj[0].pos
 
     # Yellow (PATHRESUME)
-    ylist = [(obj[1].pos.x, obj[1].pos.y)] + waylist
+    ylist = [obj[1].pos.ntuple()] + waylist
     ypath = WaypointPath([Point2d(*p) for p in ylist],True)
     obj[1].steering.set_target(WAYPATHRESUME=[ypath])
     obj[1].waypoint = obj[1].pos
 
     # Red (PATHRESUME, end after second cycle)
-    rlist = [(obj[2].pos.x, obj[2].pos.y)] + 2*waylist
+    rlist = [obj[2].pos.ntuple()] + 2*waylist
     rpath = WaypointPath([Point2d(*p) for p in rlist],False)
     obj[2].steering.set_target(WAYPATHRESUME=[rpath,0.05])
     obj[2].waypoint = obj[2].pos

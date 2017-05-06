@@ -27,14 +27,13 @@ class Point2d(object):
     """
 
     def __init__(self, x=0, y=0):
-        self.x = float(x)
-        self.y = float(y)
+        self.nt = (float(x),float(y))
 
     def __len__(self):
         return 2
 
     def __str__(self):
-        return "Point2d: <%f, %f>" % (self.x, self.y)
+        return "Point2d: <%f, %f>" % self.nt
 
     def ntuple(self):
         """Returns the coordinates of this point in a Python tuple.
@@ -45,7 +44,7 @@ class Point2d(object):
         >>> a.ntuple()
         (3.0, -2.0)
         """
-        return (self.x, self.y)
+        return self.nt
 
     def __neg__(self):
         """Negates each entry; overrides unary - operator.
@@ -56,7 +55,7 @@ class Point2d(object):
         >>> print(-a)
         Point2d: <-1.000000, 2.000000>
         """
-        return Point2d(-self.x, -self.y)
+        return Point2d(-self.nt[0], -self.nt[1])
 
     def __add__(self, term):
         """Coordinatewise addition; overrides the + operator.
@@ -68,9 +67,7 @@ class Point2d(object):
         >>> print(a+b)
         Point2d: <4.000000, 3.000000>
         """
-        x = self.x + term.x
-        y = self.y + term.y
-        return Point2d(x, y)
+        return Point2d(self.nt[0] + term.nt[0], self.nt[1] + term.nt[1])
 
     def __sub__(self, term):
         """Coordinatewise subtraction; overrides the - operator.
@@ -82,9 +79,7 @@ class Point2d(object):
         >>> print(a-b)
         Point2d: <-2.000000, -7.000000>
         """
-        x = self.x - term.x
-        y = self.y - term.y
-        return Point2d(x, y)
+        return Point2d(self.nt[0] - term.nt[0], self.nt[1] - term.nt[1])
 
     def __mul__(self, term):
         """Dot product; overrides the \* operator.
@@ -96,7 +91,7 @@ class Point2d(object):
         >>> a*b
         -7.0
         """
-        return (self.x * term.x) + (self.y * term.y)
+        return (self.nt[0] * term.nt[0]) + (self.nt[1] * term.nt[1])
 
     def __getitem__(self, index):
         """Vector components; indexed starting at 0.
@@ -109,11 +104,7 @@ class Point2d(object):
         >>> a[1]
         -2.0
         """
-        if index == 0:
-            return self.x
-        elif index == 1:
-            return self.y
-        raise KeyError("Point2d %s has no component %s" % (self, str(index)))
+        return self.nt[index]
 
     def scale(self, scalar):
         """Get a scaled version of this vector.
@@ -125,9 +116,7 @@ class Point2d(object):
         >>> print(a.scale(-2))
         Point2d: <-2.000000, 4.000000>
         """
-        x = scalar * self.x
-        y = scalar * self.y
-        return Point2d(x, y)
+        return Point2d(scalar*self.nt[0], scalar*self.nt[1])
 
     def rotated_by(self, angle, use_deg=False):
         """Get this vector rotated anticlockwise.
@@ -138,7 +127,6 @@ class Point2d(object):
             Directed anticlockwise angle to rotate by,
         degrees: boolean
             If True, angle is in degrees. Otherwise radians (default)
-
 
         Example
         -------
@@ -153,7 +141,7 @@ class Point2d(object):
 
         c = cos(angle)
         s = sin(angle)
-        return Point2d(c*self.x - s*self.y, s*self.x + c*self.y)
+        return Point2d(c*self.nt[0] - s*self.nt[1], s*self.nt[0] + c*self.nt[1])
 
     def norm(self):
         """Get the norm (length) of this vector.
@@ -164,7 +152,7 @@ class Point2d(object):
         >>> a.norm()
         2.23606797749979
         """
-        return sqrt(self.x**2 + self.y**2)
+        return sqrt(self.nt[0]**2 + self.nt[1]**2)
 
     def sqnorm(self):
         """Get the squared norm (length) of this vector.
@@ -175,7 +163,7 @@ class Point2d(object):
         >>> a.sqnorm()
         5.0
         """
-        return float(self.x**2 + self.y**2)
+        return float(self.nt[0]**2 + self.nt[1]**2)
 
     def unit(self):
         """Get a unit vector in the same direction as this one.
@@ -211,8 +199,7 @@ class Point2d(object):
         0.9999999999999999
         """
         r = self.norm()
-        self.x = float(self.x/r)
-        self.y = float(self.y/r)
+        self.nt = (float(self.nt[0]/r), float(self.nt[1]/r))
 
     def truncate(self, maxlength):
         """Rescale this vector if needed so its length is not too large.
@@ -245,17 +232,30 @@ class Point2d(object):
         """
         if self.sqnorm() > maxlength**2:
             r = float(maxlength/self.norm())
-            self.x = self.x * r
-            self.y = self.y * r
+            self.nt = (self.nt[0]*r, self.nt[1]*r)
             return True
         else:
             return False
 
     def scale_to(self, mag):
-        """Scale this vector to the given magnitude."""
+        """Change this vector's scale to the given magnitude.
+        
+        Parameters
+        ----------
+        mag: float
+            New magntinude for this vector; negative will reverse direction.
+            
+        Example
+        -------
+        >>> a = Point2d(2,3)
+        >>> a.scale_to(-4.2)
+        >>> print(a)
+        Point2d: <-2.329741, -3.494611>
+        >>> a.norm()
+        4.2
+        """
         self.normalize()
-        self.x = self.x * mag
-        self.y = self.y * mag
+        self.nt = (mag*self.nt[0], mag*self.nt[1])
 
     def angle(self):
         """Get the polar angle of this vector in radians.
@@ -270,8 +270,8 @@ class Point2d(object):
         -----
         This is implemeted using acos. Perhaps atan gives better performance?
         """
-        theta = acos(self.x/self.norm())
-        if self.y < 0:
+        theta = acos(self.nt[0]/self.norm())
+        if self.nt[1] < 0:
             theta = -theta
         return float(theta)
 
@@ -380,7 +380,7 @@ class Point2d(object):
         >>> print(a.left_normal())
         Point2d: <2.000000, 1.000000>
         """
-        return Point2d(-self.y, self.x)
+        return Point2d(-self.nt[1], self.nt[0])
 
     def __setitem__(self, index, value):
         """Allows a value to be assigned to each vector components;
@@ -397,9 +397,9 @@ class Point2d(object):
         Point2d: <3.000000, 5.000000>
         """
         if index == 0:
-            self.x = value
+            self.nt = (value, self.nt[1])
         elif index == 1:
-            self.y = value
+            self.nt = (self.nt[0], value)
         else:
             raise KeyError("Point2d %s has no component %s" % (self, str(index)))
 

@@ -486,7 +486,7 @@ def force_follow(owner, leader, offset):
         Offset from leader (in leader's local coordinates, front = +x)
     """
 
-    target_pos = leader.pos + leader.front.scale(offset.x) + leader.left.scale(offset.y)
+    target_pos = leader.pos + leader.front.scale(offset[0]) + leader.left.scale(offset[1])
     diff = target_pos - owner.pos
     ptime = diff.norm() / (owner.maxspeed + leader.vel.norm())
     target_pos += leader.vel.scale(ptime)

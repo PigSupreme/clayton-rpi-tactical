@@ -92,7 +92,7 @@ if __name__ == "__main__":
         local_pos = pos - field_center
         orbit_rad = local_pos.norm()
         local_pos.scale_to(orbit_rad)
-        return Point2d(-local_pos.y, local_pos.x)
+        return Point2d(-local_pos[1], local_pos[0])
 
     # Gravity well
     def vel_gravwell(pos):
