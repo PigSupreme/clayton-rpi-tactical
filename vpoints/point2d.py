@@ -27,13 +27,13 @@ class Point2d(object):
     """
 
     def __init__(self, x=0, y=0):
-        self.nt = (float(x),float(y))
+        self.nt = (float(x), float(y))
 
     def __len__(self):
         return 2
 
     def __str__(self):
-        return "Point2d: <%f, %f>" % self.nt
+        return "Point2d: <%.9f, %.9f>" % self.nt
 
     def ntuple(self):
         """Returns the coordinates of this point in a Python tuple.
@@ -41,6 +41,8 @@ class Point2d(object):
         Example
         -------
         >>> a = Point2d(3,-2)
+        >>> print(a)
+        Point2d: <3.000000000, -2.000000000>
         >>> a.ntuple()
         (3.0, -2.0)
         """
@@ -53,7 +55,7 @@ class Point2d(object):
         -------
         >>> a = Point2d(1,-2)
         >>> print(-a)
-        Point2d: <-1.000000, 2.000000>
+        Point2d: <-1.000000000, 2.000000000>
         """
         return Point2d(-self.nt[0], -self.nt[1])
 
@@ -65,7 +67,7 @@ class Point2d(object):
         >>> a = Point2d(1,-2)
         >>> b = Point2d(3,5)
         >>> print(a+b)
-        Point2d: <4.000000, 3.000000>
+        Point2d: <4.000000000, 3.000000000>
         """
         return Point2d(self.nt[0] + term.nt[0], self.nt[1] + term.nt[1])
 
@@ -77,7 +79,7 @@ class Point2d(object):
         >>> a = Point2d(1,-2)
         >>> b = Point2d(3,5)
         >>> print(a-b)
-        Point2d: <-2.000000, -7.000000>
+        Point2d: <-2.000000000, -7.000000000>
         """
         return Point2d(self.nt[0] - term.nt[0], self.nt[1] - term.nt[1])
 
@@ -86,9 +88,7 @@ class Point2d(object):
 
         Example
         -------
-        >>> a = Point2d(1,-2)
-        >>> b = Point2d(3,5)
-        >>> a*b
+        >>> Point2d(1,-2)*Point2d(3,5)
         -7.0
         """
         return (self.nt[0] * term.nt[0]) + (self.nt[1] * term.nt[1])
@@ -112,8 +112,10 @@ class Point2d(object):
         Example
         -------
         >>> a = Point2d(1,-2)
+        >>> print(a.scm(3.5))
+        Point2d: <3.500000000, -7.000000000>
         >>> print(a.scm(-2))
-        Point2d: <-2.000000, 4.000000>
+        Point2d: <-2.000000000, 4.000000000>
         """
         return Point2d(scalar*self.nt[0], scalar*self.nt[1])
 
@@ -129,11 +131,14 @@ class Point2d(object):
 
         Example
         -------
+        >>> from math import pi
         >>> a = Point2d(2,-2)
-        >>> print(a.rotated_by(3.14159))
-        Point2d: <-1.999995, 2.000005>
+        >>> print(a.rotated_by(pi))
+        Point2d: <-2.000000000, 2.000000000>
+        >>> print(a.rotated_by(-pi/3))
+        Point2d: <-0.732050808, -2.732050808>
         >>> print(a.rotated_by(90,True))
-        Point2d: <2.000000, 2.000000>
+        Point2d: <2.000000000, 2.000000000>
         """
         if use_deg is True:
             angle = angle / 57.2957795131
@@ -147,8 +152,7 @@ class Point2d(object):
 
         Example
         -------
-        >>> a = Point2d(1,-2)
-        >>> a.norm()
+        >>> Point2d(1,-2).norm()
         2.23606797749979
         """
         return sqrt(self.nt[0]**2 + self.nt[1]**2)
@@ -158,8 +162,7 @@ class Point2d(object):
 
         Example
         -------
-        >>> a = Point2d(1,-2)
-        >>> a.sqnorm()
+        >>> Point2d(1,-2).sqnorm()
         5.0
         """
         return float(self.nt[0]**2 + self.nt[1]**2)
@@ -175,7 +178,7 @@ class Point2d(object):
         -------
         >>> a = Point2d(1,-2)
         >>> print(a.unit())
-        Point2d: <0.447214, -0.894427>
+        Point2d: <0.447213595, -0.894427191>
         >>> a.unit().norm()
         0.9999999999999999
         """
@@ -193,7 +196,7 @@ class Point2d(object):
         >>> a = Point2d(1,-2)
         >>> a.normalize()
         >>> print(a)
-        Point2d: <0.447214, -0.894427>
+        Point2d: <0.447213595, -0.894427191>
         >>> a.norm()
         0.9999999999999999
         """
@@ -214,20 +217,18 @@ class Point2d(object):
         bool:
             True if rescaling was done, False otherwise.
 
-        Example
-        -------
+        Examples
+        --------
         >>> a = Point2d(1,-2)
         >>> a.truncate(1.0)
         True
-        >>> a = Point2d(-1,2)
-        >>> a.truncate(5.0)
+        >>> print(a)
+        Point2d: <0.447213595, -0.894427191>
+        >>> b = Point2d(-1,2)
+        >>> b.truncate(5.0)
         False
-        >>> print(a)
-        Point2d: <-1.000000, 2.000000>
-        >>> a.truncate(1.0)
-        True
-        >>> print(a)
-        Point2d: <-0.447214, 0.894427>
+        >>> print(b)
+        Point2d: <-1.000000000, 2.000000000>
         """
         if self.sqnorm() > maxlength**2:
             r = float(maxlength/self.norm())
@@ -238,18 +239,18 @@ class Point2d(object):
 
     def scale_to(self, mag):
         """Change this vector's scale to the given magnitude.
-        
+
         Parameters
         ----------
         mag: float
-            New magntinude for this vector; negative will reverse direction.
-            
+            New magnitude for this vector; negative will reverse direction.
+
         Example
         -------
         >>> a = Point2d(2,3)
         >>> a.scale_to(-4.2)
         >>> print(a)
-        Point2d: <-2.329741, -3.494611>
+        Point2d: <-2.329740824, -3.494611236>
         >>> a.norm()
         4.2
         """
@@ -257,17 +258,28 @@ class Point2d(object):
         self.nt = (mag*self.nt[0], mag*self.nt[1])
 
     def angle(self):
-        """Get the polar angle of this vector in radians.
+        """Get the polar angle of this vector in radians; range (-pi,pi]
 
-        Example
-        -------
-        >>> a = Point2d(1,-2)
-        >>> a.angle()
+        Raises
+        ------
+        ZeroDivisionError: If called on a zero vector.
+
+        Examples
+        --------
+        >>> Point2d(1,-2).angle()
         -1.1071487177940904
-
-        Notes
-        -----
-        This is implemeted using acos. Perhaps atan gives better performance?
+        >>> Point2d(1,0).angle()
+        0.0
+        >>> Point2d(0,1).angle()
+        1.5707963267948966
+        >>> Point2d(-1,0).angle()
+        3.141592653589793
+        >>> Point2d(-2,-2).angle()
+        -2.356194490192345
+        >>> Point2d(0,0).angle()
+        Traceback (most recent call last):
+            ...
+        ZeroDivisionError: float division by zero
         """
         theta = acos(self.nt[0]/self.norm())
         if self.nt[1] < 0:
@@ -299,7 +311,6 @@ class Point2d(object):
         --------
         >>> a = Point2d(2,2)
         >>> b = Point2d(3,0)
-        >>> # doctest raises a TypeError with the next two computations...why?
         >>> a/b
         2.0
         >>> b/a
@@ -328,9 +339,9 @@ class Point2d(object):
         >>> a = Point2d(2,4)
         >>> b = Point2d(3,-2)
         >>> print(a.proj(b))
-        Point2d: <-0.461538, 0.307692>
+        Point2d: <-0.461538462, 0.307692308>
         >>> print(b.proj(a))
-        Point2d: <-0.200000, -0.400000>
+        Point2d: <-0.200000000, -0.400000000>
 
         Notes
         -----
@@ -360,11 +371,11 @@ class Point2d(object):
         >>> a = Point2d(2,-3)
         >>> b = Point2d(1,4)
         >>> print(a.resolve(b)[0])
-        Point2d: <-0.588235, -2.352941>
+        Point2d: <-0.588235294, -2.352941176>
         >>> print(a.resolve(b)[1])
-        Point2d: <2.588235, -0.647059>
+        Point2d: <2.588235294, -0.647058824>
         >>> print(a.resolve(b)[0]+a.resolve(b)[1])
-        Point2d: <2.000000, -3.000000>
+        Point2d: <2.000000000, -3.000000000>
         """
         parallel = self.proj(direction)
         perp = self - parallel
@@ -375,9 +386,8 @@ class Point2d(object):
 
         Example
         -------
-        >>> a = Point2d(1, -2)
-        >>> print(a.left_normal())
-        Point2d: <2.000000, 1.000000>
+        >>> print(Point2d(1,-2).left_normal())
+        Point2d: <2.000000000, 1.000000000>
         """
         return Point2d(-self.nt[1], self.nt[0])
 
@@ -389,11 +399,13 @@ class Point2d(object):
         -------
         >>> a = Point2d(1, -2)
         >>> print(a)
-        Point2d: <1.000000, -2.000000>
+        Point2d: <1.000000000, -2.000000000>
         >>> a[0] = 3
+        >>> print(a)
+        Point2d: <3.000000000, -2.000000000>
         >>> a[1] = 5
         >>> print(a)
-        Point2d: <3.000000, 5.000000>
+        Point2d: <3.000000000, 5.000000000>
         """
         if index == 0:
             self.nt = (value, self.nt[1])
@@ -412,7 +424,7 @@ class RollingVectorMean(object):
 
     Note
     ----
-    Experimental.
+    Experimental, will raise NotImplementedError on __init__
     """
     def __init__(self, n_size=2):
         if n_size < 2:
@@ -444,6 +456,7 @@ class RollingVectorMean(object):
         return self.vals[self.current].scm(1.0/self.n)
 
 if __name__ == "__main__":
+    print("Point2d functions. Import this module elsewhere.")
+    print("Running some doctests; if you see nothing past this, hooray!")
     import doctest
     doctest.testmod()
-    print("Point2d functions. Import this module elsewhere.")
