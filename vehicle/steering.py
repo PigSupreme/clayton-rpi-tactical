@@ -101,7 +101,7 @@ def force_flee(owner, target, panic_squared=FLEE_PANIC_SQ):
         targetvel = targetvel.unit().scm(owner.maxspeed)
         return targetvel - owner.vel
     else:
-        return Point2d(0,0)
+        return ZERO_VECTOR
 
 def activate_flee(steering, target):
     """Activate FLEE behaviour."""
@@ -138,7 +138,7 @@ def force_arrive(owner, target, hesitance=2.0):
         targetvel = target_offset.scm(speed/dist)
         return targetvel - owner.vel
     else:
-        return Point2d(0,0)
+        return ZERO_VECTOR
 
 def activate_arrive(steering, target):
     """Activate ARRIVE behaviour."""
@@ -290,7 +290,7 @@ def force_avoid(owner, obs_list):
         result = owner.front.scm(brake_scale) + owner.left.scm(lat_scale)
         return result
     else:
-        return Point2d(0,0)
+        return ZERO_VECTOR
 
 def activate_avoid(steering, target):
     """Activate AVOID behaviour."""
@@ -327,7 +327,7 @@ def force_takecover(owner, target, obs_list, max_range, stalk=False):
     if stalk:
         hide_dir = (owner.pos - target.pos)
         if (hide_dir * target.front)**2 < hide_dir.sqnorm()*TAKECOVER_STALK_T:
-            return Point2d(0,0)
+            return ZERO_VECTOR
 
     best_dsq = max_range*max_range
     best_pos = None
@@ -866,7 +866,7 @@ def force_cohesion(owner):
         center = center.scm(1.0/n)
         return force_arrive(owner, center, FLOCKING_COHESHION_HESITANCE)
     else:
-        return Point2d(0,0)
+        return ZERO_VECTOR
 
 def activate_cohesion(steering, n_list):
     """Activate COHESION behaviour."""
@@ -950,6 +950,7 @@ class SteeringBehavior(object):
         self.inactive_targets = dict()
         self.flockmates = []
         self.flocking = False
+        self.steering_force = Point2d(0,0)
 
         # Set the appropriate compute_force_ function here.
         if use_budget is True:
@@ -1169,16 +1170,16 @@ class SteeringBehavior(object):
         This considers all active behaviours, but will still limit the final
         force vector's magnitude to the owner's maxforce.
         """
-        force = Point2d(0,0)
+        self.steering_force.zero()
         owner = self.vehicle
         # If any flocking is active, determine neighbors first
         if self.flocking is True:
             self.flag_neighbor_vehicles(self.flockmates)
         # Iterate over active behaviours and accumulate force from each
         for (behaviour, targets) in self.targets.iteritems():
-            force += FORCE_FNC[behaviour](owner, *targets)
-        force.truncate(owner.maxforce)
-        return force
+            self.steering_force += FORCE_FNC[behaviour](owner, *targets)
+        self.steering_force.truncate(owner.maxforce)
+        return self.steering_force
 
     def set_priorities(self):
         """Create a prioritized list of steering behaviours for later use."""
@@ -1193,7 +1194,7 @@ class SteeringBehavior(object):
         -------
         Point2d: Steering force.
         """
-        force = Point2d(0,0)
+        self.steering_force.zero()
         owner = self.vehicle
         # If any flocking is active, determine neighbors first
         if self.flocking is True:
@@ -1209,16 +1210,16 @@ class SteeringBehavior(object):
             newnorm = newforce.norm()
             if budget > newnorm:
                 # If there is enough force budget left, continue as usual
-                force += newforce
+                self.steering_force += newforce
                 budget -= newnorm
             else:
                 # Scale newforce to remaining budget, apply, and exit
                 newforce.scm(budget/newnorm)
-                force += newforce
-                return force
+                self.steering_force += newforce
+                return self.steering_force
 
         # If any budget is leftover, just return the total force
-        return force
+        return self.steering_force
 
 if __name__ == "__main__":
     print("Steering behavior functions. Import this elsewhere. Implemented behaviours are:")

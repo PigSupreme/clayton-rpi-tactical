@@ -29,6 +29,18 @@ class Point2d(object):
     def __init__(self, x=0, y=0):
         self.nt = (float(x), float(y))
 
+    def zero(self):
+        """Set all coordinates of this point to zero.
+
+        >>> a = Point2d(3,-2)
+        >>> print(a)
+        Point2d: <3.000000000, -2.000000000>
+        >>> a.zero()
+        >>> print(a)
+        Point2d: <0.000000000, 0.000000000>
+        """
+        self.nt = (0,0)
+
     def __len__(self):
         return 2
 
