@@ -19,6 +19,8 @@ from point2d import Point2d
 from steering import SteeringBehavior
 from steering_constants import *
 
+from steering_constants import BASEPOINTMASS2D_DEFAULTS
+
 # Point2d functions return radians, but pygame wants degrees. The negative
 # is needed since y coordinates increase downwards on screen. Multiply a
 # math radians result by SCREEN_DEG to get pygame screen-appropriate degrees.
@@ -184,6 +186,8 @@ class BasePointMass2d(object):
     """
     _spriteclass = PointMass2dSprite
     """Default sprite class to use for rendering."""
+    
+    _PHYSICS_DEFAULTS = copy.copy(BASEPOINTMASS2D_DEFAULTS)
 
     def __init__(self, position, radius, velocity, spritedata=None):
         # Basic object physics
@@ -203,12 +207,11 @@ class BasePointMass2d(object):
 
         # Movement constraints (defaults from steering_constants.py)
         ## TODO: Put these in the function argument, perhaps as **kwargs
-        self.mass = POINTMASS2D_MASS
-        self.maxspeed = POINTMASS2D_MAXSPEED
-        self.maxforce = POINTMASS2D_MAXFORCE
-
+        self.mass = BasePointMass2d._PHYSICS_DEFAULTS['MASS']
+        self.maxspeed = BasePointMass2d._PHYSICS_DEFAULTS['MAXSPEED']
+        self.maxforce = BasePointMass2d._PHYSICS_DEFAULTS['MAXFORCE']
         if spritedata is not None:
-            self.sprite = PointMass2dSprite(self, *spritedata)
+            self.sprite = BasePointMass2d._spriteclass(self, *spritedata)
 
     def accumulate_force(self, force_vector):
         """Add a new force to what's already been accumulated.
@@ -293,7 +296,7 @@ class SimpleObstacle2d(BasePointMass2d):
 
     def move(self, delta_t=1.0):
         pass
-
+        
 class SimpleRigidBody2d(BasePointMass2d):
 
     """Moving object with linear and angular motion, with optional sprite.
@@ -303,20 +306,17 @@ class SimpleRigidBody2d(BasePointMass2d):
 
     Although this isn't really a point mass in the physical sense, we inherit
     from BasePointMass2d in order to avoid duplicating or refactoring code.
-
-    TODO: Standardize initial physics data (for all of these classes!!!)
     """
-    # def __init__(self,image,rect,position,radius,velocity): #OLD
     def __init__(self, position, radius, velocity, beta, omega, spritedata=None):
 
         # Use parent class for non-rotational stuff
         BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
 
-        # Rotational inertia and rotational velocity (degrees per time)
-        self.inertia = RIGIDBODY2D_INERTIA
+        # Rotational inertia and rotational velocity (degrees[??] per time)
+        self.inertia = BasePointMass2d._PHYSICS_DEFAULTS['INERTIA']
         self.omega = omega
-        self.maxomega = RIGIDBODY2D_MAXOMEGA
-        self.maxtorque = RIGIDBODY2D_MAXTORQUE
+        self.maxomega = BasePointMass2d._PHYSICS_DEFAULTS['MAXOMEGA']
+        self.maxtorque = BasePointMass2d._PHYSICS_DEFAULTS['MAXTORQUE']
 
         # Adjust facing (beta is measured relative to direction of velocity)
         self.front = self.front.rotated_by(beta)
@@ -376,5 +376,14 @@ class SimpleRigidBody2d(BasePointMass2d):
         omega = self.omega + alpha
         self.omega = max(min(omega, self.maxomega), -self.maxomega)
 
+def set_physics_defaults(**kwargs):
+    """Change default physics parameters for children of BasePointMass2d."""
+    available = BasePointMass2d._PHYSICS_DEFAULTS.keys()
+    for (default, value) in kwargs.items():
+        if default in available and value > 0:
+            BasePointMass2d._PHYSICS_DEFAULTS[default] = value
+        else:
+            print('Warning: Physics default %s is unavailable.' % default)
+            
 if __name__ == "__main__":
     print("Two-Dimensional Vehicle/Obstacle Functions. Import this elsewhere")

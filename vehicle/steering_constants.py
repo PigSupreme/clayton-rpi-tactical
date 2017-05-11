@@ -76,5 +76,15 @@ FLOCKING_SEPARATE_SCALE = 1.2
 #: Cohesion uses ARRIVE with this hesitance, for smooth flocking.
 FLOCKING_COHESHION_HESITANCE = 3.5
 
+#: This to avoids the need for import * ...work in progress.
+BASEPOINTMASS2D_DEFAULTS = {
+        'MASS': POINTMASS2D_MASS,
+        'MAXSPEED': POINTMASS2D_MAXSPEED,
+        'MAXFORCE': POINTMASS2D_MAXFORCE,
+        'INERTIA':  RIGIDBODY2D_INERTIA,
+        'MAXOMEGA': RIGIDBODY2D_MAXOMEGA,
+        'MAXTORQUE': RIGIDBODY2D_MAXTORQUE
+        }
+
 if __name__ == "__main__":
     print("Steering constants. Import this elsewhere.")

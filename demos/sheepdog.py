@@ -15,7 +15,7 @@ from random import randint, shuffle
 sys.path.append('..')
 from vpoints.point2d import Point2d
 
-from vehicle.vehicle2d import load_pygame_image
+from vehicle.vehicle2d import load_pygame_image, set_physics_defaults
 from vehicle.vehicle2d import SimpleVehicle2d, SimpleObstacle2d, BaseWall2d
 
 import steering
@@ -45,6 +45,7 @@ if __name__ == "__main__":
         img[i], rec[i] = load_pygame_image('../images/gpig.png', -1)
         
     # Vehicle Physics
+    set_physics_defaults(MAXSPEED=8.0, MAXFORCE=6.0)
     pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(5.0,0).rotated_by(147*i, True)
@@ -89,16 +90,14 @@ if __name__ == "__main__":
 
     ### Steering behaviours ###
     dog = vehlist[0]
-    dog.maxspeed = 10.0
+    dog.maxspeed = 10.0 # No rule says a dog can't override default physics!
     dog.radius = 40
     dog.steering.set_target(AVOID=obslist, WALLAVOID=[25, walllist])
     dog.steering.set_target(SEPARATE=vehlist, ALIGN=vehlist)
     dog.steering.set_target(WANDER=(200, 25, 6))
 
-    # Flocking demo fails to celebrate its sheep diversity...
+    # Flocking demo fails to celebrate its sheep diversity...(default physics)
     for sheep in vehlist[1:]:
-        sheep.maxspeed = 8.0
-        sheep.maxforce = 6.0
         sheep.radius = 40
         sheep.steering.set_target(AVOID=obslist, WALLAVOID=[25, walllist])
         sheep.steering.set_target(SEPARATE=vehlist, ALIGN=vehlist, COHESION=vehlist[1:])

@@ -16,9 +16,7 @@ from point2d import Point2d
 
 # BasePointMass2d defaults
 import vehicle2d
-vehicle2d.POINTMASS2D_MASS = 5
-vehicle2d.POINTMASS2D_MAXSPEED = 80
-vehicle2d.POINTMASS2D_MAXFORCE = 50000
+vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=50000.0)
 
 # Math defaults
 from math import sqrt
