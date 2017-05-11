@@ -190,6 +190,7 @@ class BasePointMass2d(object):
         self.pos = copy.copy(position)  # Center of object
         self.radius = radius            # Bounding radius
         self.vel = copy.copy(velocity)  # Current Velocity
+        self.accumulated_force = Point2d(0,0)
 
         # Normalized front vector in world coordinates.
         # This stays aligned with the object's velocity (using move() below)
@@ -209,6 +210,23 @@ class BasePointMass2d(object):
         if spritedata is not None:
             self.sprite = PointMass2dSprite(self, *spritedata)
 
+    def accumulate_force(self, force_vector):
+        """Add a new force to what's already been accumulated.
+
+        Parameters
+        ----------
+        force_vector: Point2d
+            This is added to the previously-accumulated force.
+
+        Notes
+        -----
+        This function is intended to allow multiple sources to exert force on
+        this object without needing to compute those forces all at once.
+        Use move() below with force_vector=None to apply the resultant force
+        accumulated by this method and reset accumulated force to zero.
+        """
+        self.accumulated_force = self.accumulated_force + force_vector
+
     def move(self, delta_t=1.0, force_vector=None):
         """Updates position, velocity, and acceleration.
 
@@ -216,19 +234,36 @@ class BasePointMass2d(object):
         ----------
         delta_t: float
             Time increment since last move.
-        force_vector: Point2d, optional
-            Constant force during for this update.
+        force_vector: Point2d or None (default)
+            Vector force to apply during this update; see Notes below.
+
+        Notes
+        -----
+        If force_vector is None (the default), we use the force accumulated
+        by self.accumulate_force() since the last call to this method, and
+        zero out the accumulated force. Otherwise, apply the force_vector as
+        given, and leave the accumulated force unaffected.
+
+        In any case, the maximum force and resulting velocity are limited by
+        maxforce and maxspeed attributes.
+
+        The original vehicle classes did not need accumulate_force(), since
+        their SteeringBehavior takes care of multiple forces. Less intelligent
+        class (such as spring masses) that lack such a manager-type class can
+        use the base accumulate/move methods without needing extra code.
         """
         # Update position using current velocity
         self.pos = self.pos + self.vel.scm(delta_t)
 
-        # Apply force, if any...
-        if force_vector:
-            # Don't exceed our maximum force; compute acceleration/velocity
-            force_vector.truncate(self.maxforce)
-            accel = force_vector.scm(delta_t/self.mass)
-            self.vel = self.vel + accel
-        # ..but don't exceed our maximum speed
+        # If no force_vector was given, use self-accumulated force.
+        if force_vector is None:
+            force_vector = copy.copy(self.accumulated_force)
+            self.accumulated_force.zero()
+        # Don't exceed our maximum force; compute acceleration
+        force_vector.truncate(self.maxforce)
+        accel = force_vector.scm(delta_t/self.mass)
+        # Compute new velocity, but don't exceed maximum speed.
+        self.vel = self.vel + accel
         self.vel.truncate(self.maxspeed)
 
         # Align heading to match our forward velocity. Note that

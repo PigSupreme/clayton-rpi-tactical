@@ -1,5 +1,5 @@
 #!/usr/bin/python
-"""Springmass fish with hydro forces. Modified from fish_no_hydro.py"""
+"""Springmass fish with hydro forces. Still a WIP."""
 
 # for python3 compat
 from __future__ import unicode_literals
@@ -41,32 +41,24 @@ HYDRO_FORCE_SCALE = 0.02 # For rendering only?
 MASS_SCALE = 12
 SIZE_SCALE = 6
 
-X_OFFSET = 600
+X_OFFSET = 400
 Y_OFFSET = 400
 
 UPDATE_SPEED = 0.02
 
-class SpringMass2d(vehicle2d.BasePointMass2d):
-    """A point mass that can accumulate several forces and apply all at once.
+class DampedMass2d(vehicle2d.BasePointMass2d):
+    """A pointmass with linearly-damped velocity.
 
-    TODO: Rename this to something more general or extend BasePointMass2d.
+    TODO: Consider moving this to the same module as BasePointMass2d.
     """
-    def __init__(self, position, mass, velocity, spritedata=None):
-        radius = NODE_RADIUS
+    def __init__(self, position, radius, mass, velocity, spritedata=None, damping=DAMPING_COEFF):
         vehicle2d.BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
         self.mass = mass
-        self.accumulated_force = Point2d(0,0)
 
-    def accumulate_force(self, force_vector):
-        """Add a new force to what's already been acculumated."""
-        self.accumulated_force = self.accumulated_force + force_vector
-
-    def apply_force(self, delta_t=1.0):
+    def move(self, delta_t=1.0):
         # Compute damping force
-        force = self.accumulated_force - self.vel.scm(DAMPING_COEFF)
-
-        self.move(delta_t, force)
-        self.accumulated_force.zero()
+        self.accumulate_force(-self.vel.scm(DAMPING_COEFF))
+        vehicle2d.BasePointMass2d.move(self, delta_t, None)
 
 
 class IdealSpring2d(object):
@@ -278,7 +270,7 @@ class SMHFish(object):
             img.append(imgt)
             rec.append(rect)
             node_pos = offset + Point2d(i,j).scm(SIZE_SCALE)
-            nodet = SpringMass2d(node_pos, m , Point2d(0,0), (imgt, rect))
+            nodet = DampedMass2d(node_pos, NODE_RADIUS, m , Point2d(0,0), (imgt, rect), DAMPING_COEFF)
             obj.append(nodet)
 
         # List of nodes only, for later use
@@ -362,7 +354,7 @@ class SMHFish(object):
 
         # Update Nodes
         for node in self.nodelist:
-            node.apply_force(delta_t)
+            node.move(delta_t)
 
         # Update Sprites (via pygame sprite group update)
         self.allsprites.update(delta_t)
