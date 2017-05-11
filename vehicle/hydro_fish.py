@@ -25,6 +25,7 @@ from math import sqrt
 INF = float('inf')
 
 # Fish coefficients (coefishents??)
+NODE_RADIUS = 5
 DAMPING_COEFF = 10
 SPRING_CONST = 3
 MUSCLE_K = 90
@@ -40,10 +41,10 @@ UPDATE_SPEED = 0.02
 class SpringMass2d(vehicle2d.BasePointMass2d):
     """A point mass that can accumulate several forces and apply all at once.
     
-    TODO: Rename this to something more general.
+    TODO: Rename this to something more general or extend BasePointMass2d.
     """
     def __init__(self, position, mass, velocity, spritedata=None):
-        radius = 5
+        radius = NODE_RADIUS
         vehicle2d.BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
         self.mass = mass
         self.accumulated_force = Point2d(0,0)
@@ -57,7 +58,7 @@ class SpringMass2d(vehicle2d.BasePointMass2d):
         force = self.accumulated_force - self.vel.scm(DAMPING_COEFF)
         
         self.move(delta_t, force)
-        self.accumulated_force = Point2d(0,0)
+        self.accumulated_force.zero()
         
 
 class IdealSpring2d(object):
@@ -67,12 +68,12 @@ class IdealSpring2d(object):
     ----------
     spring_constant: positive float
         Linear Spring Constant (Hooke's Law).
-    rest_length: float
-        Natural length. If negative, use the current distance between masses.  
     mass1: BasePointMass2d
         Point mass at the base of this spring; see Notes
     mass2: BasePointMass2d
         Point mass at the end of this spring; see Notes
+    rest_length: float
+        Natural length. If negative/unspecified, use distance between masses.
     
     Notes
     -----
@@ -81,7 +82,7 @@ class IdealSpring2d(object):
     (from mass1 to mass2). This orientation is used internally, but has no
     visible effect outside of the exert_force update.
     """
-    def __init__(self, spring_constant, rest_length, mass1, mass2):
+    def __init__(self, spring_constant, mass1, mass2, rest_length=-1):
         self.k = spring_constant
         # Give negative rest_length to use current distance between masses
         if rest_length < 0:
@@ -126,7 +127,7 @@ class MuscleSpring2d(IdealSpring2d):
     the contract() method for further details.
     """
     def __init__(self, spring_constant, mass1, mass2, contraction_factor):
-        IdealSpring2d.__init__(self, spring_constant, -1, mass1, mass2)
+        IdealSpring2d.__init__(self, spring_constant, mass1, mass2)
         self.flexlength = self.natlength
         self.conlength = contraction_factor * self.natlength
         # For later convenience
@@ -147,8 +148,9 @@ class MuscleSpring2d(IdealSpring2d):
 
 
 class MuscleControl(object):
-    """TODO: Helper class for controlling muscle movements over time."""
-    pass
+    """TODO: Helper class for controlling muscle movements over time."""    
+    def __init__(self):
+        raise NotImplementedError
 
 
 class HydroQuad2d(object):
@@ -183,17 +185,20 @@ class HydroQuad2d(object):
         self.tip_h = tip_height
         
         # Location of center of mass as a proportion of total segment length
-        # This is computed using center of mass of a trapezoid
+        # used in standard parametric equations. 
+
         if base_height == tip_height:
+            # Rectangles don't work in the formula below.
             self.center_t = 0.5
         else:
+            # Otherwise, use center of mass of a trapezoid.
             numer = sqrt(2*(tip_height**2 + base_height**2)) - 2*base_height
             self.center_t = numer/(2*(tip_height - base_height))
 
     def exert_fluid_force(self, delta_t=1.0):
         """Compute and apply force to end masses based on surface velocity.
         
-        TODO: Better explain the fluid dynamics being used here.
+        TODO: Check/explain the fluid dynamics being used here.
         """
         # Compute position and velocity of center of area
         ct = self.center_t  # For convenience in formulas belotw
@@ -201,16 +206,15 @@ class HydroQuad2d(object):
         self.vel = self.base_m.vel.scm(1-ct) + self.tip_m.vel.scm(ct)
         
         # Compute total fluidic force
-        front_vec = self.tip_m.pos - self.base_m.pos
-        normal_in = front_vec.left_normal()
+        contour_vec = self.tip_m.pos - self.base_m.pos
+        normal_in = contour_vec.left_normal()
         dotp = self.vel * normal_in
         
         # Only apply force if center is moving in an outward direction from body
         # Force is proportional (somehow...) to volume of displaced fluid
-        area = 0.5*(self.base_h + self.tip_h)*front_vec.norm()
         if dotp < 0:
             # Compute the area of this quad (trapezoid)
-            area = 0.5*(self.base_h + self.tip_h)*front_vec.norm()
+            area = 0.5*(self.base_h + self.tip_h)*contour_vec.norm()
             total_force = normal_in.scm(-dotp*area*delta_t/normal_in.sqnorm())
             # Apply to masses at base and tip
             self.base_m.accumulate_force(total_force.scm(1-ct))
@@ -227,7 +231,7 @@ if __name__ == "__main__":
     # Display constants
     size = sc_width, sc_height = 800, 640
     screen = pygame.display.set_mode(size)
-    pygame.display.set_caption('Spring-mass demo')
+    pygame.display.set_caption('Spring-mass-hydro fish demo')
     bgcolor = 111, 145, 192
 
     # Fish coordinate nodes
@@ -278,19 +282,19 @@ if __name__ == "__main__":
     solids_k = SOLIDS_K
     for edge in edge_solids:
         i, j = edge
-        springs.append(IdealSpring2d(solids_k, -1, nodelist[i], nodelist[j]))
+        springs.append(IdealSpring2d(solids_k, nodelist[i], nodelist[j]))
         
     edge_tail = [(1,10), (11,1)]
     tail_k = TAIL_K
     for edge in edge_tail:
         i, j = edge
-        springs.append(IdealSpring2d(tail_k, -1, nodelist[i], nodelist[j]))
+        springs.append(IdealSpring2d(tail_k, nodelist[i], nodelist[j]))
         
     edge_cross = [(2,5), (3,4), (4,7), (5,6), (6,9), (7,8), (9,10), (8,11)]
     cross_k = CROSS_K
     for edge in edge_cross:
         i, j = edge
-        springs.append(IdealSpring2d(cross_k, -1, nodelist[i], nodelist[j]))
+        springs.append(IdealSpring2d(cross_k, nodelist[i], nodelist[j]))
 
     ################################        
     # This fish is hyyyyydromatic...
