@@ -47,6 +47,14 @@ Homegrown BOID-type vehicles and steering behaviours.
 
    vehicle.rst
    
+Experimentals
+=============
+
+Ticket price pays for the whole seat, but you'll only need the edge!
+
+.. toctree::
+
+   experimentals.rst
    
 Indices and tables
 ==================
