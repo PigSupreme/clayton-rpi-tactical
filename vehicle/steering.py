@@ -13,6 +13,12 @@ additional arguments are intended to be stored within the SteeringBehaviour
 instance and then passed to the corresponding force_foo() each update. See
 the SEEK code for a simple example.
 
+Many behaviours use constant values, imported from steering_constants.py and
+assigned to local constants within this module. These are chosen based on the
+the physics defaults (also in steering_constants) to give reasonable results,
+but can be overridden with steering.FOO_CONSTANT = new_value. See the sheepdog
+demo for an example of this.
+
 Importing this module will automatically generate a BEHAVIOUR_LIST containing
 all behaviours that follow the conventions above. This makes it very easy to
 add additional behaviours with minimal changes to the existing code (besides
@@ -27,9 +33,6 @@ TODO: Updates to self.flocking are handled through set_priorities(), which is
 a sensible thing, since set_priorities() is the function that gets called when
 there is any kind of behaviour change. Make up our minds whether this is truly
 the right approach and change documentation appropriately.
-
-TODO: Future versions might provide a mechanism for importing only a subset
-of the available behaviours, but this isn't really needed at this time.
 """
 
 # for python3 compat
@@ -42,8 +45,22 @@ from sys import path
 path.extend(['../vpoints'])
 from point2d import Point2d
 
-# Constants for steering behaviours
-from steering_constants import *
+# Default constants for the various steering behaviours
+from steering_constants import STEERING_DEFAULTS
+FLEE_PANIC_SQ = STEERING_DEFAULTS['FLEE_PANIC_SQ']
+ARRIVE_DECEL_TWEAK = STEERING_DEFAULTS['ARRIVE_DECEL_TWEAK']
+EVADE_PANIC_SQ = STEERING_DEFAULTS['EVADE_PANIC_SQ']
+TAKECOVER_STALK_T = STEERING_DEFAULTS['TAKECOVER_STALK_T']
+WALLAVOID_WHISKER_SCALE = STEERING_DEFAULTS['WALLAVOID_WHISKER_SCALE']
+FOLLOW_ARRIVE_HESITANCE = STEERING_DEFAULTS['FOLLOW_ARRIVE_HESITANCE']
+AVOID_MIN_LENGTH = STEERING_DEFAULTS['AVOID_MIN_LENGTH']
+AVOID_BRAKE_WEIGHT = STEERING_DEFAULTS['AVOID_BRAKE_WEIGHT']
+WAYPOINT_TOLERANCE_SQ = STEERING_DEFAULTS['WAYPOINT_TOLERANCE_SQ']
+PATH_EPSILON_SQ = STEERING_DEFAULTS['PATH_EPSILON_SQ']
+PATHRESUME_DECAY = STEERING_DEFAULTS['PATHRESUME_DECAY']
+FLOCKING_COHESHION_HESITANCE = STEERING_DEFAULTS['FLOCKING_COHESHION_HESITANCE']
+FLOCKING_RADIUS_MULTIPLIER = STEERING_DEFAULTS['FLOCKING_RADIUS_MULTIPLIER']
+FLOCKING_SEPARATE_SCALE = STEERING_DEFAULTS['FLOCKING_SEPARATE_SCALE']
 
 # Math Constants (for readability)
 INF = float('inf')
@@ -1223,8 +1240,8 @@ class SteeringBehavior(object):
 
 if __name__ == "__main__":
     print("Steering behavior functions. Import this elsewhere. Implemented behaviours are:")
-    BEHAVIOUR_LIST.sort()
-    print(BEHAVIOUR_LIST)
-    print("Available flocking behaviours are:")
-    FLOCKING_LIST.sort()
-    print(FLOCKING_LIST)
+    print(sorted(BEHAVIOUR_LIST))
+    print("\nAvailable flocking behaviours are:")
+    print(sorted(FLOCKING_LIST))
+    print("\nValues of imported steering constants are:")
+    print(STEERING_DEFAULTS)

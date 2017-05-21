@@ -19,6 +19,7 @@ from vehicle.vehicle2d import load_pygame_image, set_physics_defaults
 from vehicle.vehicle2d import SimpleVehicle2d, SimpleObstacle2d, BaseWall2d
 
 import steering
+# Override some default values from steering_constants:
 steering.FLOCKING_RADIUS_MULTIPLIER = 1.5
 steering.EVADE_PANIC_SQ = 180**2
 
@@ -43,13 +44,13 @@ if __name__ == "__main__":
     img[0], rec[0] = load_pygame_image('../images/ypig.png', -1)
     for i in range(1, numveh):
         img[i], rec[i] = load_pygame_image('../images/gpig.png', -1)
-        
+
     # Vehicle Physics
     set_physics_defaults(MAXSPEED=8.0, MAXFORCE=6.0)
     pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(5.0,0).rotated_by(147*i, True)
-    
+
     # List of vehicles and their associated sprites
     obj = [SimpleVehicle2d(pos[i], 50, vel, (img[i], rec[i])) for i in range(numveh)]
     rgroup = [veh.sprite for veh in obj]
@@ -73,15 +74,16 @@ if __name__ == "__main__":
         obstacle = SimpleObstacle2d(pos[i], 10, (img[i], rec[i]))
         obj.append(obstacle)
         rgroup.append(obstacle.sprite)
-        
+
     # List of non-wall obstacles only, for later use
     obslist = obj[numveh:]
 
     # Static Walls: Only near screen boundary
     walllist = (BaseWall2d((sc_width//2, 10), sc_width-20, 4, Point2d(0,1)),
-                 BaseWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
-                 BaseWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
-                 BaseWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0)))
+                BaseWall2d((sc_width//2, sc_height-10), sc_width-20, 4, Point2d(0,-1)),
+                BaseWall2d((10, sc_height//2), sc_height-20, 4, Point2d(1,0)),
+                BaseWall2d((sc_width-10,sc_height//2), sc_height-20, 4, Point2d(-1,0))
+               )
     obj.extend(walllist)
     rgroup.extend([wall.sprite for wall in walllist])
 
@@ -109,20 +111,20 @@ if __name__ == "__main__":
     align_on = True
     while 1:
         ticks = ticks + 1
-        
+
         if align_on and ticks > FREQ/2:
             align_on = False
             for sheep in vehlist[1:]:
                 sheep.steering.pause('ALIGN')
                 sheep.steering.pause('COHESION')
-                
+
         if ticks > FREQ:
             ticks = 0
             align_on = True
             for sheep in vehlist[1:]:
                 sheep.steering.resume('ALIGN')
                 sheep.steering.resume('COHESION')
-                
+
         for event in pygame.event.get():
             if event.type in [QUIT, MOUSEBUTTONDOWN]:
                 pygame.quit()
@@ -137,17 +139,17 @@ if __name__ == "__main__":
 
         # Render
         screen.fill(bgcolor)
-        
+
         # Show neighbor links if flocking is currently active
         if align_on:
             for sheep in vehlist[1:]:
                 for other in sheep.neighbor_list:
                     if other is not dog:
                         pygame.draw.line(screen, (0,128,0), sheep.pos.ntuple(), other.pos.ntuple())
-        
+
         allsprites.draw(screen)
         pygame.display.flip()
-        
+
         #pygame.time.delay(2)
 
     # Clean-up here

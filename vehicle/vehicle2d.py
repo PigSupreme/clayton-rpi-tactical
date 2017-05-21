@@ -1,5 +1,8 @@
 # vehicle2d.py
-"""Module containing Vehicle class, for use with Pygame."""
+"""Module containing Vehicle/Obstacle classes, for use with Pygame.
+
+TODO: Write a better docstring for this module.
+"""
 
 # for python3 compat
 from __future__ import unicode_literals
@@ -17,9 +20,8 @@ sys.path.extend(['../vpoints', '../vehicle'])
 from point2d import Point2d
 
 from steering import SteeringBehavior
-from steering_constants import *
 
-from steering_constants import BASEPOINTMASS2D_DEFAULTS
+from steering_constants import BASEPOINTMASS2D_DEFAULTS, SIMPLERIGIDBODY2D_DEFAULTS
 
 # Point2d functions return radians, but pygame wants degrees. The negative
 # is needed since y coordinates increase downwards on screen. Multiply a
@@ -184,6 +186,7 @@ class BasePointMass2d(object):
     PointMass2dSprite class above (derived from pygame.sprite.Sprite), but
     can be overridden by changing the _spriteclass attribute.
     """
+    
     _spriteclass = PointMass2dSprite
     """Default sprite class to use for rendering."""
     
@@ -307,6 +310,10 @@ class SimpleRigidBody2d(BasePointMass2d):
     Although this isn't really a point mass in the physical sense, we inherit
     from BasePointMass2d in order to avoid duplicating or refactoring code.
     """
+    
+    # Additional defaults are added to parent class (BasePointMass2d) 
+    BasePointMass2d._PHYSICS_DEFAULTS.update(**SIMPLERIGIDBODY2D_DEFAULTS)
+    
     def __init__(self, position, radius, velocity, beta, omega, spritedata=None):
 
         # Use parent class for non-rotational stuff
@@ -386,4 +393,4 @@ def set_physics_defaults(**kwargs):
             print('Warning: Physics default %s is unavailable.' % default)
             
 if __name__ == "__main__":
-    print("Two-Dimensional Vehicle/Obstacle Functions. Import this elsewhere")
+    print("Two-Dimensional Vehicle/Obstacle Classes and Functions. Import this elsewhere.")
