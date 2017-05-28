@@ -268,7 +268,7 @@ class SMHFish(object):
             img.append(imgt)
             rec.append(rect)
             node_pos = offset + Point2d(i,j).scm(SIZE_SCALE)
-            nodet = DampedMass2d(node_pos, NODE_RADIUS, m , Point2d(0,0), (imgt, rect), DAMPING_COEFF)
+            nodet = DampedMass2d(node_pos, NODE_RADIUS, m ,Point2d(0,0), (imgt, rect), DAMPING_COEFF)
             obj.append(nodet)
 
         # List of nodes only, for later use
@@ -318,7 +318,7 @@ class SMHFish(object):
         ################################
         quaddata = [(1,10,5.3,0.6),(10,8,1,2),(8,6,2,3),(6,4,3,3),(4,2,3,2),(2,0,2,0.1),
                     (11,1,0.6,5.3),(9,11,2,1),(7,9,3,2),(5,7,3,3),(3,5,2,3),(0,3,0.1,2)
-                    ]
+                   ]
 
         hquadlist = []
         # Note the change in parameter order between above data and HydroQuad2d()
@@ -370,8 +370,6 @@ class SMHFish(object):
         # Render regular sprites (point masses)
         self.allsprites.draw(surf)
 
-
-
 if __name__ == "__main__":
     pygame.init()
 
@@ -398,13 +396,19 @@ if __name__ == "__main__":
     fish.signal_muscles(REAR_GROUP, 0) # Rear muscles, left
     muscles_rear = 0
 
+    # Added stuff for plotting
+    import matplotlib.pylab
+    nls = []
+    als = []
+    t = 0
+    matplotlib.pylab.ion()
 
+    b_running = True
     ############  Main Loop  ######################
-    while 1:
+    while b_running:
         for event in pygame.event.get():
             if event.type in [QUIT, MOUSEBUTTONDOWN]:
-                pygame.quit()
-                sys.exit()
+                b_running = False
 
         ################## Squeeze Test ###########################
         # TODO: Move this into the motor controller class
@@ -422,13 +426,17 @@ if __name__ == "__main__":
         # Update fish spring-mass and hydro physics
         fish.update(UPDATE_SPEED)
 
+        # Get spring lengths for later plots
+        nls.append(fish.muscles[4].natlength) # Natural
+        als.append(fish.muscles[4].curlength) # Actual
+
         # Render
         screen.fill(bgcolor)
         fish.render(screen)
         pygame.display.flip()
         ticks = ticks + 1
 
-    # Clean-up here
-    pygame.time.delay(2000)
+    # Clean-up pygame and plot results
     pygame.quit()
-    sys.exit()
+    matplotlib.pylab.show(matplotlib.pylab.plot(als,'g',nls,'b'))
+    #sys.exit()
