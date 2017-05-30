@@ -31,6 +31,7 @@ GRAVITY = Point2d(0, NODE_MASS*9.8)
 
 # Display size
 SCREENSIZE = (800, 640)
+FONT_SIZE = 32
 
 class DampedMass2d(vehicle2d.BasePointMass2d):
     """A pointmass with linearly-damped velocity.
@@ -185,6 +186,19 @@ if __name__ == "__main__":
     # Set-up pygame rendering
     allsprites = pygame.sprite.RenderPlain(rgroup)
 
+    # Added stuff for plotting
+    import matplotlib.pylab
+    xvals = []
+    yvals = []
+    t = 0
+    matplotlib.pylab.ion()
+
+    dfont = pygame.font.SysFont(pygame.font.get_default_font(), FONT_SIZE)
+    MSG_TEXT = ("Hold left mouse to position mass; right-click to exit.",
+                "Release left mouse to release mass."
+                )
+    MSG_SURF = [dfont.render(MSG_TEXT[i], True, (0,0,0)) for i in range(len(MSG_TEXT))]
+
     b_running = True
 
     ############  Main Loop  ######################
@@ -201,14 +215,19 @@ if __name__ == "__main__":
         if pygame.mouse.get_pressed()[0]: # left button
             nodem.pos = Point2d(*pygame.mouse.get_pos())
             nodem.vel = Point2d(0,0)
+            mouse_state = 1
         # Otherwise, update physics as normal
         else:
             nodem.move(UPDATE_SPEED)
             for spring in springs:
                 spring.exert_force()
             nodem.accumulate_force(GRAVITY)
+            mouse_state = 0
         
-        allsprites.update(UPDATE_SPEED)        
+        allsprites.update(UPDATE_SPEED)
+        (xval, yval) = nodem.pos[:]
+        xvals.append(xval)
+        yvals.append(yval)
 
         # Render
         screen.fill(bgcolor)
@@ -216,10 +235,18 @@ if __name__ == "__main__":
         for spring in springs:
             spring.render(screen)
         allsprites.draw(screen)
+        
+        # Display instructional text...
+        screen.blit(MSG_SURF[mouse_state], (10,10))
+        # ...and current position of mass
+        info_surf = dfont.render("(x,y) = (%d, %d)" % nodem.pos[:], True, (0,0,0))
+        screen.blit(info_surf, (10, SCREENSIZE[1]-30))
+        
         pygame.display.flip()
 
 
     # Clean-up here
     pygame.time.delay(500)
     pygame.quit()
-    sys.exit()
+    matplotlib.pylab.show(matplotlib.pylab.plot(xvals,'r',yvals,'g'))
+    #sys.exit()
