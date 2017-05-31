@@ -27,6 +27,7 @@ NODE_MASS = 10.0
 DAMPING_COEFF = 1.0
 SPRING_CONST = 15.0
 UPDATE_SPEED = 0.005
+# Positive y is downward in screen coordinates
 GRAVITY = Point2d(0, NODE_MASS*9.8)
 
 # Display size
@@ -47,7 +48,7 @@ class DampedMass2d(vehicle2d.BasePointMass2d):
     velocity: Point2d
         Velocity vector, in screen coordinates. Initial facing matches this.
     damping:
-        Proportionality constant: damping force = -damping * velocity 
+        Proportionality constant: damping force = -damping * velocity
     spritedata: list or tuple, optional
         Extra data used to create an associate sprite. See notes below.
 
@@ -68,20 +69,21 @@ class DampedMass2d(vehicle2d.BasePointMass2d):
     def __init__(self, position, radius, mass, velocity, damping=DAMPING_COEFF, spritedata=None):
         vehicle2d.BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
         self.mass = mass
+        self.damping = damping
 
     def move(self, delta_t=1.0):
         # Compute damping force
-        self.accumulate_force(-self.vel.scm(DAMPING_COEFF))
+        self.accumulate_force(-self.vel.scm(self.damping))
         vehicle2d.BasePointMass2d.move(self, delta_t, None)
 
 class StationaryMass2d(vehicle2d.BasePointMass2d):
     """A pointmass that stays in place, for attaching springs.
-    
+
     Parameters
     ----------
     position: Point2d
         End of the attached spring will be fixed to this location.
-    """  
+    """
     def __init__(self, position):
         vehicle2d.BasePointMass2d.__init__(self, position, 0, Point2d(0,0), None)
 
@@ -120,7 +122,7 @@ class IdealSpring2d(object):
 
         self.mass_base = mass1
         self.mass_tip = mass2
-        
+
         self.displacement = self.mass_tip.pos - self.mass_base.pos
         self.curlength = self.displacement.norm()
 
@@ -134,12 +136,12 @@ class IdealSpring2d(object):
 
     def render(self, surf):
         """Draw this spring, see below.
-        
+
         Parameters
         ----------
         surf: pygame.Surface:
             The spring will be rendered on this surface. See Notes.
-            
+
         Notes
         -----
         Springs are green when stretched, red when compressed. In either case,
@@ -165,7 +167,7 @@ if __name__ == "__main__":
     pygame.display.set_caption('Single mass + two springs + gravity')
     bgcolor = 111, 145, 192
     # Mass image information
-    imgt = pygame.Surface((2*NODE_RADIUS, 2* NODE_RADIUS))
+    imgt = pygame.Surface((2*NODE_RADIUS, 2*NODE_RADIUS))
     imgt.set_colorkey((0,0,0), RLEACCEL)
     rect = pygame.draw.circle(imgt, (1,1,1), (NODE_RADIUS, NODE_RADIUS), NODE_RADIUS, 0)
     # This is the actual mass
@@ -180,10 +182,12 @@ if __name__ == "__main__":
 #               IdealSpring2d(SPRING_CONST, hooks[2], nodem, 30),
                )
 
-    # List of nodes only, for later use
+    # List (actually a tuple here) of nodes only, for later use
     rgroup = (nodem.sprite,)
 
-    # Set-up pygame rendering
+    # Set-up pygame rendering. This is usually used to let pygame automatically
+    # manage large groups of sprites (via the update() and draw() methods). See
+    # vehicle2d.PointMass2dSprite class for further details.
     allsprites = pygame.sprite.RenderPlain(rgroup)
 
     # Added stuff for plotting
@@ -210,40 +214,53 @@ if __name__ == "__main__":
             if event.type == MOUSEBUTTONDOWN:
                 if event.button == 3:  # Right button
                     b_running = False
-                    
+
         # If left button down, position mass at current mouse pointer
         if pygame.mouse.get_pressed()[0]: # left button
             nodem.pos = Point2d(*pygame.mouse.get_pos())
             nodem.vel = Point2d(0,0)
-            mouse_state = 1
+            mouse_state = 1 # Used to suppress physics updates below
+
         # Otherwise, update physics as normal
         else:
+            # This applies velocity-based damping (from DampedMass2d)
+            # and in turn called PointMass2d.move(), which updates position,
+            # velocity, and acceleration based on current force.
             nodem.move(UPDATE_SPEED)
+
+            # Each spring imparts a force to its attached masses,
+            # based on current displacement from its natural length.
             for spring in springs:
                 spring.exert_force()
+
+            # Constant force due to gravity.
             nodem.accumulate_force(GRAVITY)
             mouse_state = 0
-        
+
+        # This updates sprite images only, so do it regardless of physics.
         allsprites.update(UPDATE_SPEED)
+
+        # Record position for later plotting
         (xval, yval) = nodem.pos[:]
         xvals.append(xval)
         yvals.append(yval)
 
-        # Render
+        ### Rendering starts here ###
         screen.fill(bgcolor)
-        # Render regular sprites (point masses)
+        # Draw the springs manually (they don't have an attached sprite)
         for spring in springs:
             spring.render(screen)
+        # Let Pygame draw the point-mass sprites
         allsprites.draw(screen)
-        
+
         # Display instructional text...
         screen.blit(MSG_SURF[mouse_state], (10,10))
         # ...and current position of mass
         info_surf = dfont.render("(x,y) = (%d, %d)" % nodem.pos[:], True, (0,0,0))
         screen.blit(info_surf, (10, SCREENSIZE[1]-30))
-        
-        pygame.display.flip()
 
+        # Double-buffering (a standard trick for speedy rendering)
+        pygame.display.flip()
 
     # Clean-up here
     pygame.time.delay(500)
