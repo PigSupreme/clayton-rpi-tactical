@@ -16,14 +16,17 @@ from point2d import Point2d
 
 # BasePointMass2d defaults
 import vehicle2d
-vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=50000.0)
+from springmass import DampedMass2d, IdealSpring2d
 
-# Math defaults
+# Math defauls
 from math import sqrt
 INF = float('inf')
 
+vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=50000.0)
+
 # Fish coefficients (coefishents??)
 NODE_RADIUS = 5
+NODE_MASS = 1
 DAMPING_COEFF = 10
 SPRING_CONST = 3
 MUSCLE_K = 80
@@ -32,8 +35,8 @@ CROSS_K = 200
 TAIL_K = 70
 HYDRO_FORCE_MULT = 45
 
-SQUEEZE = 0.84
-FREQ = 190
+SQUEEZE = 0.89
+FREQ = 180
 
 HYDRO_FORCE_SCALE = 0.02 # For rendering only?
 MASS_SCALE = 12
@@ -43,73 +46,6 @@ X_OFFSET = 400
 Y_OFFSET = 400
 
 UPDATE_SPEED = 0.02
-
-class DampedMass2d(vehicle2d.BasePointMass2d):
-    """A pointmass with linearly-damped velocity.
-
-    TODO: Consider moving this to the same module as BasePointMass2d.
-    """
-    def __init__(self, position, radius, mass, velocity, spritedata=None, damping=DAMPING_COEFF):
-        vehicle2d.BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
-        self.mass = mass
-
-    def move(self, delta_t=1.0):
-        # Compute damping force
-        self.accumulate_force(-self.vel.scm(DAMPING_COEFF))
-        vehicle2d.BasePointMass2d.move(self, delta_t, None)
-
-
-class IdealSpring2d(object):
-    """An ideal (massless, stiff) spring attaching two point masses.
-
-    Parameters
-    ----------
-    spring_constant: positive float
-        Linear Spring Constant (Hooke's Law).
-    mass1: BasePointMass2d
-        Point mass at the base of this spring; see Notes
-    mass2: BasePointMass2d
-        Point mass at the end of this spring; see Notes
-    rest_length: float
-        Natural length. If negative/unspecified, use distance between masses.
-
-    Notes
-    -----
-
-    Since spring physics use vectors, the spring needs an implicit orientation
-    (from mass1 to mass2). This orientation is used internally, but has no
-    visible effect outside of the exert_force update.
-    """
-    def __init__(self, spring_constant, mass1, mass2, rest_length=-1):
-        self.k = spring_constant
-        # Give negative rest_length to use current distance between masses
-        if rest_length < 0:
-            self.natlength = (mass1.pos - mass2.pos).norm()
-        else:
-            self.natlength = rest_length
-
-        self.mass_base = mass1
-        self.mass_tip = mass2
-
-    def exert_force(self):
-        """Compute spring force and and apply it to the attached masses."""
-        self.displacement = self.mass_tip.pos - self.mass_base.pos
-        self.curlength = self.displacement.norm()
-        self.curscale = self.natlength/self.curlength
-        magnitude = self.k*(1 - self.curscale)
-        self.mass_base.accumulate_force(self.displacement.scm(magnitude))
-        self.mass_tip.accumulate_force(self.displacement.scm(-magnitude))
-
-    def render(self, surf):
-        """Draw this spring on the given surface."""
-        scale = self.curscale
-        if scale > 1: # Shade green for stretched springs
-            spcolor = min(255, 64*scale), 0, 0
-        else: # Shade red for compressed springs
-            spcolor = 0, min(255, 64//scale), 0
-        start = self.mass_base.pos.ntuple()
-        stop = self.mass_tip.pos.ntuple()
-        pygame.draw.line(surf, spcolor, start, stop, 2)
 
 
 class MuscleSpring2d(IdealSpring2d):
@@ -268,10 +204,12 @@ class SMHFish(object):
             img.append(imgt)
             rec.append(rect)
             node_pos = offset + Point2d(i,j).scm(SIZE_SCALE)
-            nodet = DampedMass2d(node_pos, NODE_RADIUS, m ,Point2d(0,0), (imgt, rect), DAMPING_COEFF)
+            nodet = DampedMass2d(node_pos, NODE_RADIUS, Point2d(0,0),
+                                 m, DAMPING_COEFF, (imgt, rect))
             obj.append(nodet)
 
         # List of nodes only, for later use
+        self.numnodes = len(obj)
         nodelist = obj[:]
         rgroup = [node.sprite for node in obj]
 
@@ -329,7 +267,7 @@ class SMHFish(object):
     def signal_muscles(self, group, direction):
         """Contract/flex muscle one of the muscles groups.
 
-        Direction = 0 (left) or 1 (right).
+        Direction = 0 (contract left) or 1 (contract right).
         """
         if group == 1: # Front "turning" muscles
             pass
@@ -370,6 +308,13 @@ class SMHFish(object):
         # Render regular sprites (point masses)
         self.allsprites.draw(surf)
 
+    def center_pos(self):
+        """Center of position of all mass nodes."""
+        result = Point2d(0,0)
+        for node in self.nodelist:
+            result = result + node.pos
+        return result.scm(1/self.numnodes)
+
 if __name__ == "__main__":
     pygame.init()
 
@@ -396,12 +341,12 @@ if __name__ == "__main__":
     fish.signal_muscles(REAR_GROUP, 0) # Rear muscles, left
     muscles_rear = 0
 
-    # Added stuff for plotting
-    import matplotlib.pylab
-    nls = []
-    als = []
+    # Additional stuff for plotting
+    nls = ([],[])
+    als = ([],[],[],[])
+    xpos = fish.center_pos()[0]
+    xvel = []
     t = 0
-    matplotlib.pylab.ion()
 
     b_running = True
     ############  Main Loop  ######################
@@ -427,8 +372,18 @@ if __name__ == "__main__":
         fish.update(UPDATE_SPEED)
 
         # Get spring lengths for later plots
-        nls.append(fish.muscles[4].natlength) # Natural
-        als.append(fish.muscles[4].curlength) # Actual
+        # Midection
+        nls[0].append(fish.muscles[1].natlength) # Natural, right
+        als[0].append(fish.muscles[1].curlength) # Actual, right
+        nls[1].append(fish.muscles[4].natlength) # Natural, left
+        als[1].append(fish.muscles[4].curlength) # Actual, left
+        # Rear swim
+        als[2].append(fish.muscles[2].curlength) # Actual, right
+        als[3].append(fish.muscles[5].curlength) # Actual, left
+
+        xposnew = fish.center_pos().ntuple()[0]
+        xvel.append((xposnew - xpos)/UPDATE_SPEED)
+        xpos = xposnew
 
         # Render
         screen.fill(bgcolor)
@@ -438,5 +393,24 @@ if __name__ == "__main__":
 
     # Clean-up pygame and plot results
     pygame.quit()
-    matplotlib.pylab.show(matplotlib.pylab.plot(als,'g',nls,'b'))
+
+    import matplotlib.pyplot as plt
+    plt.subplot(3, 1, 1)
+    plt.plot(nls[0],'b', als[0],'g',als[1],'r')
+    plt.legend(['Signal','R','L'])
+    plt.ylabel('Midsection')
+
+    plt.subplot(3, 1, 2)
+    plt.plot(als[2],'g',als[3],'r')
+    plt.legend(['R','L'])
+    plt.ylabel('Rear swim')
+
+    plt.subplot(3, 1, 3)
+    plt.plot(xvel)
+    plt.ylabel('x velocity\n of center')
+
+    xavg = sum(xvel)/len(xvel)
+    print('Average x velocity of center: %.2f' % xavg)
+
+    plt.show()
     #sys.exit()
