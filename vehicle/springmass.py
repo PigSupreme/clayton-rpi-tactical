@@ -7,19 +7,16 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import sys, pygame
-from pygame.locals import RLEACCEL, QUIT, MOUSEBUTTONDOWN
-import pygame.mouse
-
 # TODO: Adjust this depending on where this file ends up.
-sys.path.extend(['../vpoints', '../vehicle'])
-from point2d import Point2d
+from sys import path
+path.append('../vpoints')
+import point2d
 
 INF = float('inf')
 
 # BasePointMass2d defaults
 import vehicle2d
-vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=INF, MAXFORCE=50000.0)
+vehicle2d.set_physics_defaults(MASS=1.0, MAXSPEED=INF, MAXFORCE=INF)
 
 # Physics constants
 NODE_RADIUS = 5
@@ -27,10 +24,9 @@ NODE_MASS = 10.0
 DAMPING_COEFF = 1.0
 SPRING_CONST = 15.0
 UPDATE_SPEED = 0.005
-GRAVITY = Point2d(0, NODE_MASS*9.8)
 
-# Display size
-SCREENSIZE = (800, 640)
+# Needed for Spring rendering
+import pygame.draw
 
 class DampedMass2d(vehicle2d.BasePointMass2d):
     """A pointmass with linearly-damped velocity.
@@ -41,52 +37,48 @@ class DampedMass2d(vehicle2d.BasePointMass2d):
         Center of mass, in screen coordinates.
     radius: float
         Bounding radius of the object.
-    mass: float
-        Mass of the object.
     velocity: Point2d
         Velocity vector, in screen coordinates. Initial facing matches this.
+    mass: float
+        Mass of the object.
     damping:
-        Proportionality constant: damping force = -damping * velocity 
+        Proportionality constant: damping force = -damping * velocity
     spritedata: list or tuple, optional
-        Extra data used to create an associate sprite. See notes below.
+        Extra sprite data; see BasePointMass2d for details.
 
     Notes
     -----
-    This provides a minimal base class for a pointmass with bounding radius
-    and heading aligned to velocity. Use move() for physics updates each
-    cycle (including applying force).
+    This is a simple extension of BasePointMass2d that adds a damping force
+    proportional to velocity.
 
-    As we typically will be rendering these objects within some environment,
-    the constructor provides an optional spritedata parameter that can be used
-    to create an associated sprite. This is currently implemented using the
-    PointMass2dSprite class above (derived from pygame.sprite.Sprite), but
-    can be overridden by changing the _spriteclass attribute.
-
-    Note: Positional parameters are in a different order thatn hydro_fish.py
+    TODO: Positional parameters are in a different order thatn hydro_fish.py
     """
-    def __init__(self, position, radius, mass, velocity, damping=DAMPING_COEFF, spritedata=None):
+    def __init__(self, position, radius, velocity,
+                 mass=NODE_MASS, damping=DAMPING_COEFF, spritedata=None):
         vehicle2d.BasePointMass2d.__init__(self, position, radius, velocity, spritedata)
         self.mass = mass
+        self.damping = damping
 
-    def move(self, delta_t=1.0):
-        # Compute damping force
-        self.accumulate_force(-self.vel.scm(DAMPING_COEFF))
-        vehicle2d.BasePointMass2d.move(self, delta_t, None)
+    def move(self, delta_t=1.0, force=None):
+        """Updates position, velocity, and acceleration (with damping).
 
-class StationaryMass2d(vehicle2d.BasePointMass2d):
-    """A pointmass that stays in place, for attaching springs.
-    
-    Parameters
-    ----------
-    position: Point2d
-        End of the attached spring will be fixed to this location.
-    """  
-    def __init__(self, position):
-        vehicle2d.BasePointMass2d.__init__(self, position, 0, Point2d(0,0), None)
+        Parameters
+        ----------
+        delta_t: float
+            Time increment since last move.
+        force_vector: Point2d or None (default)
+            Additional non-damping force to apply; see Notes below.
 
-    def move(self, delta_t=1.0):
-        """Does nothing, but necessary for pygame updates."""
-        pass
+        Notes
+        -----
+        Applied force behaves as in BasePointMass2d.move(); see notes there.
+        This class adds a damping force, proportional to velocity, each update.
+        """
+        if force is not None:
+            force = force - self.vel.scm(self.damping)
+        else:
+            self.accumulate_force(-self.vel.scm(self.damping))
+        vehicle2d.BasePointMass2d.move(self, delta_t, force)
 
 class IdealSpring2d(object):
     """An ideal (massless, stiff) spring attaching two point masses.
@@ -119,7 +111,7 @@ class IdealSpring2d(object):
 
         self.mass_base = mass1
         self.mass_tip = mass2
-        
+
         self.displacement = self.mass_tip.pos - self.mass_base.pos
         self.curlength = self.displacement.norm()
 
@@ -133,12 +125,12 @@ class IdealSpring2d(object):
 
     def render(self, surf):
         """Draw this spring, see below.
-        
+
         Parameters
         ----------
         surf: pygame.Surface:
             The spring will be rendered on this surface. See Notes.
-            
+
         Notes
         -----
         Springs are green when stretched, red when compressed. In either case,
@@ -155,71 +147,6 @@ class IdealSpring2d(object):
         stop = self.mass_tip.pos.ntuple()
         pygame.draw.line(surf, spcolor, start, stop, 2)
 
-
 if __name__ == "__main__":
-    pygame.init()
-
-    # Display setup
-    screen = pygame.display.set_mode(SCREENSIZE)
-    pygame.display.set_caption('Single mass + two springs + gravity')
-    bgcolor = 111, 145, 192
-    # Mass image information
-    imgt = pygame.Surface((2*NODE_RADIUS, 2* NODE_RADIUS))
-    imgt.set_colorkey((0,0,0), RLEACCEL)
-    rect = pygame.draw.circle(imgt, (1,1,1), (NODE_RADIUS, NODE_RADIUS), NODE_RADIUS, 0)
-    # This is the actual mass
-    nodem = DampedMass2d(Point2d(200,10), NODE_RADIUS, NODE_MASS , Point2d(0,0), DAMPING_COEFF, (imgt, rect))
-    # These are for stationary ends of springs
-    hooks = (StationaryMass2d(Point2d(200,300)),
-             StationaryMass2d(Point2d(600,300)),
-#             StationaryMass2d(Point2d(300,450))
-             )
-    springs = (IdealSpring2d(SPRING_CONST, hooks[0], nodem, 125),
-               IdealSpring2d(SPRING_CONST, hooks[1], nodem, 125),
-#               IdealSpring2d(SPRING_CONST, hooks[2], nodem, 30),
-               )
-
-    # List of nodes only, for later use
-    rgroup = (nodem.sprite,)
-
-    # Set-up pygame rendering
-    allsprites = pygame.sprite.RenderPlain(rgroup)
-
-    b_running = True
-
-    ############  Main Loop  ######################
-    while b_running:
-        for event in pygame.event.get():
-            if event.type == QUIT:
-                b_running = False
-
-            if event.type == MOUSEBUTTONDOWN:
-                if event.button == 3:  # Right button
-                    b_running = False
-                    
-        # If left button down, position mass at current mouse pointer
-        if pygame.mouse.get_pressed()[0]: # left button
-            nodem.pos = Point2d(*pygame.mouse.get_pos())
-            nodem.vel = Point2d(0,0)
-        # Otherwise, update physics as normal
-        else:
-            nodem.move(UPDATE_SPEED)
-            for spring in springs:
-                spring.exert_force()
-            nodem.accumulate_force(GRAVITY)
-        
-        allsprites.update(UPDATE_SPEED)        
-
-        # Render
-        screen.fill(bgcolor)
-        # Render regular sprites (point masses)
-        for spring in springs:
-            spring.render(screen)
-        allsprites.draw(screen)
-        pygame.display.flip()
-
-
-    # Clean-up here
-    pygame.time.delay(500)
-    pygame.quit()
-    sys.exit()
+    print("Two-dimension spring-mass classes. Import this elsewhere.")
+    
