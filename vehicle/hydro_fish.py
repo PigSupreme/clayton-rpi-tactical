@@ -25,31 +25,41 @@ INF = float('inf')
 
 # This must be called after springmass imports to have any effect
 vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=50000.0)
+#vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=INF, MAXFORCE=50000.0)
 
 # Fish coefficients (coefishents??)
-NODE_RADIUS = 0
+NODE_RADIUS = 5
+NODE_COLOR = (0,0,0)
 MASS_SCALE = 12
 SIZE_SCALE = 6
-DAMPING_COEFF = 10
-MUSCLE_K = 80
-SOLIDS_K = 90
-CROSS_K = 200
-TAIL_K = 70
+DAMPING_COEFF = 15.0
+#MUSCLE_K = 80
+#SOLIDS_K = 90
+#CROSS_K = 200
+#TAIL_K = 70
 
-HEAD_MASS = 0.5
-# (Length, half-width, nodemass) for each segment
-BODY_DATA = [(8,4,6.6), (12,6,11.0), (15,6,8.6), (12,4,1.1), (10,2,1.1)]
-# (Length, nodemass) of tail
-TAIL_DATA = (5,0.004)
+# (Head nodemass, quadheight)
+HEAD_DATA = (0.8, 0.45)
+# (Length, half-width, nodemass, quad_height) for each segment
+BODY_DATA = [(8,4,6.6,2), (12,6,11.0,3), (15,6,8.6,3), (12,4,1.1,2), (10,2,1.1,0.6)]
+# (Length, nodemass, quadheight) of tail
+TAIL_DATA = (5, 0.004, 5.3)
+# Spring constants
+SPRING_DATA = {'HEAD': 360,
+               'MUSCLE': 80,
+               'SOLID': 90,
+               'CROSS': 200,
+               'TAIL': 70}
 
-SQUEEZE = 0.89
-FREQ = 180
+SQUEEZE = 0.88
+FREQ = 140
 
-HYDRO_FORCE_MULT = 45# Actual force multiplier
+HYDRO_FORCE_MULT = 45 # Actual force multiplier
 HYDRO_FORCE_SCALE = 0.02 # For rendering only
 HYDRO_COLOR = (0,90,190)
 
-X_OFFSET = 400
+SCREEN_SIZE = (1200, 640)
+X_OFFSET = 800
 Y_OFFSET = 400
 
 UPDATE_SPEED = 0.02
@@ -188,23 +198,23 @@ class HydroQuad2d(object):
 class SMHFish(object):
     """It's ostensibly a fish."""
 
-    def __init__(self, head_mass, body_data=None, tail_data=None):
+    def __init__(self, head_data, body_data, tail_data, spring_k):
         # Placeholder for fish coordinate nodes
         self.numnodes = 12
         massnodes = list(range(self.numnodes))
+        self.node_radius = NODE_RADIUS
+        self.node_color = NODE_COLOR
         damping = DAMPING_COEFF # velocity-based damping coeff for mass nodes
         offset = Point2d(X_OFFSET, Y_OFFSET) # offset from head node
-        # Set-up Node Sprites in their initial positions
-#        massnodes = []
-#        img = []
-#        rec = []
 
         # Head node (NOTE: No spritedata)
-        massnodes[0] = DampedMass2d(offset, NODE_RADIUS, Point2d(0,0), head_mass*MASS_SCALE, damping)
+        head_mass = head_data[0]*MASS_SCALE
+        massnodes[0] = DampedMass2d(offset, NODE_RADIUS, Point2d(0,0), head_mass, damping)
 
+        # Body segment nodes
         x_local = 0
         index_right = 0
-        for xlen, ywid, nmass in body_data:
+        for xlen, ywid, nmass, zhi in body_data:
             index_right += 2
             x_local += xlen
             # Right node (even index)
@@ -213,6 +223,7 @@ class SMHFish(object):
             # Left node (odd index)
             nodepos = offset + Point2d(x_local, -ywid).scm(SIZE_SCALE)
             massnodes[1 + index_right] = DampedMass2d(nodepos, NODE_RADIUS, Point2d(0,0), nmass*MASS_SCALE, damping)
+
         # Tail
         nodepos = offset + Point2d(x_local + tail_data[0], 0).scm(SIZE_SCALE)
         nmass = tail_data[1]
@@ -226,7 +237,7 @@ class SMHFish(object):
 
         # Set up muscle springs
         springs = []
-        muscle_k = MUSCLE_K
+        muscle_k = spring_k['MUSCLE']
         squeeze_p = SQUEEZE
         for i, j in ((2,4), (3,5), (4,6), (5,7), (6,8), (7,9)):
             springs.append(MuscleSpring2d(muscle_k, massnodes[i], massnodes[j], squeeze_p))
@@ -234,25 +245,22 @@ class SMHFish(object):
         # List of muscles for later use
         muscles = springs[:]
 
-        edge_solids = [(0,2), (0,3), (2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (9,11)]
-        # Stiffer head springs
-        for edge in edge_solids[:2]:
-            i, j = edge
-            springs.append(IdealSpring2d(SOLIDS_K*4, massnodes[i], massnodes[j]))
-        # Other 
-        for edge in edge_solids[2:]:
-            i, j = edge
-            springs.append(IdealSpring2d(SOLIDS_K, massnodes[i], massnodes[j]))
+        # Non-muscle springs start here
+        # Head springs
+        for i, j in ((0,2), (0,3)):
+            springs.append(IdealSpring2d(spring_k['HEAD'], massnodes[i], massnodes[j]))
+            
+        # Lateral springs
+        for i, j in ((2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (9,11)):
+            springs.append(IdealSpring2d(spring_k['SOLID'], massnodes[i], massnodes[j]))
 
-        edge_tail = [(1,10), (11,1)]
-        for edge in edge_tail:
-            i, j = edge
-            springs.append(IdealSpring2d(TAIL_K, massnodes[i], massnodes[j]))
+        # Tail springs
+        for i, j in ((1,10), (11,1)):
+            springs.append(IdealSpring2d(spring_k['TAIL'], massnodes[i], massnodes[j]))
 
-        edge_cross = [(2,5), (3,4), (4,7), (5,6), (6,9), (7,8), (9,10), (8,11)]
-        for edge in edge_cross:
-            i, j = edge
-            springs.append(IdealSpring2d(CROSS_K, massnodes[i], massnodes[j]))
+        # Cross springs
+        for i, j in ((2,5), (3,4), (4,7), (5,6), (6,9), (7,8), (9,10), (8,11)):
+            springs.append(IdealSpring2d(spring_k['CROSS'], massnodes[i], massnodes[j]))
 
         self.massnodes = tuple(massnodes)
         self.springs = tuple(springs)
@@ -299,9 +307,6 @@ class SMHFish(object):
         for node in self.massnodes:
             node.move(delta_t)
 
-        # Update Sprites (via pygame sprite group update)
-#        self.allsprites.update(delta_t)
-
     def render(self, surf):
         """Render this fish."""
         # Manually render each spring
@@ -312,13 +317,15 @@ class SMHFish(object):
         for quad in self.hquads:
             quad.renderforce(surf)
 
-        # Render regular sprites (point masses)
-#        self.allsprites.draw(surf)
+        # Manually render each massnode
+        for node in self.massnodes:
+            center = tuple(int(x) for x in node.pos.ntuple())
+            pygame.draw.circle(surf, self.node_color, center, self.node_radius)
 
     def center_pos(self):
-        """Center of position of all mass nodes."""
+        """Center of position of all mass nodes except head/tail."""
         result = Point2d(0,0)
-        for node in self.massnodes:
+        for node in self.massnodes[2:]:
             result = result + node.pos
         return result.scm(1/self.numnodes)
 
@@ -326,12 +333,11 @@ if __name__ == "__main__":
     pygame.init()
 
     # Display constants
-    size = sc_width, sc_height = 800, 640
-    screen = pygame.display.set_mode(size)
+    screen = pygame.display.set_mode(SCREEN_SIZE)
     pygame.display.set_caption('Spring-mass-hydro fish demo')
     bgcolor = (111, 145, 192)
 
-    fish = SMHFish(HEAD_MASS, BODY_DATA, TAIL_DATA)
+    fish = SMHFish(HEAD_DATA, BODY_DATA, TAIL_DATA, SPRING_DATA)
 
     ## Stuff below is for swimming muscle updates
     # TODO: Move this into the motor controller class
