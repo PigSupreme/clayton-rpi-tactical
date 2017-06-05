@@ -25,44 +25,43 @@ INF = float('inf')
 
 # This must be called after springmass imports to have any effect
 vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=50000.0)
-#vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=INF, MAXFORCE=50000.0)
 
-# Fish coefficients (coefishents??)
+# Physics constants
 NODE_RADIUS = 5
-NODE_COLOR = (0,0,0)
 MASS_SCALE = 12
 SIZE_SCALE = 6
 DAMPING_COEFF = 15.0
-#MUSCLE_K = 80
-#SOLIDS_K = 90
-#CROSS_K = 200
-#TAIL_K = 70
+HYDRO_FORCE_MULT = 45.0
 
+###### Fish geometry, mass, and spring data ##################
 # (Head nodemass, quadheight)
 HEAD_DATA = (0.8, 0.45)
 # (Length, half-width, nodemass, quad_height) for each segment
 BODY_DATA = [(8,4,6.6,2), (12,6,11.0,3), (15,6,8.6,3), (12,4,1.1,2), (10,2,1.1,0.6)]
 # (Length, nodemass, quadheight) of tail
-TAIL_DATA = (5, 0.004, 5.3)
+TAIL_DATA = (5, 0.4, 6.0)
 # Spring constants
 SPRING_DATA = {'HEAD': 360,
                'MUSCLE': 80,
-               'SOLID': 90,
+               'SOLID': 120,
                'CROSS': 200,
-               'TAIL': 70}
+               'TAIL': 140}
+##############################################################
 
+# Muscles are contracted to this proportion of original length
 SQUEEZE = 0.88
+# Muscle Contraction Frequency (in number of ticks)
 FREQ = 140
 
-HYDRO_FORCE_MULT = 45 # Actual force multiplier
-HYDRO_FORCE_SCALE = 0.02 # For rendering only
-HYDRO_COLOR = (0,90,190)
-
+# Display-related constants and starting point of fish
 SCREEN_SIZE = (1200, 640)
 X_OFFSET = 800
 Y_OFFSET = 400
+HYDRO_FORCE_SCALE = 0.02 # For rendering only
+HYDRO_COLOR = (0,90,190)
+NODE_COLOR = (0,0,0)
 
-UPDATE_SPEED = 0.02
+UPDATE_SPEED = 0.026
 
 class MuscleSpring2d(IdealSpring2d):
     """A spring with the ability to contract and flex. See Notes.
@@ -186,10 +185,10 @@ class HydroQuad2d(object):
             self.current_force = None
 
     def renderforce(self, surf):
-        """Draw the hydro force exerted by this quad."""
+        """Draw (on a pygame surface) the hydro force exerted by this quad."""
         if self.current_force is not None:
             center = [int(x) for x in self.pos.ntuple()]
-            pygame.draw.circle(surf, HYDRO_COLOR, center, 3, 0)
+            pygame.draw.circle(surf, HYDRO_COLOR, center, 2, 0)
             tipvec = self.pos - self.current_force.scm(HYDRO_FORCE_SCALE)
             tip = [int(x) for x in tipvec.ntuple()]
             pygame.draw.line(surf, HYDRO_COLOR, center, tip, 2)
@@ -214,6 +213,7 @@ class SMHFish(object):
         # Body segment nodes
         x_local = 0
         index_right = 0
+        quad_h = []
         for xlen, ywid, nmass, zhi in body_data:
             index_right += 2
             x_local += xlen
@@ -223,17 +223,14 @@ class SMHFish(object):
             # Left node (odd index)
             nodepos = offset + Point2d(x_local, -ywid).scm(SIZE_SCALE)
             massnodes[1 + index_right] = DampedMass2d(nodepos, NODE_RADIUS, Point2d(0,0), nmass*MASS_SCALE, damping)
+            # Quad heights (needed later)
+            quad_h.append(zhi)
 
         # Tail
         nodepos = offset + Point2d(x_local + tail_data[0], 0).scm(SIZE_SCALE)
         nmass = tail_data[1]
         massnodes[1] = DampedMass2d(nodepos, NODE_RADIUS, Point2d(0,0), nmass, damping)
-
-        # Prints initial location of each node        
-        i = 0
-        for node in massnodes:
-            print('%d : %s' % (i, node.pos))
-            i += 1
+        quad_h.append(tail_data[2])
 
         # Set up muscle springs
         springs = []
@@ -249,7 +246,7 @@ class SMHFish(object):
         # Head springs
         for i, j in ((0,2), (0,3)):
             springs.append(IdealSpring2d(spring_k['HEAD'], massnodes[i], massnodes[j]))
-            
+
         # Lateral springs
         for i, j in ((2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (9,11)):
             springs.append(IdealSpring2d(spring_k['SOLID'], massnodes[i], massnodes[j]))
@@ -266,17 +263,39 @@ class SMHFish(object):
         self.springs = tuple(springs)
         self.muscles = tuple(muscles)
 
-        ################################
-        # This fish is hyyyyydromatic...
-        ################################
-        quaddata = [(1,10,5.3,0.6),(10,8,1,2),(8,6,2,3),(6,4,3,3),(4,2,3,2),(2,0,2,0.1),
-                    (11,1,0.6,5.3),(9,11,2,1),(7,9,3,2),(5,7,3,3),(3,5,2,3),(0,3,0.1,2)
-                   ]
-
+        ### Set up surface quads for hydrodynamic force ###
         hquadlist = []
-        # Note the change in parameter order between above data and HydroQuad2d()
-        for b,t,bh,th in quaddata:
-            hquadlist.append(HydroQuad2d(massnodes[b], bh, massnodes[t], th))
+
+        # Head quads
+        front_h = head_data[1]
+        back_h = quad_h.pop(0)
+        # Left side
+        hquadlist.append(HydroQuad2d(massnodes[0], front_h, massnodes[3], back_h))
+        # Right side
+        hquadlist.append(HydroQuad2d(massnodes[2], back_h, massnodes[0], front_h))
+
+        # Body quads
+        # There is some severe trickery going on here; see the fish anatomy.
+        # We've read in the lenghts of each quad's based above, this puts them
+        # onto the fish starting from the head and moving towards the tail.
+        # The left side of each quad must point into the fish. Left/right
+        # orientations in the comments are screen coordinates!
+        for i in range(3,11,2):
+            front_h = back_h
+            back_h = quad_h.pop(0)
+            # Left side (odd index)
+            hquadlist.append(HydroQuad2d(massnodes[i], front_h, massnodes[i+2], back_h))
+            # Right side (odd index)
+            hquadlist.append(HydroQuad2d(massnodes[i+1], back_h, massnodes[i-1], front_h))
+
+        # Tail quads
+        front_h = back_h
+        back_h = quad_h.pop()
+        # Left side
+        hquadlist.append(HydroQuad2d(massnodes[11], front_h, massnodes[1], back_h))
+        # Right side
+        hquadlist.append(HydroQuad2d(massnodes[1], back_h, massnodes[10], front_h))
+
         self.hquads = tuple(hquadlist)
 
     def signal_muscles(self, group, direction):
@@ -327,19 +346,26 @@ class SMHFish(object):
         result = Point2d(0,0)
         for node in self.massnodes[2:]:
             result = result + node.pos
-        return result.scm(1/self.numnodes)
+        return result.scm(1.0/self.numnodes)
+
+    def print_nodes(self):
+        # Prints initial location of each node
+        i = 0
+        for node in self.massnodes:
+            print('%d : %s' % (i, node.pos))
+            i += 1
 
 if __name__ == "__main__":
     pygame.init()
 
     # Display constants
-    screen = pygame.display.set_mode(SCREEN_SIZE)
+    DISPLAYSURF = pygame.display.set_mode(SCREEN_SIZE)
     pygame.display.set_caption('Spring-mass-hydro fish demo')
-    bgcolor = (111, 145, 192)
+    BG_COLOR = (111, 145, 192)
 
     fish = SMHFish(HEAD_DATA, BODY_DATA, TAIL_DATA, SPRING_DATA)
 
-    ## Stuff below is for swimming muscle updates
+    ## Stuff below is for swimming muscle updates ###############
     # TODO: Move this into the motor controller class
     freq = FREQ
     ticks = 0
@@ -353,13 +379,13 @@ if __name__ == "__main__":
     REAR_GROUP = -1
     fish.signal_muscles(REAR_GROUP, 0) # Rear muscles, left
     muscles_rear = 0
+    ## End of swimming muscle updates ###########################
 
     # Additional stuff for plotting
     nls = ([],[])
     als = ([],[],[],[])
     xpos = fish.center_pos()[0]
-    xvel = []
-    t = 0
+    xspeed = []
 
     b_running = True
     ############  Main Loop  ######################
@@ -395,17 +421,25 @@ if __name__ == "__main__":
         als[3].append(fish.muscles[5].curlength) # Actual, left
 
         xposnew = fish.center_pos().ntuple()[0]
-        xvel.append((xposnew - xpos)/UPDATE_SPEED)
+        xspeed.append((xpos - xposnew)/UPDATE_SPEED)
         xpos = xposnew
 
         # Render
-        screen.fill(bgcolor)
-        fish.render(screen)
+        DISPLAYSURF.fill(BG_COLOR)
+        fish.render(DISPLAYSURF)
         pygame.display.flip()
         ticks = ticks + 1
 
     # Clean-up pygame and plot results
     pygame.quit()
+
+    # Ignore startup jitter and compute average speed
+    START_T = 1000
+    try:
+        xavg = sum(xspeed[START_T:])/len(xspeed[START_T:])
+    except ZeroDivisionError:
+        xavg = sum(xspeed)/len(xspeed)
+    print('Average x velocity of center: %.2f' % xavg)
 
     import matplotlib.pyplot as plt
     plt.subplot(3, 1, 1)
@@ -419,11 +453,10 @@ if __name__ == "__main__":
     plt.ylabel('Rear swim')
 
     plt.subplot(3, 1, 3)
-    plt.plot(xvel)
-    plt.ylabel('x velocity\n of center')
-
-    xavg = sum(xvel)/len(xvel)
-    print('Average x velocity of center: %.2f' % xavg)
+    plt.plot(xspeed)
+    plt.annotate('Average speed starts here\n %.2f pixels per update' % xavg,
+                 (1000,xavg),(1000,xavg/2),arrowprops={'arrowstyle':'->'})
+    plt.ylabel('x speed\n of center')
 
     plt.show()
     #sys.exit()
