@@ -39,7 +39,7 @@ HEAD_DATA = (0.8, 0.45)
 # (Length, half-width, nodemass, quad_height) for each segment
 BODY_DATA = [(8,4,6.6,2), (12,6,11.0,3), (15,6,8.6,3), (12,4,1.1,2), (10,2,1.1,0.6)]
 # (Length, nodemass, quadheight) of tail
-TAIL_DATA = (5, 0.4, 6.0)
+TAIL_DATA = (5, 0.4, 8.0)
 # Spring constants
 SPRING_DATA = {'HEAD': 360,
                'MUSCLE': 80,
@@ -151,7 +151,7 @@ class HydroQuad2d(object):
             # Rectangles don't work in the formula below.
             self.center_t = 0.5
         else:
-            # Otherwise, use center of mass of a trapezoid.
+            # Otherwise, use center of AREA of a trapezoid.
             numer = sqrt(2*(tip_height**2 + base_height**2)) - 2*base_height
             self.center_t = numer/(2*(tip_height - base_height))
 
@@ -256,11 +256,17 @@ class SMHFish(object):
             spring.massnodes = (i,j)
 
         # Lateral springs
-        for i, j in ((2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (9,11)):
+        for i, j in ((2,3), (4,5), (6,7), (8,9), (10,11)):
             spring = IdealSpring2d(spring_k['SOLID'], massnodes[i], massnodes[j])
             springs.append(spring)
             spring.massnodes = (i,j)
-
+        
+        # Springs 13 and 14: Better results with same spring constant as muscles.
+        for i, j in ((8,10), (9,11)):
+            spring = IdealSpring2d(spring_k['MUSCLE'], massnodes[i], massnodes[j])
+            springs.append(spring)
+            spring.massnodes = (i,j)    
+        
         # Tail springs
         for i, j in ((1,10), (11,1)):
             spring = IdealSpring2d(spring_k['TAIL'], massnodes[i], massnodes[j])
