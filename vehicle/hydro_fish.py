@@ -206,6 +206,7 @@ class SMHFish(object):
         damping = DAMPING_COEFF # velocity-based damping coeff for mass nodes
         offset = Point2d(X_OFFSET, Y_OFFSET) # offset from head node
 
+        ### Set up nodemasses ################################################
         # Head node (NOTE: No spritedata)
         head_mass = head_data[0]*MASS_SCALE
         massnodes[0] = DampedMass2d(offset, NODE_RADIUS, Point2d(0,0), head_mass, damping)
@@ -232,69 +233,93 @@ class SMHFish(object):
         massnodes[1] = DampedMass2d(nodepos, NODE_RADIUS, Point2d(0,0), nmass, damping)
         quad_h.append(tail_data[2])
 
-        # Set up muscle springs
+        self.massnodes = tuple(massnodes)
+
+        ### Set up muscle springs ###########################################
         springs = []
         muscle_k = spring_k['MUSCLE']
         squeeze_p = SQUEEZE
         for i, j in ((2,4), (3,5), (4,6), (5,7), (6,8), (7,9)):
-            springs.append(MuscleSpring2d(muscle_k, massnodes[i], massnodes[j], squeeze_p))
+            muscle = MuscleSpring2d(muscle_k, massnodes[i], massnodes[j], squeeze_p)
+            springs.append(muscle)
+            muscle.massnodes = (i,j)
 
-        # List of muscles for later use
-        muscles = springs[:]
+        # Muscles only for now
+        self.muscles = tuple(springs)
+        self.num_muscles = len(springs)
 
-        # Non-muscle springs start here
+        ### Set up non-muscle springs #######################################
         # Head springs
         for i, j in ((0,2), (0,3)):
-            springs.append(IdealSpring2d(spring_k['HEAD'], massnodes[i], massnodes[j]))
+            spring = IdealSpring2d(spring_k['HEAD'], massnodes[i], massnodes[j])
+            springs.append(spring)
+            spring.massnodes = (i,j)
 
         # Lateral springs
         for i, j in ((2,3), (4,5), (6,7), (8,9), (10,11), (8,10), (9,11)):
-            springs.append(IdealSpring2d(spring_k['SOLID'], massnodes[i], massnodes[j]))
+            spring = IdealSpring2d(spring_k['SOLID'], massnodes[i], massnodes[j])
+            springs.append(spring)
+            spring.massnodes = (i,j)
 
         # Tail springs
         for i, j in ((1,10), (11,1)):
-            springs.append(IdealSpring2d(spring_k['TAIL'], massnodes[i], massnodes[j]))
+            spring = IdealSpring2d(spring_k['TAIL'], massnodes[i], massnodes[j])
+            springs.append(spring)
+            spring.massnodes = (i,j)
 
         # Cross springs
         for i, j in ((2,5), (3,4), (4,7), (5,6), (6,9), (7,8), (9,10), (8,11)):
-            springs.append(IdealSpring2d(spring_k['CROSS'], massnodes[i], massnodes[j]))
+            spring = IdealSpring2d(spring_k['CROSS'], massnodes[i], massnodes[j])
+            springs.append(spring)
+            spring.massnodes = (i,j)
 
-        self.massnodes = tuple(massnodes)
+        # All springs, including muscles
         self.springs = tuple(springs)
-        self.muscles = tuple(muscles)
 
-        ### Set up surface quads for hydrodynamic force ###
+        ### Set up surface quads for hydrodynamic force #####################
         hquadlist = []
 
         # Head quads
         front_h = head_data[1]
         back_h = quad_h.pop(0)
-        # Left side
-        hquadlist.append(HydroQuad2d(massnodes[0], front_h, massnodes[3], back_h))
         # Right side
-        hquadlist.append(HydroQuad2d(massnodes[2], back_h, massnodes[0], front_h))
+        hquad = HydroQuad2d(massnodes[2], back_h, massnodes[0], front_h)
+        hquad.nodes = (2, 0)
+        hquadlist.append(hquad)
+        # Left side
+        hquad = HydroQuad2d(massnodes[0], front_h, massnodes[3], back_h)
+        hquad.nodes = (0, 3)
+        hquadlist.append(hquad)
 
         # Body quads
         # There is some severe trickery going on here; see the fish anatomy.
-        # We've read in the lenghts of each quad's based above, this puts them
+        # We've read in the lenghts of each quad's base above; this puts them
         # onto the fish starting from the head and moving towards the tail.
         # The left side of each quad must point into the fish. Left/right
         # orientations in the comments are screen coordinates!
-        for i in range(3,11,2):
+        for i in range(3, 11, 2):
             front_h = back_h
             back_h = quad_h.pop(0)
+            # Right side (even index)
+            hquad = HydroQuad2d(massnodes[i+1], back_h, massnodes[i-1], front_h)
+            hquad.nodes = (i+1, i-1)
+            hquadlist.append(hquad)
             # Left side (odd index)
-            hquadlist.append(HydroQuad2d(massnodes[i], front_h, massnodes[i+2], back_h))
-            # Right side (odd index)
-            hquadlist.append(HydroQuad2d(massnodes[i+1], back_h, massnodes[i-1], front_h))
+            hquad = HydroQuad2d(massnodes[i], front_h, massnodes[i+2], back_h)
+            hquad.nodes = (i, i+2)
+            hquadlist.append(hquad)
 
         # Tail quads
         front_h = back_h
         back_h = quad_h.pop()
-        # Left side
-        hquadlist.append(HydroQuad2d(massnodes[11], front_h, massnodes[1], back_h))
         # Right side
-        hquadlist.append(HydroQuad2d(massnodes[1], back_h, massnodes[10], front_h))
+        hquad = HydroQuad2d(massnodes[1], back_h, massnodes[10], front_h)
+        hquad.nodes = (1, 10)
+        hquadlist.append(hquad)
+        # Left side
+        hquad = HydroQuad2d(massnodes[11], front_h, massnodes[1], back_h)
+        hquad.nodes = (11, 1)
+        hquadlist.append(hquad)
 
         self.hquads = tuple(hquadlist)
 
@@ -348,12 +373,26 @@ class SMHFish(object):
             result = result + node.pos
         return result.scm(1.0/self.numnodes)
 
-    def print_nodes(self):
+    def print_anatomy(self):
         # Prints initial location of each node
         i = 0
         for node in self.massnodes:
-            print('%d : %s' % (i, node.pos))
+            print('Node %d : Initial position %s' % (i, node.pos.ntuple()))
             i += 1
+        # Prints the list of muscles/springs
+        i = 0
+        print('*** Muscle springs ***')
+        for spring in self.springs:
+            if i == self.num_muscles:
+                print('*** End of muscle springs ***')
+            print('Spring %d : Connects nodes %s' % (i, spring.massnodes))
+            i += 1
+        i = 0
+        print('*** Hydro-quads ***')
+        for quad in self.hquads:
+            print('Quad %d : Between nodes %s' % (i, quad.nodes))
+            i += 1 
+        print('*** End of anatomy info ***')
 
 if __name__ == "__main__":
     pygame.init()
@@ -364,6 +403,7 @@ if __name__ == "__main__":
     BG_COLOR = (111, 145, 192)
 
     fish = SMHFish(HEAD_DATA, BODY_DATA, TAIL_DATA, SPRING_DATA)
+    fish.print_anatomy()
 
     ## Stuff below is for swimming muscle updates ###############
     # TODO: Move this into the motor controller class
