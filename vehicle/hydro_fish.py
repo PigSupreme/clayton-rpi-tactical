@@ -143,10 +143,11 @@ class HydroQuad2d(object):
         self.base_h = base_height
         self.tip_m = tip_mass
         self.tip_h = tip_height
-
-        # Location of center of mass as a proportion of total segment length
+        # Shortcut used in area computations of a trapezoid
+        self.avg_h = (base_height + tip_height)/2
+        
+        # Location of center of mass as a proportion of total segment length;
         # used in standard parametric equations.
-
         if base_height == tip_height:
             # Rectangles don't work in the formula below.
             self.center_t = 0.5
@@ -171,11 +172,11 @@ class HydroQuad2d(object):
         dotp = self.vel * normal_in
 
         # Only apply force if center is moving in an outward direction from body
-        # Force is proportional (somehow...) to volume of displaced fluid
         if dotp < 0:
-            # Compute the area of this quad (trapezoid)
-            area = 0.5*(self.base_h + self.tip_h)*contour_vec.norm()
-            total_force = normal_in.scm(-dotp*area*delta_t*HYDRO_FORCE_MULT/normal_in.sqnorm())
+            # Fluid volume displaced by this quad during last update step
+            volume = delta_t*self.avg_h*contour_vec.norm()
+            # Force is proportional (somehow...) to volume of displaced fluid
+            total_force = normal_in.scm(-dotp*volume*HYDRO_FORCE_MULT/normal_in.sqnorm())
             # Apply to masses at base and tip
             self.base_m.accumulate_force(total_force.scm(1-ct))
             self.tip_m.accumulate_force(total_force.scm(ct))
@@ -409,7 +410,7 @@ if __name__ == "__main__":
     BG_COLOR = (111, 145, 192)
 
     fish = SMHFish(HEAD_DATA, BODY_DATA, TAIL_DATA, SPRING_DATA)
-    fish.print_anatomy()
+#    fish.print_anatomy()
 
     ## Stuff below is for swimming muscle updates ###############
     # TODO: Move this into the motor controller class
@@ -427,12 +428,8 @@ if __name__ == "__main__":
     muscles_rear = 0
     ## End of swimming muscle updates ###########################
 
-    # Additional stuff for plotting
-    nls = ([],[])
-    als = ([],[],[],[])
-    xpos = fish.center_pos()[0]
     xspeed = []
-
+    xpos = fish.center_pos().ntuple()[0]
     b_running = True
     ############  Main Loop  ######################
     while b_running:
@@ -456,16 +453,6 @@ if __name__ == "__main__":
         # Update fish spring-mass and hydro physics
         fish.update(UPDATE_SPEED)
 
-        # Get spring lengths for later plots
-        # Midection
-        nls[0].append(fish.muscles[2].natlength) # Natural, right
-        als[0].append(fish.muscles[2].curlength) # Actual, right
-        nls[1].append(fish.muscles[3].natlength) # Natural, left
-        als[1].append(fish.muscles[3].curlength) # Actual, left
-        # Rear swim
-        als[2].append(fish.muscles[4].curlength) # Actual, right
-        als[3].append(fish.muscles[5].curlength) # Actual, left
-
         xposnew = fish.center_pos().ntuple()[0]
         xspeed.append((xpos - xposnew)/UPDATE_SPEED)
         xpos = xposnew
@@ -487,22 +474,4 @@ if __name__ == "__main__":
         xavg = sum(xspeed)/len(xspeed)
     print('Average x velocity of center: %.2f' % xavg)
 
-    import matplotlib.pyplot as plt
-    plt.subplot(3, 1, 1)
-    plt.plot(nls[0],'b', als[0],'g',als[1],'r')
-    plt.legend(['Signal','R','L'])
-    plt.ylabel('Midsection')
-
-    plt.subplot(3, 1, 2)
-    plt.plot(als[2],'g',als[3],'r')
-    plt.legend(['R','L'])
-    plt.ylabel('Rear swim')
-
-    plt.subplot(3, 1, 3)
-    plt.plot(xspeed)
-    plt.annotate('Average speed starts here\n %.2f pixels per update' % xavg,
-                 (1000,xavg),(1000,xavg/2),arrowprops={'arrowstyle':'->'})
-    plt.ylabel('x speed\n of center')
-
-    plt.show()
     #sys.exit()
