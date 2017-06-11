@@ -18,6 +18,7 @@ from point2d import Point2d
 import vehicle2d
 import springmass
 import hydro_fish
+import matplotlib.pyplot as plt
 
 # Math defauls
 INF = float('inf')
@@ -25,6 +26,7 @@ ZERO_VECTOR = Point2d(0,0)
 
 ##############################################################
 ## Override some of the fish defaults for testing
+## Duck punching...you'll be good at it!
 ##############################################################
 
 # This must be called after hydro_fish import to have any effect
@@ -45,7 +47,7 @@ hydro_fish.HYDRO_FORCE_MULT = 45.0
 # (Head nodemass, quadheight)
 HEAD_DATA = (0.8, 0.45)
 # (Length, half-width, nodemass, quad_height) for each segment
-BODY_DATA = [(8,4,6.6,2), (12,6,11.0,3), (15,6,8.6,3), (12,4,1.1,2), (10,2,1.1,0.6)]
+BODY_DATA = [(8,4,6.6,8), (12,6,11.0,12), (15,6,8.6,12), (12,4,1.1,8), (10,2,1.1,2)]
 # (Length, nodemass, quadheight) of tail
 TAIL_DATA = (5, 0.4, 8.0)
 # Spring constants
@@ -54,8 +56,9 @@ SPRING_DATA = {'HEAD': 360,
                'SOLID': 120,
                'CROSS': 200,
                'TAIL': 140}
+
 ##############################################################
-### Swimming paramteres (will go into motor control later)
+### Swimming parameters (will go into motor control later)
 ##############################################################
 
 # Muscles are contracted to this proportion of original length
@@ -101,7 +104,9 @@ def dm_stats_dynamic(self):
 DampedMass2d.stats_basic = dm_stats_basic
 DampedMass2d.stats_dynamic = dm_stats_dynamic
 
+####################################################################
 ### Logging for springmass.IdealSpring2d
+####################################################################
 def is_stats_basic(self):
     """Get basic, static information about this object."""
     results = {'TYPE': 'SPRING',
@@ -121,7 +126,9 @@ IdealSpring2d.stats_dynamic = is_stats_dynamic
 
 from hydro_fish import MuscleSpring2d, HydroQuad2d
 
+####################################################################
 ### Logging for hydro_fish.MuscleSpring2d
+####################################################################
 def ms_stats_basic(self):
     """Returns some basic information about this object."""
     results = {'TYPE': 'SPRING_MUSCLE',
@@ -145,7 +152,9 @@ def ms_stats_dynamic(self):
 MuscleSpring2d.stats_basic = ms_stats_basic
 MuscleSpring2d.stats_dynamic = ms_stats_dynamic
 
+####################################################################
 ### Logging for hydro_fish.HydroQuad2d
+####################################################################
 def hq_stats_basic(self):
     """Returns some basic information about this object."""
 
@@ -172,7 +181,9 @@ def hq_stats_dynamic(self):
 HydroQuad2d.stats_basic = hq_stats_basic
 HydroQuad2d.stats_dynamic = hq_stats_dynamic
 
+####################################################################
 ### Logging for hydro.fish.SMHFish
+####################################################################
 from hydro_fish import SMHFish
 
 def fish_print_anatomy(self):
@@ -193,12 +204,54 @@ def fish_print_anatomy(self):
     print('*** Hydro-quads ***')
     for quad in self.hquads:
         print('Quad %d : Between nodes %s' % (i, quad.nodes))
-        i += 1 
+        i += 1
     print('*** End of anatomy info ***')
 
 SMHFish.print_anatomy = fish_print_anatomy
 
+####################################################################
+### Additional Logging/Plotting functions not attached to hydro_fish
+####################################################################
+def plot_fishdata_shape(head, body, tail):
+    """Plots the overhead and side geometry for the given fish data."""
+    x, y, z = (0, 0, head[1]/2.0)
+    overhead_R = [(x,y,z)]
+    for p in body:
+        x = x + p[0]
+        y = p[1]
+        z = p[3]/2.0
+        overhead_R.append((x,y,z))
+    overhead_R.append((x+ tail[0], 0, tail[2]))
+    x_list = [x for (x,y,z) in overhead_R]
+    y_list_R = [y for (x,y,z) in overhead_R]
+    y_list_L = [-y for y in y_list_R]
+    h_list = [z for (x,y,z) in overhead_R]
+
+    # This adds some space between overhead and side views
+    # Tried this with subplots, but they were being unruly
+    ZBASE = -(5 + max(y_list_R) + max(h_list))
+    h_list_top = [ZBASE + z for z in h_list]
+    h_list_bot = [ZBASE - z for z in h_list]
+
+    # Overhead geometry
+    plt.fill_between(x_list, y_list_R, y_list_L)
+#    plt.plot(x_list, y_list_R, 'b')
+#    plt.plot(x_list, y_list_L, 'b')
+    # Side view
+    plt.fill_between(x_list, h_list_top, h_list_bot)
+#    plt.plot(x_list, h_list_top, 'k')
+#    plt.plot(x_list, h_list_bot, 'k')
+    plt.xticks(x_list,range(len(x_list)))
+    plt.yticks((0,ZBASE),('Top','Side'))
+    plt.grid(True)
+    plt.title('Initial fish geometry')
+    plt.axes().set_aspect('equal', 'box')
+    plt.show()
+
 if __name__ == "__main__":
+    # Show the fish shape
+    plot_fishdata_shape(HEAD_DATA, BODY_DATA, TAIL_DATA)
+
     pygame.init()
 
     # Display constants
@@ -225,7 +278,9 @@ if __name__ == "__main__":
     muscles_rear = 0
     ## End of swimming muscle updates ###########################
 
-    # Additional stuff for plotting
+    #############################################################
+    # Placeholders for data to be plotted
+    #############################################################
     mid_r_nat = []
     mid_r_act = []
     mid_l_nat = []
@@ -237,7 +292,7 @@ if __name__ == "__main__":
     tailforce_r_x = []
     tailforce_r_y = []
     tailforce_l_x = []
-    tailforce_l_y = []    
+    tailforce_l_y = []
     xpos = fish.center_pos()[0]
     xspeed = []
 
@@ -249,7 +304,8 @@ if __name__ == "__main__":
                 b_running = False
 
         ################## Squeeze Test ###########################
-        # TODO: Move this into the motor controller class
+        # TODO: This is duplicated from hydro_fish.py; will need to
+        # ...update once motor controller code is working
         if ticks >= freq: # Change direction of midsection
             ticks = 0
             muscles_mid = 1 - muscles_mid
@@ -307,7 +363,7 @@ if __name__ == "__main__":
         xavg = sum(xspeed)/len(xspeed)
     print('Average x velocity of center: %.2f' % xavg)
 
-    import matplotlib.pyplot as plt
+
     numplots = 6
     plt.subplot(numplots, 1, 1)
     plt.plot(mid_r_nat,'b', mid_r_act,'g',mid_l_act,'r')
@@ -333,7 +389,7 @@ if __name__ == "__main__":
     plt.plot(tailforce_r_y,'.g',tailforce_l_y,'.r',ms=1)
     plt.legend(['R','L'])
     plt.ylabel('Tail force\n(y)')
-    
+
     plt.subplot(numplots, 1, 6)
     plt.plot(xspeed)
     plt.annotate('Average speed starts here\n %.2f pixels per update' % xavg,
