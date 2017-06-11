@@ -164,18 +164,18 @@ def hq_stats_basic(self):
                'TIP_HEIGHT': self.tip_h,
                'TIP_MASS': self.tip_m.mass,
                'CENTER_T': self.center_t,
-               'DYNAMIC_FIELDS': ('Length', 'Area', 'Hydroforce')
+               'DYNAMIC_FIELDS': ('Area', 'Hydroforce', 'Area Center')
                }
     return results
 
 def hq_stats_dynamic(self):
     """Get current non-static information (for logging)."""
-    # Compute position and velocity of center of area
     area = self.avg_h * (self.base_m.pos - self.tip_m.pos).norm()
     logged_force = self.current_force
     if logged_force is None:
         logged_force = ZERO_VECTOR
-    info = (area, logged_force)
+     
+    info = (area, logged_force, self.pos, self.vel)
     return info
 
 HydroQuad2d.stats_basic = hq_stats_basic
@@ -295,9 +295,14 @@ if __name__ == "__main__":
     tailforce_l_y = []
     xpos = fish.center_pos()[0]
     xspeed = []
+    
+    tailquad_r_yvel = []
+    tailquad_l_yvel = []
 
     b_running = True
-    ############  Main Loop  ######################
+    ###########################################################
+    ############  Main Loop Start
+    ###########################################################
     while b_running:
         for event in pygame.event.get():
             if event.type in [QUIT, MOUSEBUTTONDOWN]:
@@ -320,8 +325,10 @@ if __name__ == "__main__":
         # Update fish spring-mass and hydro physics
         fish.update(UPDATE_SPEED)
 
-        ### Additional plot data starts here ###
-        # Midection muscles
+        ###########################################################
+        ### Plot data update starts here 
+        ###########################################################
+        # Midsection muscles
         muscle_info = fish.muscles[2].stats_dynamic()  # Midsection, right
         mid_r_nat.append(muscle_info[1]) # Natural, right
         mid_r_act.append(muscle_info[0]) # Actual, right
@@ -334,23 +341,33 @@ if __name__ == "__main__":
         # Tail springs
         tailspring_r_act.append(fish.springs[15].stats_dynamic()[0])
         tailspring_l_act.append(fish.springs[16].stats_dynamic()[0])
-        # Hydroforces on tail segments
-        force_r = fish.hquads[10].stats_dynamic()[1]
-        force_l = fish.hquads[11].stats_dynamic()[1]
+        # Tail hydroquads
+        tailinfo_r = fish.hquads[10].stats_dynamic()
+        tailinfo_l = fish.hquads[11].stats_dynamic()
+        force_r = tailinfo_r[1] # Hydroforce on right side
+        force_l = tailinfo_l[1] # Hydroforce on left side
         tailforce_r_x.append(force_r[0]) # Right force, x-component
         tailforce_l_x.append(force_l[0]) # Left force, x-component
         tailforce_r_y.append(force_r[1]) # Right force, y-component
         tailforce_l_y.append(force_l[1]) # Left force, y-component
+        tailquad_r_yvel.append(tailinfo_r[3][1])
+        tailquad_l_yvel.append(tailinfo_l[3][1])
         # Velocity of center of position (NOT mass!)
+        # Note: This ignores head/tail nodes; too much judder
         xposnew = fish.center_pos()[0]
         xspeed.append((xpos - xposnew)/UPDATE_SPEED)
         xpos = xposnew
+        ###########################################################
 
         # Render
         DISPLAYSURF.fill(BG_COLOR)
         fish.render(DISPLAYSURF)
         pygame.display.flip()
         ticks = ticks + 1
+
+    ###########################################################
+    ############  End of Main Loop
+    ###########################################################
 
     # Clean-up pygame and plot results
     pygame.quit()
@@ -363,8 +380,7 @@ if __name__ == "__main__":
         xavg = sum(xspeed)/len(xspeed)
     print('Average x velocity of center: %.2f' % xavg)
 
-
-    numplots = 6
+    numplots = 7
     plt.subplot(numplots, 1, 1)
     plt.plot(mid_r_nat,'b', mid_r_act,'g',mid_l_act,'r')
     plt.legend(['Signal-R','R','L'])
@@ -383,14 +399,19 @@ if __name__ == "__main__":
     plt.subplot(numplots, 1, 4)
     plt.plot(tailforce_r_x,'.g',tailforce_l_x,'.r',ms=1)
     plt.legend(['R','L'])
-    plt.ylabel('Tail force\n(x)')
+    plt.ylabel('Tail force (x)')
 
     plt.subplot(numplots, 1, 5)
     plt.plot(tailforce_r_y,'.g',tailforce_l_y,'.r',ms=1)
     plt.legend(['R','L'])
-    plt.ylabel('Tail force\n(y)')
+    plt.ylabel('Tail force (y)')
 
     plt.subplot(numplots, 1, 6)
+    plt.plot(tailquad_r_yvel,'.g',tailquad_l_yvel,'.r',ms=1)
+    plt.legend(['R','L'])
+    plt.ylabel('Tail quad\nvelocity(y)')
+    
+    plt.subplot(numplots, 1, 7)
     plt.plot(xspeed)
     plt.annotate('Average speed starts here\n %.2f pixels per update' % xavg,
                  (1000,xavg),(1000,xavg/2),arrowprops={'arrowstyle':'->'})
