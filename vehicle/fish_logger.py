@@ -293,6 +293,7 @@ if __name__ == "__main__":
     tailforce_r_y = []
     tailforce_l_x = []
     tailforce_l_y = []
+    tailpos_y = []
     xpos = fish.center_pos()[0]
     xspeed = []
     
@@ -350,8 +351,11 @@ if __name__ == "__main__":
         tailforce_l_x.append(force_l[0]) # Left force, x-component
         tailforce_r_y.append(force_r[1]) # Right force, y-component
         tailforce_l_y.append(force_l[1]) # Left force, y-component
+        # y-velocities of center of area of tail quads
         tailquad_r_yvel.append(tailinfo_r[3][1])
         tailquad_l_yvel.append(tailinfo_l[3][1])
+        # y-velocity of tail node
+        tailpos_y.append(fish.massnodes[1].stats_dynamic()[0][1])
         # Velocity of center of position (NOT mass!)
         # Note: This ignores head/tail nodes; too much judder
         xposnew = fish.center_pos()[0]
@@ -380,38 +384,42 @@ if __name__ == "__main__":
         xavg = sum(xspeed)/len(xspeed)
     print('Average x velocity of center: %.2f' % xavg)
 
-    numplots = 7
-    plt.subplot(numplots, 1, 1)
+    numplots = 8
+    sbase = plt.subplot(numplots, 1, 1)
     plt.plot(mid_r_nat,'b', mid_r_act,'g',mid_l_act,'r')
     plt.legend(['Signal-R','R','L'])
     plt.ylabel('Midsection')
 
-    plt.subplot(numplots, 1, 2)
+    plt.subplot(numplots, 1, 2, sharex=sbase)
     plt.plot(rearswim_r_act,'g',rearswim_l_act,'r')
     plt.legend(['R','L'])
     plt.ylabel('Rear swim')
 
-    plt.subplot(numplots, 1, 3)
+    plt.subplot(numplots, 1, 3, sharex=sbase)
     plt.plot(tailspring_r_act,'g',tailspring_l_act,'r')
     plt.legend(['R','L'])
     plt.ylabel('Tail spring')
 
-    plt.subplot(numplots, 1, 4)
+    plt.subplot(numplots, 1, 4, sharex=sbase)
     plt.plot(tailforce_r_x,'.g',tailforce_l_x,'.r',ms=1)
     plt.legend(['R','L'])
     plt.ylabel('Tail force (x)')
 
-    plt.subplot(numplots, 1, 5)
+    plt.subplot(numplots, 1, 5, sharex=sbase)
     plt.plot(tailforce_r_y,'.g',tailforce_l_y,'.r',ms=1)
     plt.legend(['R','L'])
     plt.ylabel('Tail force (y)')
 
-    plt.subplot(numplots, 1, 6)
+    plt.subplot(numplots, 1, 6, sharex=sbase)
     plt.plot(tailquad_r_yvel,'.g',tailquad_l_yvel,'.r',ms=1)
     plt.legend(['R','L'])
-    plt.ylabel('Tail quad\nvelocity(y)')
+    plt.ylabel('Tail quad\nvelocity (y)')
     
-    plt.subplot(numplots, 1, 7)
+    plt.subplot(numplots, 1, 7, sharex=sbase)
+    plt.plot(tailpos_y, '.k',ms=1)
+    plt.ylabel('Tail node\n(y)')
+    
+    plt.subplot(numplots, 1, 8, sharex=sbase)
     plt.plot(xspeed)
     plt.annotate('Average speed starts here\n %.2f pixels per update' % xavg,
                  (1000,xavg),(1000,xavg/2),arrowprops={'arrowstyle':'->'})
