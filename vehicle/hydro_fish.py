@@ -24,7 +24,7 @@ from math import sqrt
 INF = float('inf')
 
 # This must be called after springmass imports to have any effect
-vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=INF)
+vehicle2d.set_physics_defaults(MAXSPEED=80.0, MAXFORCE=INF)
 
 # Physics constants
 NODE_RADIUS = 5
@@ -139,8 +139,6 @@ class HydroQuad2d(object):
     The fish should be on the left of vector from base to tip.
     """
     def __init__(self, base_mass, base_height, tip_mass, tip_height):
-        base_height = base_height*SIZE_SCALE
-        tip_height = tip_height*SIZE_SCALE
         self.base_m = base_mass
         self.base_h = base_height
         self.tip_m = tip_mass
@@ -228,13 +226,13 @@ class SMHFish(object):
             nodepos = offset + Point2d(x_local, -ywid).scm(SIZE_SCALE)
             massnodes[1 + index_right] = DampedMass2d(nodepos, NODE_RADIUS, Point2d(0,0), nmass*MASS_SCALE, damping)
             # Quad heights (needed later)
-            quad_h.append(zhi)#*SIZE_SCALE)
+            quad_h.append(zhi*SIZE_SCALE)
 
         # Tail
         nodepos = offset + Point2d(x_local + tail_data[0], 0).scm(SIZE_SCALE)
         nmass = tail_data[1]
         massnodes[1] = DampedMass2d(nodepos, NODE_RADIUS, Point2d(0,0), nmass, damping)
-        quad_h.append(tail_data[2])
+        quad_h.append(tail_data[2]*SIZE_SCALE)
 
         self.massnodes = tuple(massnodes)
 
@@ -289,7 +287,7 @@ class SMHFish(object):
         hquadlist = []
 
         # Head quads
-        front_h = head_data[1]
+        front_h = head_data[1]*SIZE_SCALE
         back_h = quad_h.pop(0)
         # Right side
         hquad = HydroQuad2d(massnodes[2], back_h, massnodes[0], front_h)

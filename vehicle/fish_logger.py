@@ -30,7 +30,7 @@ ZERO_VECTOR = Point2d(0,0)
 ##############################################################
 
 # This must be called after hydro_fish import to have any effect
-vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=INF)
+vehicle2d.set_physics_defaults(MAXSPEED=80.0, MAXFORCE=INF)
 
 # Physics constants
 hydro_fish.NODE_RADIUS = 5
