@@ -23,17 +23,25 @@ import hydro_fish
 INF = float('inf')
 ZERO_VECTOR = Point2d(0,0)
 
+##############################################################
+## Override some of the fish defaults for testing
+##############################################################
+
 # This must be called after hydro_fish import to have any effect
 vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=INF)
 
-# Physics constants (override from hydro_fish defaults)
+# Physics constants
 hydro_fish.NODE_RADIUS = 5
 hydro_fish.MASS_SCALE = 12
 hydro_fish.SIZE_SCALE = 6
 hydro_fish.DAMPING_COEFF = 15.0
 hydro_fish.HYDRO_FORCE_MULT = 45.0
 
-###### Fish geometry, mass, and spring data ##################
+##############################################################
+###### Fish geometry, mass, and spring data
+##############################################################
+# These are passed to SMHFISH.__init__()
+
 # (Head nodemass, quadheight)
 HEAD_DATA = (0.8, 0.45)
 # (Length, half-width, nodemass, quad_height) for each segment
@@ -47,21 +55,26 @@ SPRING_DATA = {'HEAD': 360,
                'CROSS': 200,
                'TAIL': 140}
 ##############################################################
+### Swimming paramteres (will go into motor control later)
+##############################################################
 
 # Muscles are contracted to this proportion of original length
 SQUEEZE = 0.88
 # Muscle Contraction Frequency (in number of ticks)
 FREQ = 140
+# Delta_t for physics updates
+UPDATE_SPEED = 0.026
 
+##############################################################
 # Display-related constants and starting point of fish
+##############################################################
 SCREEN_SIZE = (1200, 640)
 X_OFFSET = 800
 Y_OFFSET = 400
 HYDRO_FORCE_SCALE = 0.02 # For rendering only
+BG_COLOR = (111, 145, 192)
 HYDRO_COLOR = (0,90,190)
 NODE_COLOR = (0,0,0)
-
-UPDATE_SPEED = 0.026
 
 ##########################################################
 ### Additional logging function definitions start here ###
@@ -159,21 +172,45 @@ def hq_stats_dynamic(self):
 HydroQuad2d.stats_basic = hq_stats_basic
 HydroQuad2d.stats_dynamic = hq_stats_dynamic
 
+### Logging for hydro.fish.SMHFish
 from hydro_fish import SMHFish
+
+def fish_print_anatomy(self):
+    # Prints initial location of each node
+    i = 0
+    for node in self.massnodes:
+        print('Node %d : Initial position %s' % (i, node.pos.ntuple()))
+        i += 1
+    # Prints the list of muscles/springs
+    i = 0
+    print('*** Muscle springs ***')
+    for spring in self.springs:
+        if i == self.num_muscles:
+            print('*** End of muscle springs ***')
+        print('Spring %d : Connects nodes %s' % (i, spring.massnodes))
+        i += 1
+    i = 0
+    print('*** Hydro-quads ***')
+    for quad in self.hquads:
+        print('Quad %d : Between nodes %s' % (i, quad.nodes))
+        i += 1 
+    print('*** End of anatomy info ***')
+
+SMHFish.print_anatomy = fish_print_anatomy
 
 if __name__ == "__main__":
     pygame.init()
 
     # Display constants
     DISPLAYSURF = pygame.display.set_mode(SCREEN_SIZE)
-    pygame.display.set_caption('Spring-mass-hydro fish demo')
-    BG_COLOR = (111, 145, 192)
+    pygame.display.set_caption('Hydro fish logging/plotting')
 
     fish = SMHFish(HEAD_DATA, BODY_DATA, TAIL_DATA, SPRING_DATA)
     fish.print_anatomy()
 
     ## Stuff below is for swimming muscle updates ###############
-    # TODO: Move this into the motor controller class
+    # This is duplicated from hydro_fish.py for now, but will be
+    # replaced once motor controllers are working.
     freq = FREQ
     ticks = 0
     MID_GROUP = 2

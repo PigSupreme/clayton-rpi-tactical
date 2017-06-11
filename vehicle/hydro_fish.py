@@ -145,7 +145,7 @@ class HydroQuad2d(object):
         self.tip_h = tip_height
         # Shortcut used in area computations of a trapezoid
         self.avg_h = (base_height + tip_height)/2
-        
+
         # Location of center of mass as a proportion of total segment length;
         # used in standard parametric equations.
         if base_height == tip_height:
@@ -261,13 +261,13 @@ class SMHFish(object):
             spring = IdealSpring2d(spring_k['SOLID'], massnodes[i], massnodes[j])
             springs.append(spring)
             spring.massnodes = (i,j)
-        
+
         # Springs 13 and 14: Better results with same spring constant as muscles.
         for i, j in ((8,10), (9,11)):
             spring = IdealSpring2d(spring_k['MUSCLE'], massnodes[i], massnodes[j])
             springs.append(spring)
-            spring.massnodes = (i,j)    
-        
+            spring.massnodes = (i,j)
+
         # Tail springs
         for i, j in ((1,10), (11,1)):
             spring = IdealSpring2d(spring_k['TAIL'], massnodes[i], massnodes[j])
@@ -374,32 +374,14 @@ class SMHFish(object):
             pygame.draw.circle(surf, self.node_color, center, self.node_radius)
 
     def center_pos(self):
-        """Center of position of all mass nodes except head/tail."""
+        """Center of position of all mass nodes except head/tail.
+
+        TODO: Move this to fish_logger.py?
+        """
         result = Point2d(0,0)
         for node in self.massnodes[2:]:
             result = result + node.pos
         return result.scm(1.0/self.numnodes)
-
-    def print_anatomy(self):
-        # Prints initial location of each node
-        i = 0
-        for node in self.massnodes:
-            print('Node %d : Initial position %s' % (i, node.pos.ntuple()))
-            i += 1
-        # Prints the list of muscles/springs
-        i = 0
-        print('*** Muscle springs ***')
-        for spring in self.springs:
-            if i == self.num_muscles:
-                print('*** End of muscle springs ***')
-            print('Spring %d : Connects nodes %s' % (i, spring.massnodes))
-            i += 1
-        i = 0
-        print('*** Hydro-quads ***')
-        for quad in self.hquads:
-            print('Quad %d : Between nodes %s' % (i, quad.nodes))
-            i += 1 
-        print('*** End of anatomy info ***')
 
 if __name__ == "__main__":
     pygame.init()
@@ -410,7 +392,6 @@ if __name__ == "__main__":
     BG_COLOR = (111, 145, 192)
 
     fish = SMHFish(HEAD_DATA, BODY_DATA, TAIL_DATA, SPRING_DATA)
-#    fish.print_anatomy()
 
     ## Stuff below is for swimming muscle updates ###############
     # TODO: Move this into the motor controller class
@@ -428,8 +409,8 @@ if __name__ == "__main__":
     muscles_rear = 0
     ## End of swimming muscle updates ###########################
 
-    xspeed = []
     xpos = fish.center_pos().ntuple()[0]
+    t = 0
     b_running = True
     ############  Main Loop  ######################
     while b_running:
@@ -453,25 +434,28 @@ if __name__ == "__main__":
         # Update fish spring-mass and hydro physics
         fish.update(UPDATE_SPEED)
 
-        xposnew = fish.center_pos().ntuple()[0]
-        xspeed.append((xpos - xposnew)/UPDATE_SPEED)
-        xpos = xposnew
-
         # Render
         DISPLAYSURF.fill(BG_COLOR)
         fish.render(DISPLAYSURF)
         pygame.display.flip()
         ticks = ticks + 1
+        
+        # Time-keeping for average velocity
+        t = t + 1
+        if t == 1000: # Ignore start-up jitter and start here
+            xpos = fish.center_pos().ntuple()[0]
 
     # Clean-up pygame and plot results
     pygame.quit()
 
-    # Ignore startup jitter and compute average speed
-    START_T = 1000
-    try:
-        xavg = sum(xspeed[START_T:])/len(xspeed[START_T:])
-    except ZeroDivisionError:
-        xavg = sum(xspeed)/len(xspeed)
-    print('Average x velocity of center: %.2f' % xavg)
+    # Compute average x speed (over the appropriate interval)
+    delta_x = (xpos - fish.center_pos().ntuple()[0])
+    if t <= 1000:
+        x_vel_avg = delta_x/t*UPDATE_SPEED
+    else:
+        x_vel_avg = delta_x/((t-1000)*UPDATE_SPEED)
+        
+    print('Average x speed was %.2f.' % x_vel_avg)
+
 
     #sys.exit()
