@@ -24,14 +24,14 @@ from math import sqrt
 INF = float('inf')
 
 # This must be called after springmass imports to have any effect
-vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=50000.0)
+vehicle2d.set_physics_defaults(MASS=5.0, MAXSPEED=80.0, MAXFORCE=INF)
 
 # Physics constants
 NODE_RADIUS = 5
 MASS_SCALE = 12
 SIZE_SCALE = 6
 DAMPING_COEFF = 15.0
-HYDRO_FORCE_MULT = 45.0
+HYDRO_FORCE_MULT = 8.0
 
 ###### Fish geometry, mass, and spring data ##################
 # (Head nodemass, quadheight)
@@ -42,9 +42,9 @@ BODY_DATA = [(8,4,6.6,2), (12,6,11.0,3), (15,6,8.6,3), (12,4,1.1,2), (10,2,1.1,0
 TAIL_DATA = (5, 0.4, 8.0)
 # Spring constants
 SPRING_DATA = {'HEAD': 360,
-               'MUSCLE': 80,
-               'SOLID': 120,
-               'CROSS': 200,
+               'MUSCLE': 90,
+               'SOLID': 140,
+               'CROSS': 220,
                'TAIL': 140}
 ##############################################################
 
@@ -61,7 +61,7 @@ HYDRO_FORCE_SCALE = 0.02 # For rendering only
 HYDRO_COLOR = (0,90,190)
 NODE_COLOR = (0,0,0)
 
-UPDATE_SPEED = 0.026
+UPDATE_SPEED = 0.0235
 
 class MuscleSpring2d(IdealSpring2d):
     """A spring with the ability to contract and flex. See Notes.
@@ -139,6 +139,8 @@ class HydroQuad2d(object):
     The fish should be on the left of vector from base to tip.
     """
     def __init__(self, base_mass, base_height, tip_mass, tip_height):
+        base_height = base_height*SIZE_SCALE
+        tip_height = tip_height*SIZE_SCALE
         self.base_m = base_mass
         self.base_h = base_height
         self.tip_m = tip_mass
@@ -226,7 +228,7 @@ class SMHFish(object):
             nodepos = offset + Point2d(x_local, -ywid).scm(SIZE_SCALE)
             massnodes[1 + index_right] = DampedMass2d(nodepos, NODE_RADIUS, Point2d(0,0), nmass*MASS_SCALE, damping)
             # Quad heights (needed later)
-            quad_h.append(zhi)
+            quad_h.append(zhi)#*SIZE_SCALE)
 
         # Tail
         nodepos = offset + Point2d(x_local + tail_data[0], 0).scm(SIZE_SCALE)

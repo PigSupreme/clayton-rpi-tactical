@@ -37,7 +37,7 @@ hydro_fish.NODE_RADIUS = 5
 hydro_fish.MASS_SCALE = 12
 hydro_fish.SIZE_SCALE = 6
 hydro_fish.DAMPING_COEFF = 15.0
-hydro_fish.HYDRO_FORCE_MULT = 45.0
+hydro_fish.HYDRO_FORCE_MULT = 8.0
 
 ##############################################################
 ###### Fish geometry, mass, and spring data
@@ -52,9 +52,9 @@ BODY_DATA = [(8,4,6.6,8), (12,6,11.0,12), (15,6,8.6,12), (12,4,1.1,8), (10,2,1.1
 TAIL_DATA = (5, 0.4, 8.0)
 # Spring constants
 SPRING_DATA = {'HEAD': 360,
-               'MUSCLE': 80,
-               'SOLID': 120,
-               'CROSS': 200,
+               'MUSCLE': 90,
+               'SOLID': 140,
+               'CROSS': 220,
                'TAIL': 140}
 
 ##############################################################
@@ -66,7 +66,7 @@ SQUEEZE = 0.88
 # Muscle Contraction Frequency (in number of ticks)
 FREQ = 140
 # Delta_t for physics updates
-UPDATE_SPEED = 0.026
+UPDATE_SPEED = 0.0235
 
 ##############################################################
 # Display-related constants and starting point of fish
@@ -259,7 +259,7 @@ if __name__ == "__main__":
     pygame.display.set_caption('Hydro fish logging/plotting')
 
     fish = SMHFish(HEAD_DATA, BODY_DATA, TAIL_DATA, SPRING_DATA)
-    fish.print_anatomy()
+    #fish.print_anatomy()
 
     ## Stuff below is for swimming muscle updates ###############
     # This is duplicated from hydro_fish.py for now, but will be
