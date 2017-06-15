@@ -35,10 +35,13 @@ class Miner(BaseEntity):
         self.thirst = 0
         self.fatigue = 0
 
+        # For later identification, if we add additional Wives/Miners
+        self.me = BOB
+        self.spouse = ELSA
+
         # Set up the FSM for this entity
         self.fsm = StateMachine(self)
         self.fsm.set_state(DigInMine(),GlobalMinerState(),None)
-        #self.fsm.change_state(DigInMine())
 
     def update(self):
         """Increases thirst and updates the FSM logic."""
@@ -51,9 +54,12 @@ class Miner(BaseEntity):
         self.fsm.handle_msg(message)
 
     def change_location(self,newlocation):
-        """Move to another location
+        """Instantaneously teleport to a new location.
         
-        Location constants are enumerated in gamedata.py
+        Parameters
+        ----------
+        newlocation: LOCATION_CONSTANT
+            Enumerated location, imported from gamedata.py
         """
         self.location = newlocation
 
@@ -239,7 +245,7 @@ class GoHomeAndRest(State):
         if agent.location != SHACK:
             print("%s : Day's a finished, headin' on home!" % agent.name)
             agent.change_location(SHACK)
-            agent.postoffice.post_msg(0,agent.get_id(),ELSA,MINER_HOME)
+            agent.postoffice.post_msg(0,agent.get_id(), agent.spouse, MINER_HOME)
 
     def execute(self,agent):
         # Take a nap if not fully rested

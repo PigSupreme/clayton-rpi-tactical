@@ -9,8 +9,8 @@ from __future__ import print_function
 from random import randint as randint
 
 from fsm_ex.gamedata import BOB, ELSA, GameOver
-from fsm_ex.gamedata import SHACK, MINE, BANK, SALOON, YARD
-from fsm_ex.gamedata import MINER_HOME, STEW_READY
+from fsm_ex.gamedata import SHACK, MINE, BANK, SALOON, YARD, FIELDS
+from fsm_ex.gamedata import MINER_HOME, STEW_READY, GOAT_ONE, GOAT_TWO, GOAT_THREE
 
 from fsm_ex.base_entity import BaseEntity
 from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
@@ -27,27 +27,39 @@ class Wife(BaseEntity):
     """    
 
     def __init__(self, *args):
+        # Calls BaseEntity.__init__ to set-up basic functionality.
         super(Wife, self).__init__(*args)
+        
+        # Entities need a name and initial location
         self.name = "Wife Elsa"
         self.location = SHACK
-        #self.gold = 0
-        #self.bank = 0
-        #self.thirst = 0
-        #self.fatigue = 0
+        
+        # For later identification, if we add additional Wives/Miners
+        self.me = ELSA
+        self.spouse = BOB
 
         # Set up the FSM for this entity
         self.fsm = StateMachine(self)
         self.fsm.set_state(DoHouseWork(),GlobalWifeState(),None)
 
     def update(self):
-        """Updates the FSM logic, and nothing else."""
+        """To be called by the EntityManager each update."""
+        # Update the FSM logic, and nothing else for now.
         self.fsm.update()
 
     def receive_msg(self,message):
+        """Used by the EntityManage for basic messaging."""
         # Let the FSM handle any messages
         self.fsm.handle_msg(message)
 
     def change_location(self,newlocation):
+        """Instantaneously teleport to a new location.
+        
+        Parameters
+        ----------
+        newlocation: LOCATION_CONSTANT
+            Enumerated location, imported from gamedata.py
+        """
         self.location = newlocation
 
 class GlobalWifeState(State):
@@ -112,15 +124,16 @@ class CookStew(State):
             print("%s : Heading back to the kitchen..." % agent.name)
         print("%s : Gonna rustle up some mighty fine stew!" % agent.name)
         # Post a message to future self; received when stew is ready
-        agent.postoffice.post_msg(randint(3,5),ELSA,ELSA,STEW_READY)
+        me = agent.me
+        agent.postoffice.post_msg(randint(3,5), me, me, STEW_READY)
 
     def execute(self,agent):
         print("%s : Wrassalin' with dinner..." % agent.name)
 
-    def on_msg(self,agent,message):
+    def on_msg(self, agent, message):
         if message[MSG_TYPE] == STEW_READY:
             print("%s : Stew's ready, come an' git it!" % agent.name)
-            agent.postoffice.post_msg(0,ELSA,BOB,STEW_READY)
+            agent.postoffice.post_msg(0, agent.me, agent.spouse, STEW_READY)
             agent.fsm.change_state(WifeEatStew())
             return True
         else:
@@ -167,9 +180,9 @@ class ChaseGoat(State):
         print("%s : Shoo, ya silly goat!" % agent.name)
         # Random chance the goat will listen. Goats are stubborn
         if randint(0,2):
-            print("Goat : *Nom nom flowers*")
+            print("--FakeGoat : *Nom nom flowers*")
         else:
-            print("Goat : *Scampers away*")
+            print("--FakeGoat : *Scampers away*")
             agent.fsm.revert_state()
 
     def on_msg(self,agent,message):

@@ -10,7 +10,7 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 
-from fsm_ex.gamedata import BOB, ELSA, GameOver
+from fsm_ex.gamedata import BOB, ELSA, BILLY, GameOver
 
 ##############################################################################
 
@@ -44,6 +44,7 @@ from fsm_ex.base_entity import EntityManager, MessageDispatcher
 
 from fsm_ex.ent_miner import Miner
 from fsm_ex.ent_wife import Wife
+from fsm_ex.ent_goat import Goat
 
 ##############################################################################
 
@@ -55,7 +56,7 @@ if __name__ == "__main__":
     MSG_DISPATCHER = MessageDispatcher(MASTER_CLOCK.now, ENTITY_MGR)
 
     # Create and register entities (Miner Bob and Wife Elsa)
-    for (ename, etype) in [(BOB, Miner), (ELSA, Wife)]:
+    for (ename, etype) in [(BOB, Miner), (ELSA, Wife), (BILLY, Goat)]:
         new_entity = etype(ename,MSG_DISPATCHER)
         ENTITY_MGR.register(new_entity)
 
