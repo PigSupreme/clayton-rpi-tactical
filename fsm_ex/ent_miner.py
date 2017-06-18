@@ -7,36 +7,34 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 
-from random import randint as randint
- 
-from fsm_ex.gamedata import BOB, ELSA, GameOver
-from fsm_ex.gamedata import SHACK, MINE, BANK, SALOON, YARD
-from fsm_ex.gamedata import MINER_HOME, STEW_READY
+from random import randint
 
 from fsm_ex.base_entity import BaseEntity
-
 from fsm_ex.state_machine import State, STATE_NONE, StateMachine
+from fsm_ex.gamedata import Characters, Locations, MsgTypes
+from fsm_ex.gamedata import GameOver
+
 
 class Miner(BaseEntity):
     """Miner Bob.
-    
+
     Note: The constructor doesn't take any actual args, but this syntax is
     needed to call the __init__ method of the superclass. I'm not sure that
-    we need to do so here, but it will be a useful reminder for later.    
+    we need to do so here, but it will be a useful reminder for later.
     """
 
     def __init__(self, *args):
         super(Miner, self).__init__(*args)
         self.name = "Miner Bob"
-        self.location = SHACK
+        self.location = Locations.SHACK
         self.gold = 0
         self.bank = 0
         self.thirst = 0
         self.fatigue = 0
 
         # For later identification, if we add additional Wives/Miners
-        self.me = BOB
-        self.spouse = ELSA
+        self.me = Characters.BOB
+        self.spouse = Characters.ELSA
 
         # Set up the FSM for this entity
         self.fsm = StateMachine(self)
@@ -54,7 +52,7 @@ class Miner(BaseEntity):
 
     def change_location(self,newlocation):
         """Instantaneously teleport to a new location.
-        
+
         Parameters
         ----------
         newlocation: LOCATION_CONSTANT
@@ -64,7 +62,7 @@ class Miner(BaseEntity):
 
     def change_gold(self,amount):
         """Add/subtract the amount of gold currently carried
-        
+
         Parameters
         ----------
         amount: int
@@ -100,18 +98,18 @@ class Miner(BaseEntity):
 
     def work_done(self):
         """Returns True if more than 10 gold in the bank.
-        
+
         Note
         ----
         Fix this! Once there is 10 gold or more in the bank, the Miner
         will go home after each bank deposit. We don't want that.
-        """              
+        """
         return (self.bank >= 10)
 
 class GlobalMinerState(State):
     """Global state that just handles message.
 
-    Prints that a message was received, with no further details.    
+    Prints that a message was received, with no further details.
     """
 
     def on_msg(self,agent,message):
@@ -120,19 +118,19 @@ class GlobalMinerState(State):
 
 
 class DigInMine(State):
-    """Go to the mine and dig until pockets full or thirsty.    
-    
+    """Go to the mine and dig until pockets full or thirsty.
+
     State Transitions:
-    
+
     * When pockets are full -> DepositInBank
-    * When thirsty -> DrinkAtSaloon    
+    * When thirsty -> DrinkAtSaloon
     """
 
     def enter(self,agent):
         # If agent is not already in the mine, travel there.
-        if agent.location != MINE:
+        if agent.location != Locations.MINE:
             print("%s : Walkin' to the gold mine..." % agent.name)
-            agent.change_location(MINE)
+            agent.change_location(Locations.MINE)
 
     def execute(self,agent):
         # Increase fatigue from digging
@@ -163,9 +161,9 @@ class DigInMine(State):
 
 class DepositInBank(State):
     """Go to the bank and deposit all carried gold.
-        
+
     State Transitions:
-    
+
     * If more than 25 gold in the bank -> GameOver
     * If work_done (enough money in bank) -> GoHomeAndRest
     * Otherwise -> DigInMine
@@ -173,9 +171,9 @@ class DepositInBank(State):
 
     def enter(self,agent):
         # If agent is not at the bank, travel there.
-        if agent.location != BANK:
+        if agent.location != Locations.BANK:
             print("%s : Headin' to bank, yessiree!" % agent.name)
-            agent.change_location(BANK)
+            agent.change_location(Locations.BANK)
 
     def execute(self,agent):
         # Deposit all the gold being carried
@@ -202,16 +200,16 @@ class DepositInBank(State):
 
 class DrinkAtSaloon(State):
     """Go to the saloon and drink until thirst is quenched
-    
+
     State Transitions:
-    
+
     * When no longer thirsty -> revert to previous
     """
     def enter(self,agent):
         # If not already at SALOON, go there
-        if agent.location != SALOON:
+        if agent.location != Locations.SALOON:
             print("%s : Headin' to the saloon fer a drink..." % agent.name)
-            agent.change_location(SALOON)
+            agent.change_location(Locations.SALOON)
 
     def execute(self,agent):
         # Have a drink
@@ -228,23 +226,23 @@ class DrinkAtSaloon(State):
 
 class GoHomeAndRest(State):
     """Go home and rest.
-    
+
     When Miner Bob enters this state, he sends Elsa a message to start cooking
     the stew. He's apparently impatient or a workaholic, because he will go
     back to the mine once fully rested, even if he's not eaten yet. Poor Elsa!
-    
+
     State Transitions:
-    
+
     * Once fully rested -> DigInMine
     * If stew is ready and is still in SHACK -> MinerEatStew
     """
 
     def enter(self,agent):
         # If not at SHACK, go there and tell the wife we're home
-        if agent.location != SHACK:
+        if agent.location != Locations.SHACK:
             print("%s : Day's a finished, headin' on home!" % agent.name)
-            agent.change_location(SHACK)
-            agent.postoffice.post_msg(0,agent.get_id(), agent.spouse, MINER_HOME)
+            agent.change_location(Locations.SHACK)
+            agent.postoffice.post_msg(0,agent.get_id(), agent.spouse, MsgTypes.MINER_HOME)
 
     def execute(self,agent):
         # Take a nap if not fully rested
@@ -257,24 +255,24 @@ class GoHomeAndRest(State):
 
     def on_msg(self,agent,message):
         # If stew's ready, wake up and eat
-        if message.MSG_TYPE == STEW_READY and agent.location == SHACK:
+        if message.MSG_TYPE == MsgTypes.STEW_READY and agent.location == Locations.SHACK:
             print("%s : I hears ya', lil' lady..." % agent.name)
             agent.fsm.change_state(MinerEatStew())
             return True
 
 class MinerEatStew(State):
     """Eat that tasty stew, and thank yer lovely wife!
-    
+
     Food removes fatigue, of course.
-    
+
     State Transitions:
-    
+
     * After a single execute() to eat stew -> revert to previous
-    """    
+    """
     def enter(self,agent):
-        if agent.location != SHACK:
+        if agent.location != Locations.SHACK:
             print("%s : Better git home fer dinner..." % agent.name)
-            agent.change_location(SHACK)
+            agent.change_location(Locations.SHACK)
 
     def execute(self,agent):
         print("%s : That's some might fine stew...thank ya much, Elsa!" % agent.name)

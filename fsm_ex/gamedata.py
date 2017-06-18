@@ -1,11 +1,12 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 """Game-wide constants.
-    
+
 Game Entities
 -------------
 * BOB: Miner Bob, Elsa's husband
 * ELSA: Wife Elsa, scourge of wandering goats
-       
+* BILLY: The goat
+
 Locations
 ---------
 * SHACK: Bob and Elsa's humble home
@@ -19,20 +20,23 @@ Message Types
 -------------
 * MINER_HOME: Bob sends this when he comes home from digging.
 * STEW_READY: Elsa sends this when she's finished cooking.
-* GOAT_ONE: Placeholder for some goat-related message.
-* GOAT_TWO: Another placeholder....
-* GOAT_THREE: And another placeholder....
 """
 
-# Fake enumeratation of game entities, must start at 1
-BOB, ELSA, BILLY = range(1, 3+1)
+from enum import IntEnum, Enum
 
-# Fake enumeration of locations
-SHACK, MINE, BANK, SALOON, YARD, FIELDS = range(6)
+# Enumerated game entities, must start at 1
+# We must use IntEnum here for compatibility with BaseEntity
+Characters = IntEnum('Characters', 'BOB ELSA BILLY')
 
-# Fake enumeration of message types
-MINER_HOME, STEW_READY, GOAT_ONE, GOAT_TWO, GOAT_THREE = range(5)
+# Enumeration of locations
+Locations = Enum('Locations', 'SHACK MINE BANK SALOON YARD FIELDS')
+
+# Enumeration of message types
+MsgTypes = Enum('MsgTypes', 'MINER_HOME STEW_READY')
 
 class GameOver(Exception):
     """Raise this exception to end the game."""
     pass
+
+if __name__ == "__main__":
+    print(__doc__)

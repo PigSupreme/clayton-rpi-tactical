@@ -6,40 +6,37 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 
-from random import randint as randint
-
-from fsm_ex.gamedata import BOB, ELSA, BILLY, GameOver
-from fsm_ex.gamedata import SHACK, MINE, BANK, SALOON, YARD, FIELDS
-from fsm_ex.gamedata import MINER_HOME, STEW_READY, GOAT_ONE, GOAT_TWO, GOAT_THREE
+from random import randint
 
 from fsm_ex.base_entity import BaseEntity
-
 from fsm_ex.state_machine import State, STATE_NONE, StateMachine
+from fsm_ex.gamedata import Characters, Locations, MsgTypes
+from fsm_ex.gamedata import GameOver
 
 
 class Goat(BaseEntity):
     """An actual goat, not just a placeholder for some non-goat.
-    
+
     Note: The constructor doesn't take any actual args, but this syntax is
     needed to call the __init__ method of the superclass. I'm not sure that
-    we need to do so here, but it will be a useful reminder for later.    
-    """    
+    we need to do so here, but it will be a useful reminder for later.
+    """
 
     def __init__(self, *args):
         # Calls BaseEntity.__init__ to set-up basic functionality.
         super(Goat, self).__init__(*args)
-        
+
         # Entities need a name and initial location
         self.name = "Billy the Goat" # Will we also have Billy the Kid?
-        self.location = FIELDS
-        
+        self.location = Locations.FIELDS
+
         # For later identification, because RAWR MOAR GOATS!!!!
-        self.me = BILLY
+        self.me = Characters.BILLY
 
         # Set up the FSM for this entity
         self.fsm = StateMachine(self)
 
-### Replace ActualGoat with the real initial state below 
+### Replace ActualGoat with the real initial state below
 ### Make sure to keep the empty parentheses after the class name!
         self.fsm.set_state(ActualGoat(), GlobalGoatState(), None)
 
@@ -55,7 +52,7 @@ class Goat(BaseEntity):
 
     def change_location(self,newlocation):
         """Instantaneously teleport to a new location.
-        
+
         Parameters
         ----------
         newlocation: LOCATION_CONSTANT
@@ -82,7 +79,7 @@ class ActualGoat(State):
     """Template for a non-global goat state."""
 
     def enter(self, agent):
-        ### Code to run just after we enter this state.        
+        ### Code to run just after we enter this state.
         pass
 
     def execute(self, agent):
@@ -93,9 +90,8 @@ class ActualGoat(State):
     def leave(self, agent):
         ### Code to run just before we leave this state
         pass
-    
+
     def on_msg(self, agent, message):
         ### Return True if the message was handled
         ### and False if the message was not handled.
         return False
-        

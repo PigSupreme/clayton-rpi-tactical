@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 """
-Created on Fri Jun 12 16:57:26 2015
-
-@author: lothar
+This is the main exectuable for the westworld2 demo.
 """
 
 # for python3 compat
@@ -10,7 +8,8 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 
-from fsm_ex.gamedata import BOB, ELSA, BILLY, GameOver
+from fsm_ex.gamedata import Characters, Locations, MsgTypes
+from fsm_ex.gamedata import GameOver
 
 ##############################################################################
 
@@ -42,21 +41,28 @@ class GameClock(object):
 
 from fsm_ex.base_entity import EntityManager, MessageDispatcher
 
+# TODO: Automate this so that we can just import something from gamedata.py?
+# That will be a bit tricky, since each ent_foo.py currently imports from
+# gamedata.py, leading to a circular dependency.
 from fsm_ex.ent_miner import Miner
 from fsm_ex.ent_wife import Wife
 from fsm_ex.ent_goat import Goat
+
+BOB, ELSA, BILLY = Characters.BOB, Characters.ELSA, Characters.BILLY
+# List of each Character's (EntityID, Class)
+CHARACTER_LIST = [(BOB, Miner), (ELSA, Wife), (BILLY, Goat)]
 
 ##############################################################################
 
 if __name__ == "__main__":
 
     # Initialize Manager-type objects:
-    MASTER_CLOCK = GameClock() 
-    ENTITY_MGR = EntityManager()    
+    MASTER_CLOCK = GameClock()
+    ENTITY_MGR = EntityManager()
     MSG_DISPATCHER = MessageDispatcher(MASTER_CLOCK.now, ENTITY_MGR)
 
-    # Create and register entities (Miner Bob and Wife Elsa)
-    for (ename, etype) in [(BOB, Miner), (ELSA, Wife), (BILLY, Goat)]:
+    # Create and register entities
+    for (ename, etype) in CHARACTER_LIST:
         new_entity = etype(ename,MSG_DISPATCHER)
         ENTITY_MGR.register(new_entity)
 
@@ -73,4 +79,3 @@ if __name__ == "__main__":
             break
 
     print("Elapsed time: %d clock ticks." % MASTER_CLOCK.since(0))
-

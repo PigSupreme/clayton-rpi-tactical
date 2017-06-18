@@ -20,53 +20,53 @@ from collections import namedtuple
 
 class BaseEntity(object):
     """Abstract Base Class for objects with an ID, update, and messaging.
-    
+
     Parameters
     ----------
     myID: int
         The unique ID assigned to this entity.
     postoffice: MessageDispatcher
         Where this entity will send its messages.
-        
+
     Raises
     ------
     ValueError
         If the requested ID is invalid.
-    
+
     Notes
-    -----      
+    -----
     Because of how messaging is implemented, each entity needs a unique ID.
     We use a private class variable to make sure that ID's are not repeated.
     Since ID's aren't recycled, we can't accidentally send a message or
     otherwise refer to an entity that is no longer valid.
-    
+
     """
-    _min_new_ID = 1 
-    
+    _min_new_ID = 1
+
     def __init__(self, myID, postoffice):
-        if myID < BaseEntity._min_new_ID:
+        if int(myID) < BaseEntity._min_new_ID:
             raise ValueError('Entity ID %d is already in use.' % myID)
-        else:    
+        else:
             self._myID = myID
             BaseEntity._min_new_ID += 1
             self.postoffice = postoffice
-            
+
     def get_id(self):
         """Returns the ID of this entity."""
         return self._myID
-            
+
     def update(self):
         """Update method that will be called each step.
-        
+
         Note
         ----
         This must be implemented by subclasses.
         """
         raise NotImplementedError(str(type(self))+" has undefined update().")
-        
+
     def receive_msg(self,message):
         """Message handler; must be implemented my subclasses.
-        
+
         Parameters
         ----------
         message: tuple
@@ -82,7 +82,7 @@ class EntityManager(object):
     """Manager class for objects of type BaseEntity."""
     def __init__(self):
         self._directory = dict()
-    
+
     def register(self, entity):
         """Add an instance of BaseEntity to this manager.
 
@@ -95,10 +95,10 @@ class EntityManager(object):
             self._directory[entity.get_id()] = entity
         else:
             raise TypeError("Object %s type is not derived from BaseEntity" % self)
-    
+
     def remove(self, entity):
         """Remove an instance of BaseEntity from this manager.
-        
+
         Notes
         -----
         Since BaseEntity's are instantiated/deleted outside of this class,
@@ -111,10 +111,10 @@ class EntityManager(object):
                 del self._directory[entity.get_id()]
             except KeyError:
                 print('WARNING: Entity %s not in directory' % str(entity))
-                
+
     def get_entity_from_id(self,ent_id):
         """Returns an entity object from its ID.
-        
+
         Returns
         -------
         BaseEntity
@@ -125,30 +125,30 @@ class EntityManager(object):
             return self._directory[ent_id]
         except KeyError:
             return None
-            
+
     def update(self):
         """Calls the update() method of all registered entities.
-        
+
         Note
         ----
         The order in which entities are called is arbitrary.
-        """        
+        """
         for entity in self._directory.values():
             entity.update()
-            
+
     def start_all_fsms(self):
         """Starts the FSM for each entity that has one."""
-        
+
         for entity in self._directory.values():
             try:
                 entity.fsm.start()
             except AttributeError:
                 print("Note: Entity %s has no FSM: ignoring" % entity.name)
-                
+
 class EntityMessage(namedtuple('Message', 'DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA')):
     """An envelope/message for sending information between entities.
-    
-    This is caleld by the MessageDispatcher class and should not be used
+
+    This is called by the MessageDispatcher class and should not be used
     directly. To create the actual message, use MessageDispatcher.post_msg().
     """
 
@@ -162,21 +162,21 @@ class MessageDispatcher(object):
         A function that returns a numerical value. This is used to represent
         the current time to control delivery of delayed messages.
     ent_mgr: EntityManager
-        Used by this class to lookup an entity, given its ID.    
+        Used by this class to lookup an entity, given its ID.
     """
     def __init__(self, clock_now, ent_mgr):
         self.queue = dict() # Better way to implement this??
         self.now = clock_now
         self.directory = ent_mgr
-    
+
     def discharge(self,receiver,message):
         """Helper function for sending messages; internal use only."""
         # TODO: Logging functionality here??
         receiver.receive_msg(message)
-    
+
     def post_msg(self,delay,send_id,rec_id,msg_type,extra=None):
         """Add a message to the queue for immediate or delayed dispatch.
-        
+
         Parameters
         ----------
         delay: float
@@ -206,16 +206,16 @@ class MessageDispatcher(object):
                     self.queue[delivery_time].append(message)
                 except KeyError:
                     self.queue[delivery_time] = [message]
-    
+
     def dispatch_delayed(self):
         """Dispatches messages from the delayed queue; internal use only."""
         now = self.now()
         # Message queue is keyed by desired delievery time; sort it first
         for t in sorted(self.queue.keys()):
-            # Since we sort before discharging, break if we hit the future            
+            # Since we sort before discharging, break if we hit the future
             if t > now:
                 break
-            
+
             # Pop and dispatch all messages at this time until none remain
             msglist = self.queue[t]
             while msglist != []:
@@ -223,6 +223,6 @@ class MessageDispatcher(object):
                 receiver = self.directory.get_entity_from_id(msg.RECV_ID)
                 if receiver:
                     self.discharge(receiver,msg)
-            
+
             # We can delete this time key if needed
             del self.queue[t]
