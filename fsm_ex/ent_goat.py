@@ -13,7 +13,6 @@ from fsm_ex.gamedata import SHACK, MINE, BANK, SALOON, YARD, FIELDS
 from fsm_ex.gamedata import MINER_HOME, STEW_READY, GOAT_ONE, GOAT_TWO, GOAT_THREE
 
 from fsm_ex.base_entity import BaseEntity
-from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
 
 from fsm_ex.state_machine import State, STATE_NONE, StateMachine
 

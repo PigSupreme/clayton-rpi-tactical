@@ -13,7 +13,6 @@ from fsm_ex.gamedata import SHACK, MINE, BANK, SALOON, YARD, FIELDS
 from fsm_ex.gamedata import MINER_HOME, STEW_READY, GOAT_ONE, GOAT_TWO, GOAT_THREE
 
 from fsm_ex.base_entity import BaseEntity
-from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
 
 from fsm_ex.state_machine import State, STATE_NONE, StateMachine
 
@@ -76,7 +75,7 @@ class GlobalWifeState(State):
             agent.fsm.change_state(ChaseGoat())
 
     def on_msg(self,agent,message):
-        if message[MSG_TYPE] == MINER_HOME:
+        if message.MSG_TYPE == MINER_HOME:
             agent.fsm.change_state(CookStew())
             return True
         else:
@@ -131,7 +130,7 @@ class CookStew(State):
         print("%s : Wrassalin' with dinner..." % agent.name)
 
     def on_msg(self, agent, message):
-        if message[MSG_TYPE] == STEW_READY:
+        if message.MSG_TYPE == STEW_READY:
             print("%s : Stew's ready, come an' git it!" % agent.name)
             agent.postoffice.post_msg(0, agent.me, agent.spouse, STEW_READY)
             agent.fsm.change_state(WifeEatStew())

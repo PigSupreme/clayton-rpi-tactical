@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 """Module containing basic FSM functionality.
 
 All states should be derived from the State class, see its documentation.
@@ -50,20 +50,23 @@ class State(object):
         """
         return False # This means the message wasn't handled
 
+#: Use this as a concrete null state; we need only a single instance.
 STATE_NONE = State()
-"""Use this as a concrete null state; we need only a single instance."""
 
 class StateMachine(object):
     """Finite State Machine with messaging capability.
 
-    After instantiating a new StateMachine, use the set_state() method below
-    in order to explicity initialize the states. Otherwise, this FSM will sit
-    around and do nothing on update.
 
     Parameters
     ----------
     owner: BaseEntity
         The entity using this instance of the FSM.
+        
+    Notes
+    -----
+    After instantiating a new StateMachine, use the set_state() method below
+    in order to explicity initialize the states. Otherwise, this FSM will sit
+    around and do nothing on update.
     """
 
     def __init__(self, owner):
@@ -164,3 +167,6 @@ class StateMachine(object):
         # If neither, the message could not be handled
         else:
             return False
+
+if __name__ == "__main__":
+    print(__doc__)

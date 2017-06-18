@@ -14,7 +14,6 @@ from fsm_ex.gamedata import SHACK, MINE, BANK, SALOON, YARD
 from fsm_ex.gamedata import MINER_HOME, STEW_READY
 
 from fsm_ex.base_entity import BaseEntity
-from fsm_ex.base_entity import DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA
 
 from fsm_ex.state_machine import State, STATE_NONE, StateMachine
 
@@ -258,7 +257,7 @@ class GoHomeAndRest(State):
 
     def on_msg(self,agent,message):
         # If stew's ready, wake up and eat
-        if message[MSG_TYPE] == STEW_READY and agent.location == SHACK:
+        if message.MSG_TYPE == STEW_READY and agent.location == SHACK:
             print("%s : I hears ya', lil' lady..." % agent.name)
             agent.fsm.change_state(MinerEatStew())
             return True

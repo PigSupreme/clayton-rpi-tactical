@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+#!/usr/bin/env/ python
 """Module for defining managing game-type entities.
 
 Use the BaseEntity class for agents that need a unique ID as well as
@@ -14,6 +14,9 @@ Both immediate and delayed messages are possible; see the class description.
 from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
+
+# namedtuple used for better message objects
+from collections import namedtuple
 
 class BaseEntity(object):
     """Abstract Base Class for objects with an ID, update, and messaging.
@@ -53,7 +56,10 @@ class BaseEntity(object):
         return self._myID
             
     def update(self):
-        """Update method that will be called each step
+        """Update method that will be called each step.
+        
+        Note
+        ----
         This must be implemented by subclasses.
         """
         raise NotImplementedError(str(type(self))+" has undefined update().")
@@ -65,11 +71,15 @@ class BaseEntity(object):
         ----------
         message: tuple
             A message constructed using the telegram() function.
+
+        Note
+        ----
+        This must be implemented by subclasses.
         """
-        raise NotImplementedError(str(type(self))+" has undefined receive(message).")
+        raise NotImplementedError(str(type(self))+" has undefined receive_msg().")
 
 class EntityManager(object):
-    """Manager class for objects of type BaseEntity"""
+    """Manager class for objects of type BaseEntity."""
     def __init__(self):
         self._directory = dict()
     
@@ -119,7 +129,9 @@ class EntityManager(object):
     def update(self):
         """Calls the update() method of all registered entities.
         
-        Note: The order in which entities are called in not known.
+        Note
+        ----
+        The order in which entities are called is arbitrary.
         """        
         for entity in self._directory.values():
             entity.update()
@@ -133,23 +145,12 @@ class EntityManager(object):
             except AttributeError:
                 print("Note: Entity %s has no FSM: ignoring" % entity.name)
                 
-
-# Fake enumeration of telegram info fields
-DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA = range(5)
-
-def _telegram(delay,send_id,rec_id,msg_type,extra_info=None):
-    """Helper function used by MessageDispatcher to generate messages.
+class EntityMessage(namedtuple('Message', 'DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA')):
+    """An envelope/message for sending information between entities.
     
-    Note
-    ----
-    
-    This function should not be called directly; you should instead use the
-    MessageDispatcher.post_msg() method. The original C++ code used struct
-    to define telegrams, so this function served a greater purpose. We might
-    be able to either eliminate this function entirely, or rewrite things so
-    that telegram is a class, but it'll do for now.
+    This is caleld by the MessageDispatcher class and should not be used
+    directly. To create the actual message, use MessageDispatcher.post_msg().
     """
-    return (delay,send_id,rec_id,msg_type,extra_info)
 
 class MessageDispatcher(object):
     """Class for posting/handling messages between entities.
@@ -169,16 +170,31 @@ class MessageDispatcher(object):
         self.directory = ent_mgr
     
     def discharge(self,receiver,message):
-        """Passes a message to a given recipient."""
-        #print("Now discharging...")
+        """Helper function for sending messages; internal use only."""
+        # TODO: Logging functionality here??
         receiver.receive_msg(message)
     
     def post_msg(self,delay,send_id,rec_id,msg_type,extra=None):
-        """Add a message to the queue for immediate or delayed dispatch."""
+        """Add a message to the queue for immediate or delayed dispatch.
+        
+        Parameters
+        ----------
+        delay: float
+            Time (from now) at which to send the message. If zero/negative,
+            the message will be dispatched immediately.
+        send_id: int
+            The ID of the BaseEntity sending the message.
+        recv_id: int
+            The ID of the BaseEntity that will receive the message.
+        msg_type: int
+            A tag that identifies the general type of message being sent.
+        extra: anytype
+            Optional information assumed to be handled by the recipient.
+        """
         receiver = self.directory.get_entity_from_id(rec_id)
         if receiver:
             # Create the telegram
-            message = _telegram(delay,send_id,rec_id,msg_type,extra)
+            message = EntityMessage(delay,send_id,rec_id,msg_type,extra)
             if delay <= 0:
                 # Discharge immediately
                 self.discharge(receiver,message)
@@ -192,7 +208,7 @@ class MessageDispatcher(object):
                     self.queue[delivery_time] = [message]
     
     def dispatch_delayed(self):
-        """Dispatches messages from the delayed queue."""
+        """Dispatches messages from the delayed queue; internal use only."""
         now = self.now()
         # Message queue is keyed by desired delievery time; sort it first
         for t in sorted(self.queue.keys()):
@@ -204,7 +220,7 @@ class MessageDispatcher(object):
             msglist = self.queue[t]
             while msglist != []:
                 msg = msglist.pop(0) # FIFO for each point in time
-                receiver = self.directory.get_entity_from_id(msg[RECV_ID])
+                receiver = self.directory.get_entity_from_id(msg.RECV_ID)
                 if receiver:
                     self.discharge(receiver,msg)
             
