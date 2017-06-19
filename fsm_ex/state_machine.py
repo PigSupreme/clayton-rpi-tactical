@@ -18,6 +18,8 @@ current state, then to the global state.
 
 """
 
+import logging
+
 class State(object):
     """Base class for all states.
 
@@ -61,7 +63,7 @@ class StateMachine(object):
     ----------
     owner: BaseEntity
         The entity using this instance of the FSM.
-        
+
     Notes
     -----
     After instantiating a new StateMachine, use the set_state() method below
@@ -166,6 +168,8 @@ class StateMachine(object):
             return True
         # If neither, the message could not be handled
         else:
+            logging.debug('%s: FSM message was not handled by state logic.',
+                         self.owner.name)
             return False
 
 if __name__ == "__main__":

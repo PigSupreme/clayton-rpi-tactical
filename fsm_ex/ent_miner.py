@@ -41,12 +41,10 @@ class Miner(BaseEntity):
         self.fsm.set_state(DigInMine(),GlobalMinerState(),None)
 
     def update(self):
-        """Increases thirst and updates the FSM logic."""
-        self.thirst += 1
+        """Just updates the FSM logic."""
         self.fsm.update()
 
     def receive_msg(self,message):
-        # print("%s: Got me a message of type %d!" % (self.name,msg_type))
         # Let the FSM handle any messages
         self.fsm.handle_msg(message)
 
@@ -69,7 +67,6 @@ class Miner(BaseEntity):
             Amount of gold to add (or subtract, if negative)
         """
         self.gold += amount
-        #print("[[%s]] : Now carrying %d gold nuggets." % (self.name, self.gold))
 
     def pockets_full(self):
         """Queries whether this entity is carrying enough gold."""
@@ -78,7 +75,6 @@ class Miner(BaseEntity):
     def add_fatigue(self,amount=1):
         """Increases the current fatigue of this entity."""
         self.fatigue += amount
-        #print("[[%s]] : Now at fatigue level %d." % (self.name,self.fatigue))
 
     def remove_fatigue(self,amount=1):
         """Remove fatigue from this entity, but not below zero."""
@@ -107,14 +103,11 @@ class Miner(BaseEntity):
         return (self.bank >= 10)
 
 class GlobalMinerState(State):
-    """Global state that just handles message.
+    """Global miner state; increases thirst, unless we're at the SALOON."""
 
-    Prints that a message was received, with no further details.
-    """
-
-    def on_msg(self,agent,message):
-        print("%s : Done got me a message! Yeehaw!" % agent.name)
-        return True
+    def execute(self, agent):
+        if agent.location != Locations.SALOON:
+            agent.thirst += 1
 
 
 class DigInMine(State):
@@ -138,12 +131,12 @@ class DigInMine(State):
 
         # Dig for gold
         gfound = randint(0,2)
-        msg = [
+        chatter = [
             "Keep on a-diggin'...",
             "Found me a gold nugget!",
             "Found me two nuggets, whaddaya know!"
             ][gfound]
-        print("%s : %s " % (agent.name,msg))
+        print("%s : %s " % (agent.name, chatter))
         agent.change_gold(gfound)
 
         # If pockets are full, go visit the bank

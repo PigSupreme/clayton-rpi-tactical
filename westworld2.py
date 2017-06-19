@@ -11,6 +11,9 @@ from __future__ import print_function
 from fsm_ex.gamedata import Characters, Locations, MsgTypes
 from fsm_ex.gamedata import GameOver
 
+import logging
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.DEBUG)
+
 ##############################################################################
 
 class GameClock(object):
@@ -31,6 +34,7 @@ class GameClock(object):
     def update(self):
         """Advances the clock by one tick."""
         self.gametime += self.tick
+        logging.info('GameClock: Time is now %d ticks.', self.gametime)
 
     def since(self, time):
         """Returns the time elasped on this clock since the given time.

@@ -64,7 +64,7 @@ class GlobalWifeState(State):
     State Transitions (these change the current state, not the global one):
 
     * Goat in yard -> ChaseGoat
-    * on_msg MINER_HOME -> Cook Stew
+    * on_msg MINER_HOME: if Miner is at the SHACK -> Cook Stew
     """
     def execute(self,agent):
         # If not in the YARD, random chance of goat appearing
@@ -73,10 +73,13 @@ class GlobalWifeState(State):
 
     def on_msg(self,agent,message):
         if message.MSG_TYPE == MsgTypes.MINER_HOME:
-            agent.fsm.change_state(CookStew())
+            husband = agent.manager.get_entity_from_id(agent.spouse)
+            if husband.location == Locations.SHACK:
+                agent.fsm.change_state(CookStew())
+            else:
+                print('That dang goat! I done missed mah hubby!')
             return True
         else:
-            print("%s : Done got me a message, oh my!" % agent.name)
             return False
 
 class DoHouseWork(State):
@@ -114,6 +117,9 @@ class CookStew(State):
     State Transitions:
 
     * on_msg STEW_READY -> WifeEatStew
+
+    TODO: If a goat appears while Elsa is in this state, she'll revert to this
+    state after chasing the goat, and re-start dinner. Not exactly what we want.
     """
     def enter(self,agent):
         if agent.location != Locations.SHACK:

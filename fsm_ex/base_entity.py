@@ -13,10 +13,12 @@ Both immediate and delayed messages are possible; see the class description.
 # for python3 compat
 from __future__ import unicode_literals
 from __future__ import absolute_import
-from __future__ import print_function
 
 # namedtuple used for better message objects
 from collections import namedtuple
+
+# Experimental message logging
+import logging
 
 class BaseEntity(object):
     """Abstract Base Class for objects with an ID, update, and messaging.
@@ -93,6 +95,7 @@ class EntityManager(object):
         """
         if isinstance(entity, BaseEntity):
             self._directory[entity.get_id()] = entity
+            entity.manager = self
         else:
             raise TypeError("Object %s type is not derived from BaseEntity" % self)
 
@@ -110,7 +113,7 @@ class EntityManager(object):
             try:
                 del self._directory[entity.get_id()]
             except KeyError:
-                print('WARNING: Entity %s not in directory' % str(entity))
+                logging.warn('%s.remove: Entity %s not in directory', self, entity)
 
     def get_entity_from_id(self,ent_id):
         """Returns an entity object from its ID.
@@ -143,7 +146,7 @@ class EntityManager(object):
             try:
                 entity.fsm.start()
             except AttributeError:
-                print("Note: Entity %s has no FSM: ignoring" % entity.name)
+                logging.warn("Entity %s has no FSM, unable to start.", entity.name)
 
 class EntityMessage(namedtuple('Message', 'DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA')):
     """An envelope/message for sending information between entities.
@@ -171,7 +174,7 @@ class MessageDispatcher(object):
 
     def discharge(self,receiver,message):
         """Helper function for sending messages; internal use only."""
-        # TODO: Logging functionality here??
+        logging.debug('PostOffice: Discharged message at time %d\n %s', self.now(), message)
         receiver.receive_msg(message)
 
     def post_msg(self,delay,send_id,rec_id,msg_type,extra=None):
@@ -197,11 +200,13 @@ class MessageDispatcher(object):
             message = EntityMessage(delay,send_id,rec_id,msg_type,extra)
             if delay <= 0:
                 # Discharge immediately
+                logging.debug('PostOffice: Received message for immediate delivery.')
                 self.discharge(receiver,message)
             else:
                 # Add delayed message to queue here
                 delivery_time = delay + self.now()
-                # print("POST OFFICE : At time %d, posted delayed message for time %d." % (current_time, delivery_time))
+                logging.debug('PostOffice: Received delayed message at time %d, for delivery at time %d.\n %s',
+                             self.now(), delivery_time, message)
                 try:
                     self.queue[delivery_time].append(message)
                 except KeyError:
