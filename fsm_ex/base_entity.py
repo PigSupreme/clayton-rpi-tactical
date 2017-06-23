@@ -20,6 +20,9 @@ from collections import namedtuple
 # Experimental message logging
 import logging
 
+# Experimental: Using a heap for the message queue
+import heapq
+
 class BaseEntity(object):
     """Abstract Base Class for objects with an ID, update, and messaging.
 
@@ -153,6 +156,8 @@ class EntityMessage(namedtuple('Message', 'DELAY, SEND_ID, RECV_ID, MSG_TYPE, EX
 
     This is called by the MessageDispatcher class and should not be used
     directly. To create the actual message, use MessageDispatcher.post_msg().
+    
+    TODO: Consider changing DELAY to some kind of timestamp.
     """
 
 class MessageDispatcher(object):
@@ -168,7 +173,7 @@ class MessageDispatcher(object):
         Used by this class to lookup an entity, given its ID.
     """
     def __init__(self, clock_now, ent_mgr):
-        self.queue = dict() # Better way to implement this??
+        self.message_q = [] # This will be a heap
         self.now = clock_now
         self.directory = ent_mgr
 
@@ -203,31 +208,17 @@ class MessageDispatcher(object):
                 logging.debug('PostOffice: Received message for immediate delivery.')
                 self.discharge(receiver,message)
             else:
-                # Add delayed message to queue here
                 delivery_time = delay + self.now()
                 logging.debug('PostOffice: Received delayed message at time %d, for delivery at time %d.\n %s',
                              self.now(), delivery_time, message)
-                try:
-                    self.queue[delivery_time].append(message)
-                except KeyError:
-                    self.queue[delivery_time] = [message]
+                # Add delayed message to the delivery queue
+                heapq.heappush(self.message_q, (delivery_time, message))
 
     def dispatch_delayed(self):
         """Dispatches messages from the delayed queue; internal use only."""
-        now = self.now()
-        # Message queue is keyed by desired delievery time; sort it first
-        for t in sorted(self.queue.keys()):
-            # Since we sort before discharging, break if we hit the future
-            if t > now:
-                break
-
-            # Pop and dispatch all messages at this time until none remain
-            msglist = self.queue[t]
-            while msglist != []:
-                msg = msglist.pop(0) # FIFO for each point in time
-                receiver = self.directory.get_entity_from_id(msg.RECV_ID)
-                if receiver:
-                    self.discharge(receiver,msg)
-
-            # We can delete this time key if needed
-            del self.queue[t]
+        # Dispatch messages until queue empty or next message in the future
+        while len(self.message_q) > 0 and self.message_q[0][0] <= self.now():
+            msg = heapq.heappop(self.message_q)[1]
+            receiver = self.directory.get_entity_from_id(msg.RECV_ID)
+            if receiver:
+                self.discharge(receiver,msg)
