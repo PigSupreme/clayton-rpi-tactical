@@ -107,10 +107,15 @@ class StateMachine(object):
         to messaging during their __init__() functions. This calls the enter()
         methods of the global state first, then the FSM's current state.
         """
+        b_started = False
         if self.glo_state:
             self.glo_state.enter(self.owner)
+            b_started = True
         if self.cur_state:
             self.cur_state.enter(self.owner)
+            b_started = True
+        if b_started == False:
+            logging.warn("Failed to start FSM for entity %s; no states set." % self.agent.name)
 
     def update(self):
         """Execute the owner's global state (if any), then current state."""

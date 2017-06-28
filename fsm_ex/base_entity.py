@@ -143,13 +143,17 @@ class EntityManager(object):
             entity.update()
 
     def start_all_fsms(self):
-        """Starts the FSM for each entity that has one."""
+        """Starts the FSM for each entity that has one.
+        
+        TODO: Perhaps state_machine.py is a better place for this code? 
+        """
 
         for entity in self._directory.values():
-            try:
+            if hasattr(entity, 'fsm'):
                 entity.fsm.start()
-            except AttributeError:
-                logging.warn("Entity %s has no FSM, unable to start.", entity.name)
+            else:
+                warn_info = (entity.get_id(), entity.__class__)
+                logging.warn("Entity %s %s has no FSM, unable to start." % warn_info)
 
 class EntityMessage(namedtuple('Message', 'DELAY, SEND_ID, RECV_ID, MSG_TYPE, EXTRA')):
     """An envelope/message for sending information between entities.
