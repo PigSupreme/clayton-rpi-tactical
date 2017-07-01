@@ -137,11 +137,13 @@ class StateMachine(object):
         Note: Both the current and new states must be valid, otherwise nothing
         will happen and we'll stay in the current state.
         """
-        if self.cur_state and newstate:
+        if self.cur_state and newstate and self.cur_state.__class__ != newstate.__class__:
             self.pre_state = self.cur_state
             self.cur_state.leave(self.owner)
             self.cur_state = newstate
             self.cur_state.enter(self.owner)
+            info = (self.owner, self.pre_state.__class__, self.cur_state.__class__)
+            logging.debug('%s: FSM Changed state from %s -> %s' % info)
 
     def revert_state(self):
         """Reverts owner to its previous state; useful for state blips."""

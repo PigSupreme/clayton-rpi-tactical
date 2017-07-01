@@ -146,7 +146,11 @@ class PointMass2dSprite(pygame.sprite.Sprite):
         # Pygame image information for blitting
         self.orig = img_surf
         self.image = img_surf
-        self.rect = img_rect
+        # This lets us share image sources!
+        self.rect = img_rect.copy()
+        self.rect.center = owner.pos[0], owner.pos[1]
+        # Only needed if we're use pygame Sprite collision
+        self.radius = owner.radius
 
     def update(self, delta_t=1.0):
         """Called by pygame.Group.update() to redraw this sprite."""
