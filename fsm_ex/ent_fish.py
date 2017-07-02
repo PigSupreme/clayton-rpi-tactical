@@ -1,5 +1,5 @@
-# -*- coding: utf-8 -*-
-"""Miner Entity using simple FSM functionality.
+#!/usr/bin/env python
+"""Fish Entity using simple FSM functionality.
 """
 
 # for python3 compat
@@ -7,10 +7,14 @@ from __future__ import unicode_literals
 from __future__ import absolute_import
 from __future__ import print_function
 
-import logging
+import logging, sys
 
-from fsm_ex.base_entity import BaseEntity
+#from fsm_ex.base_entity import BaseEntity
 from fsm_ex.state_machine import State, STATE_NONE, StateMachine
+
+# Note: Adjust this depending on where this file ends up.
+sys.path.append('..')
+from vehicle.vehicle2d import SimpleVehicle2d
 
 FATIGUE_THRESHOLD = 5000
 FATIGUE_RECOVER_RATE = 5
@@ -22,7 +26,29 @@ EAT_RADIUS_SQ = 20**2
 # Higher values will prioritize going home over sleeping
 GOHOME_URGENCY = 100
 
+# TODO: Check that this is consistent across all imports
 UPDATE_SPEED = 0.1
+
+class Plus8Fish(SimpleVehicle2d):
+    """Fish-type vehicle with simple FSM logic."""
+
+    def __init__(self, ent_id, radius, home_pos, start_vel, sprite_data, feeder=None):
+        SimpleVehicle2d.__init__(self, home_pos, radius, start_vel, sprite_data)
+        self.ent_id = ent_id
+        self.home = home_pos
+        self.fatigue = 0
+        self.hunger = 0
+
+        # FSM setup
+        fsm = StateMachine(self)
+        fsm.set_state(InitialFishState(), GlobalFishState())
+        self.fsm = fsm
+        self.feeder = feeder
+
+
+##########################################
+### State logic definitions start here ###
+##########################################
 
 class InitialFishState(State):
     """Dummy initial state for first update cycle."""
@@ -192,6 +218,6 @@ class GoHomeState(State):
 
     def leave(self, agent):
         agent.steering.stop('ARRIVE')
-        
+
 if __name__ == '__main__':
     pass

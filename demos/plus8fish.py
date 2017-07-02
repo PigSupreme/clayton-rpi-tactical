@@ -17,6 +17,7 @@ from random import randint, shuffle, choice
 
 UPDATE_SPEED = 0.1
 OBS_RADIUS = 40
+FISH_RADIUS = 10
 
 INF = float('inf')
 
@@ -28,7 +29,6 @@ from vehicle.vehicle2d import load_pygame_image
 from vehicle.vehicle2d import SimpleVehicle2d, SimpleObstacle2d, BaseWall2d
 ZERO_VECTOR = Point2d(0,0)
 
-from fsm_ex.state_machine import State, StateMachine
 import fsm_ex.ent_fish as entfish
 
 class FishFeeder(pygame.sprite.Group):
@@ -116,6 +116,7 @@ if __name__ == "__main__":
     # Static obstacle image (shared among all obstacles)
     obs_img, obs_rec = load_pygame_image('../images/circle.png', -1)
 
+
     # Randomly generate initial placement for vehicles
     pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
@@ -125,11 +126,7 @@ if __name__ == "__main__":
     obj = []
     rgroup = []
     for i in range(numveh):
-        fish = SimpleVehicle2d(pos[i], 10, vel, (fish_img, fish_rec))
-        fish.ent_id = i
-        fish.home = Point2d(35, 35)
-        fish.fatigue = 0
-        fish.hunger = 0
+        fish = entfish.Plus8Fish(i, FISH_RADIUS, pos[i], Point2d(0,0), (fish_img, fish_rec))
         obj.append(fish)
         rgroup.append(fish.sprite)
     vehicles = obj[:]
@@ -164,11 +161,8 @@ if __name__ == "__main__":
     feeder = FishFeeder(obslist, 5, foodsprite_data)
     feeder.add_food(5)
 
-    # Give each vehicle its own FSM and necessary info
+    # Envirnoment info for each fish
     for fish in vehicles:
-        fsm = StateMachine(fish)
-        fsm.set_state(entfish.InitialFishState(), entfish.GlobalFishState())
-        fish.fsm = fsm
         fish.obs = obslist
         fish.walls = wall_list 
         fish.feeder = feeder
