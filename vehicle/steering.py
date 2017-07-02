@@ -45,6 +45,8 @@ from sys import path
 path.extend(['../vpoints'])
 from point2d import Point2d
 
+import logging
+
 # Default constants for the various steering behaviours
 from steering_constants import STEERING_DEFAULTS
 FLEE_PANIC_SQ = STEERING_DEFAULTS['FLEE_PANIC_SQ']
@@ -912,13 +914,13 @@ for behaviour in BEHAVIOUR_LIST[:]:
         FORCE_FNC[behaviour] = force_fnc
         ACTIVATE_FNC[behaviour] = activate_fnc
     except KeyError:
-        print("[steering.py] Warning: could not define behaviour %s." % behaviour)
+        logging.debug("[steering.py] Warning: could not define behaviour %s." % behaviour)
         BEHAVIOUR_LIST.remove(behaviour)
 
 # Now make sure that expected flocking behaviours were correctly defined
 for behaviour in FLOCKING_LIST:
     if not (behaviour in BEHAVIOUR_LIST):
-        print("[steering.py] Warning: flocking %s is not available." % behaviour)
+        logging.debug("[steering.py] Warning: flocking %s is not available." % behaviour)
         FLOCKING_LIST.remove(behaviour)
 
 ########################################################
@@ -1041,10 +1043,10 @@ class SteeringBehavior(object):
                 result = activate(self, target)
                 if result is True:
                     self.status[behaviour] = True
-                    print('%s successfully initiated.' % behaviour)
+                    logging.debug('%s successfully initiated.' % behaviour)
                     all_res.append(True)
             except KeyError:
-                print("Warning: %s behaviour improperly defined; cannot activate." % behaviour)
+                logging.debug("Warning: %s behaviour improperly defined; cannot activate." % behaviour)
                 all_res.append(False)
         self.set_priorities()
         # If we only initialized one behaviour, don't return a list.
@@ -1070,13 +1072,13 @@ class SteeringBehavior(object):
         try:
             self.inactive_targets[steering_type] = self.targets[steering_type]
         except KeyError:
-            print('Warning: Behaviour %s has not been initialized. Ignoring pause.' % steering_type)
+            logging.debug('Warning: Behaviour %s has not been initialized. Ignoring pause.' % steering_type)
             return False
         # Otherwise, pause until later resumed.
         del self.targets[steering_type]
         self.status[steering_type] = False
         self.set_priorities()
-        print('%s paused.' % steering_type)
+        logging.debug('%s paused.' % steering_type)
         return True
 
     def resume(self, steering_type):
@@ -1096,14 +1098,14 @@ class SteeringBehavior(object):
         try:
             target = self.inactive_targets[steering_type]
         except KeyError:
-            print('Warning: Behaviour %s was not paused. Ignoring resume.' % steering_type)
+            logging.debug('Warning: Behaviour %s was not paused. Ignoring resume.' % steering_type)
             return False
         # Otherwise, retreive previously-saved targets and resume.
         self.targets[steering_type] = target
         del self.inactive_targets[steering_type]
         self.status[steering_type] = True
         self.set_priorities()
-        print('%s resumed.' % steering_type)
+        logging.debug('%s resumed.' % steering_type)
         return True
 
     def stop(self, steering_type):
@@ -1123,12 +1125,12 @@ class SteeringBehavior(object):
         try:
             del self.targets[steering_type]
         except KeyError:
-            print('Warning: Behaviour %s has not been initialized. Ignoring stop.' % steering_type)
+            logging.debug('Warning: Behaviour %s has not been initialized. Ignoring stop.' % steering_type)
             return False
         # Otherwise, stop this behaviour (without storing prior targets)
         self.status[steering_type] = False
         self.set_priorities()
-        print('%s stopped.' % steering_type)
+        logging.debug('%s stopped.' % steering_type)
 
     def update_flocking_status(self):
         """Sets or clears flocking status based on currently-active behaviours."""

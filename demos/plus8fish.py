@@ -8,6 +8,7 @@ from __future__ import print_function
 from __future__ import division
 
 import sys, pygame
+
 from pygame.locals import QUIT, MOUSEBUTTONDOWN
 
 import logging
@@ -15,9 +16,21 @@ logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
 
 from random import randint, shuffle, choice
 
+sys.path.extend(['..','../vehicle'])
+import steering
+# Override some default values from steering_constants:
+steering.FLOCKING_RADIUS_MULTIPLIER = 3.0
+steering.FLOCKING_SEPARATE_SCALE = 0.5
+
 UPDATE_SPEED = 0.1
-OBS_RADIUS = 40
-FISH_RADIUS = 10
+OBS_RADIUS = 300
+OBSTACLE_COUNT = 12
+
+FISH_RADIUS = 25
+FISH_COUNT = 8
+FOOD_COUNT = 10
+
+SHARK_RADIUS = 60
 
 INF = float('inf')
 
@@ -30,6 +43,7 @@ from vehicle.vehicle2d import SimpleVehicle2d, SimpleObstacle2d, BaseWall2d
 ZERO_VECTOR = Point2d(0,0)
 
 import fsm_ex.ent_fish as entfish
+import fsm_ex.ent_shark as entshark
 
 class FishFeeder(pygame.sprite.Group):
     """Mangager object for keeping track of fish food."""
@@ -95,18 +109,15 @@ if __name__ == "__main__":
     bgcolor = 111, 145, 192
 
     # Number of vehicles and obstacles
-    numveh = 1
-    numobs = 16
+    numfish = FISH_COUNT
+    numshark = 1
+    numveh = numfish + numshark
+    numobs = OBSTACLE_COUNT
     total = 2*numveh+numobs
-
-    # Sprite images and pygame rectangles
-    img = list(range(total))
-    rec = list(range(total))
 
     # Load vehicle images
     fish_img, fish_rec = load_pygame_image('../images/gpig.png', -1)
-#    img[1], rec[1] = load_pygame_image('../images/ypig.png', -1)
-#    img[2], rec[2] = load_pygame_image('../images/gpig.png', -1)
+    shark_img, shark_rec = load_pygame_image('../images/rpig.png', -1)    
 
     # Food sprite images (generated here)
     food_img = pygame.Surface((5,5))
@@ -116,20 +127,27 @@ if __name__ == "__main__":
     # Static obstacle image (shared among all obstacles)
     obs_img, obs_rec = load_pygame_image('../images/circle.png', -1)
 
-
     # Randomly generate initial placement for vehicles
-    pos = [Point2d(randint(30, sc_width-30), randint(30, sc_height-30)) for i in range(numveh)]
+    pos = [Point2d(randint(50, sc_width-50), randint(50, sc_height-50)) for i in range(numveh)]
     pos[0] = Point2d(sc_width/2, sc_height/2)
     vel = Point2d(20,0)
 
-    # Array of vehicles and associated pygame sprites
+    # Array of vehicles with associated spritedata
     obj = []
-    rgroup = []
-    for i in range(numveh):
+    # Fish...
+    for i in range(numfish):
         fish = entfish.Plus8Fish(i, FISH_RADIUS, pos[i], Point2d(0,0), (fish_img, fish_rec))
         obj.append(fish)
-        rgroup.append(fish.sprite)
-    vehicles = obj[:]
+
+    # ...and Sharks!
+    for i in range(numfish,numveh):
+        fish = entshark.Plus8Shark(i, SHARK_RADIUS, pos[i], Point2d(0,0), (shark_img, shark_rec))
+        obj.append(fish)
+        
+    # Lists of vehicles for later use
+    fishlist = obj[:numfish]
+    sharklist = obj[numfish:numfish+numshark]
+    vehicles = obj[:] 
 
     # Static obstacles for pygame (randomly-generated positions)
     yoffset = sc_height//(numobs+1)
@@ -141,9 +159,9 @@ if __name__ == "__main__":
         new_pos = Point2d(offset*sc_width, rany)
         obstacle = SimpleObstacle2d(new_pos, OBS_RADIUS, (obs_img, obs_rec))
         obj.append(obstacle)
-        rgroup.append(obstacle.sprite)
+        
     # This gives a convenient list of (non-wall) obstacles for later use
-    obslist = obj[2*numveh:]
+    obslist = obj[numveh:]
 
     # Static Walls for pygame (screen border only)
     wall_list = (BaseWall2d((sc_width//2, 5), sc_width-5, 5, Point2d(0,1)),
@@ -151,21 +169,30 @@ if __name__ == "__main__":
                  BaseWall2d((5, sc_height//2), sc_height-5, 5, Point2d(1,0)),
                  BaseWall2d((sc_width-5,sc_height//2), sc_height-5, 5, Point2d(-1,0)))
     obj.extend(wall_list)
-    for wall in wall_list:
-        rgroup.append(wall.sprite)
 
     # Set-up pygame rendering
-    allsprites = pygame.sprite.RenderPlain(rgroup)
+    rendergroup = [thing.sprite for thing in obj]
+    allsprites = pygame.sprite.RenderPlain(rendergroup)
 
-    # Food manager
-    feeder = FishFeeder(obslist, 5, foodsprite_data)
-    feeder.add_food(5)
+    # Food manager (needs allsprites for some reason)
+    feeder = FishFeeder(obslist, FOOD_COUNT, foodsprite_data)
+    feeder.add_food(FOOD_COUNT)
 
-    # Envirnoment info for each fish
-    for fish in vehicles:
+    # Environment info for each fish...
+    # ...only works for a single shark
+    for fish in fishlist:
+        fish.UPDATE_SPEED = UPDATE_SPEED
         fish.obs = obslist
         fish.walls = wall_list 
         fish.feeder = feeder
+        fish.steering.set_target(SEPARATE=fishlist[:]+sharklist[:], ALIGN=fishlist[:], COHESION=fishlist[:])
+        fish.shark = sharklist[0]  # This assumes a single shark
+    #...and for each shark 
+    for fish in sharklist:
+        fish.UPDATE_SPEED = UPDATE_SPEED
+        fish.obs = obslist
+        fish.walls = wall_list 
+        fish.prey = fishlist
 
     # Used by pygame for collision detection
     COLLIDE_FUNCTION = pygame.sprite.collide_circle
@@ -178,8 +205,8 @@ if __name__ == "__main__":
                 sys.exit()
 
         # FSM Updates (which update movement and steering)
-        for obj in vehicles:
-            obj.fsm.update()
+        for veh in vehicles:
+            veh.fsm.update()
 
         # Update Sprites (via pygame sprite group update)
         allsprites.update(UPDATE_SPEED)

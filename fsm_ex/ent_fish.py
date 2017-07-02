@@ -15,19 +15,28 @@ from fsm_ex.state_machine import State, STATE_NONE, StateMachine
 # Note: Adjust this depending on where this file ends up.
 sys.path.append('..')
 from vehicle.vehicle2d import SimpleVehicle2d
+from vpoints.point2d import Point2d
 
 FATIGUE_THRESHOLD = 5000
 FATIGUE_RECOVER_RATE = 5
-SLEEP_DECEL = 5
+SLEEP_DECEL = 10
+FISH_HESITANCE = 5.0
 
 HUNGER_THRESHOLD = 2000
 EAT_RADIUS_SQ = 20**2
+HUNTING_UPDATE_RATE = 50
 
 # Higher values will prioritize going home over sleeping
 GOHOME_URGENCY = 100
 
-# TODO: Check that this is consistent across all imports
-UPDATE_SPEED = 0.1
+# Distance thresholds for TAKECOVER
+# If shark is closer than this, we EVADE instead
+EVADE_SMALL = 120
+EVADE_SMALL_SQR = EVADE_SMALL**2
+EVADE_MEDIUM_SQR = 150**2
+
+# Respawn after this many updates
+RESPAWN_RATE = 600
 
 class Plus8Fish(SimpleVehicle2d):
     """Fish-type vehicle with simple FSM logic."""
@@ -45,6 +54,14 @@ class Plus8Fish(SimpleVehicle2d):
         self.fsm = fsm
         self.feeder = feeder
 
+    def flocking_on(self):        
+        for behaviour in ('SEPARATE', 'ALIGN', 'COHESION'):
+            self.steering.resume(behaviour)
+
+    def flocking_off(self):        
+        for behaviour in ('SEPARATE', 'ALIGN', 'COHESION'):
+            self.steering.pause(behaviour)       
+
 
 ##########################################
 ### State logic definitions start here ###
@@ -56,16 +73,24 @@ class InitialFishState(State):
     def execute(self, agent):
         agent.hunger = 0
         agent.fatigue = 0
-        agent.steering.set_target(AVOID=agent.obs, WALLAVOID=[30, agent.walls])
+        agent.alive = True
+        agent.steering.set_target(AVOID=agent.obs, WALLAVOID=[35, agent.walls])
+        agent.steering.resume('AVOID')
+        agent.steering.resume('WALLAVOID')
+        # This sets up behaviours for easy use later
+        agent.steering.set_target(EVADE=agent.shark)
+        agent.steering.pause('EVADE')
+        agent.steering.set_target(TAKECOVER=(agent.shark, agent.obs, EVADE_SMALL))
+        agent.steering.pause('TAKECOVER')
+        
         agent.fsm.change_state(SwimState())
 
 class GlobalFishState(State):
-
     # No enter method here; use initial state instead
 
     def execute(self, agent):
         # Steering/Physics update
-        agent.move(UPDATE_SPEED)
+        agent.move(agent.UPDATE_SPEED)
 
         # TODO: Update agent.maxspeed based on hunger/fatigue
 
@@ -80,31 +105,35 @@ class GlobalFishState(State):
                 agent.fsm.handle_msg('HUNGRY')
 
     def on_msg(self, agent, msg):
+        if msg == 'UR_EATEN':
+            logging.info('Fish {}: Was eaten by shark'.format(agent.ent_id))
+            agent.fsm.change_state(DeadState())
+            return True
+        if msg == 'SHARK':
+            agent.fsm.change_state(EvadeState())
+            return True
         if msg == 'TIRED' and agent.fatigue > FATIGUE_THRESHOLD:
             agent.fsm.change_state(GoHomeState())
             return True
         if msg == 'HUNGRY' and agent.hunger > HUNGER_THRESHOLD:
             agent.fsm.change_state(HuntState())
             return True
-        # SHARK_NEAR -> EvadeState
         return False
 
 
 class SwimState(State):
-    """Default state."""
+    """Default state; just flock with other fish."""
 
     def enter(self, agent):
         # Activate WANDER
         agent.steering.set_target(WANDER=(90, 15, 3))
-        logging.info('Fatigue = %d, Hunger = %d' % (agent.fatigue, agent.hunger))
-
-    def execute(self, agent):
-        # TODO: Flocking here
-        pass
+        agent.flocking_on()
+        logging.info('Fish {}: Fatigue = {}, Hunger = {}'.format(agent.ent_id, agent.fatigue, agent.hunger))
 
     def leave(self, agent):
         # Stop WANDER
         agent.steering.stop('WANDER')
+        agent.flocking_off()
 
 
 class EatState(State):
@@ -119,8 +148,8 @@ class EatState(State):
         agent.fsm.change_state(SwimState())
 
     def on_msg(self, agent, msg):
-        # Willfully ignore all messages except for SHARK
-        if msg == 'SHARK':
+        # Willfully ignore all messages except for SHARK and UR_EATEN
+        if msg == 'SHARK' or msg == 'UR_EATEN':
             return False # and thus pass up to global state
         return True
 
@@ -129,60 +158,78 @@ class HuntState(State):
     """Find food and go to it."""
 
     def enter(self, agent):
-        # TODO: This is temporary; get a random food source
+        # TODO: Check if we need this here
+        agent.flocking_on()
+        
+        # Get closest food source. If not found, we'll stay in this state
+        # and try again later.
         agent.food_pos = agent.feeder.nearest_food_pos(agent.pos)
-        logging.info('Fish: HUNGRY ({}), Hunting food at ({:.0f}, {:.0f})'.format(agent.hunger, *agent.food_pos.ntuple()[:]))
-        # Determine best available food
-
-        # activate SEEK (to food)
-        agent.steering.set_target(SEEK=agent.food_pos)
+        if agent.food_pos is not None:
+            logging.info('Fish {}: HUNGRY ({}), Hunting food at ({:.0f}, {:.0f})'.format(agent.ent_id, agent.hunger, *agent.food_pos.ntuple()[:]))
+            agent.steering.set_target(ARRIVE=agent.food_pos)
+        # Check our current target every so often
+        agent.hunting_countdown = HUNTING_UPDATE_RATE
 
     def execute(self, agent):
-        # TODO: Check current food target
-        # Try eating a nearby food
+        # Try eating any nearby food, regardless of our current target
         if agent.feeder.chomp(agent):
             agent.fsm.change_state(EatState())
-
+        else:
+            agent.hunting_countdown -= 1
+            if agent.hunting_countdown <= 0:
+                self.enter(agent)
+                
     def leave(self, agent):
         # stop SEEK (to food)
         agent.food_pos = None
-        agent.steering.stop('SEEK')
+        agent.steering.stop('ARRIVE')
+        agent.flocking_off()
+
+#    def on_msg(self, agent, msg):
+#        # FOOD_NEAR -> EatState
+#        return False
+
+
+class EvadeState(State):
+    """Get away from the shark."""
+
+    def enter(self, agent):
+        # TODO: stop all but AVOID
+        agent.steering.resume('TAKECOVER')
+        # if shark is close
+        #   activate EVADE
+        #   activate TAKE_COVER
+
+    def execute(self, agent):
+        dsq = (agent.pos - agent.shark.pos).sqnorm()
+        if dsq < EVADE_SMALL_SQR:
+            agent.steering.pause('TAKECOVER')
+            agent.steering.resume('EVADE')
+        elif dsq < EVADE_MEDIUM_SQR:
+            agent.steering.pause('EVADE')
+            agent.steering.resume('TAKECOVER')
+        else:
+            agent.fsm.change_state(SwimState())
+
+    def leave(self, agent):
+        agent.steering.pause('EVADE')
+        agent.steering.pause('TAKECOVER')
 
     def on_msg(self, agent, msg):
-        # FOOD_NEAR -> EatState
-        pass
+        if msg != 'UR_EATEN':
+            return True
+        return False
 
 
-#class EvadeState(State):
-#    """Get away from the shark."""
-#
-#    def enter(self, agent):
-#        # stop all but AVOID
-#        # if shark is close
-#        #   activate EVADE
-#        #   activate TAKE_COVER
-#
-#    def execute(self, agent):
-#        # check shark distance
-#        # near -> EVADE
-#        # midrange -> TAKE_COVER
-#        # far -> StateSwim
-#
-#    def leave(self, agent):
-#        # deactivate EVADE/TAKE_COVER
-#
-#    def on_msg(self, agent, msg):
-#        # Willfully ignore SHARK
-#        # (o/w passed to global)
-#
 class SleepState(State):
     """Sleeping until fully rested."""
 
     def enter(self, agent):
-        # Deactivate all steering
-        # Activate ARRIVE (just ahead of us)
-        target = agent.pos + agent.vel.scm(SLEEP_DECEL)
-        agent.steering.set_target(ARRIVE=target)
+        # Deactivate all steering??
+        agent.flocking_off()
+        # Activate BRAKE
+        agent.steering.set_target(BRAKE=0.5)
+        #target = agent.pos + agent.vel.scm(SLEEP_DECEL)
 
     def execute(self, agent):
         # Gradually reduce fatigue
@@ -194,12 +241,14 @@ class SleepState(State):
             agent.fsm.change_state(SwimState())
 
     def leave(self, agent):
-        # Deactivate ARRIVE
-        agent.steering.stop('ARRIVE')
+        agent.steering.stop('BRAKE')
+        agent.flocking_on()
 
     def on_msg(self, agent, msg):
-        # Willfully ignore all messages
-        return True # so will not be passed to global state
+        # Willfully ignore all messages except eaten
+        if msg != 'UR_EATEN':
+            return True # so will not be passed to global state
+        return False
 
 
 class GoHomeState(State):
@@ -207,7 +256,7 @@ class GoHomeState(State):
 
     def enter(self, agent):
         # Activate ARRIVE (home)
-        logging.info('Fish: TIRED ({}), going home'.format(agent.fatigue))
+        logging.info('Fish {}: TIRED ({}), going home'.format(agent.ent_id, agent.fatigue))
         agent.steering.set_target(ARRIVE=agent.home)
 
     def execute(self, agent):
@@ -218,6 +267,38 @@ class GoHomeState(State):
 
     def leave(self, agent):
         agent.steering.stop('ARRIVE')
+
+
+class DeadState(State):
+    """Fish was eaten; move sprite away and respawn later."""
+    
+    def enter(self, agent):
+        # Pause all steering behaviours
+        for behaviour in agent.steering.targets.keys():
+            agent.steering.pause(behaviour)
+        agent.pos = Point2d(-9000,-9000)
+        agent.vel = Point2d(0,0)
+        agent.alive = False
+        agent.until_respawn = RESPAWN_RATE
+        
+    def execute(self, agent):
+        agent.until_respawn -= 1
+        if agent.until_respawn <= 0:
+            agent.fsm.change_state(InitialFishState())
+            
+    def leave(self, agent):
+        logging.info('Fish {}: now respawning at {}'.format(agent.ent_id, agent.home))
+        agent.pos = agent.home
+        agent.hunger = 0
+        agent.fatigue = 0
+        agent.vel = Point2d(0,0)
+        agent.steering.resume('AVOID')
+        agent.steering.resume('WALLAVOID')
+            
+    def on_msg(self, agent, msg):
+        """Ignore all messages when dead."""
+        return True
+    
 
 if __name__ == '__main__':
     pass
