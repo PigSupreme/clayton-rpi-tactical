@@ -12,7 +12,7 @@ import sys, pygame
 from pygame.locals import QUIT, MOUSEBUTTONDOWN
 
 import logging
-logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.WARN)
 
 from random import randint, shuffle, choice
 
@@ -20,17 +20,19 @@ sys.path.extend(['..','../vehicle'])
 import steering
 # Override some default values from steering_constants:
 steering.FLOCKING_RADIUS_MULTIPLIER = 3.0
-steering.FLOCKING_SEPARATE_SCALE = 0.5
+steering.FLOCKING_SEPARATE_SCALE = 1.4
 
-UPDATE_SPEED = 0.1
-OBS_RADIUS = 300
-OBSTACLE_COUNT = 12
+UPDATE_SPEED = 0.2
+OBS_RADIUS = 350
+OBSTACLE_COUNT = 16
 
 FISH_RADIUS = 25
-FISH_COUNT = 8
+FISH_COUNT = 18
 FOOD_COUNT = 10
 
 SHARK_RADIUS = 60
+
+SCREENSIZE = (1200, 800)
 
 INF = float('inf')
 
@@ -103,7 +105,7 @@ if __name__ == "__main__":
     pygame.init()
 
     # Display constants
-    size = sc_width, sc_height = 800, 640
+    size = sc_width, sc_height = SCREENSIZE
     screen = pygame.display.set_mode(size)
     pygame.display.set_caption('Fish FSM demo')
     bgcolor = 111, 145, 192
@@ -117,7 +119,7 @@ if __name__ == "__main__":
 
     # Load vehicle images
     fish_img, fish_rec = load_pygame_image('../images/gpig.png', -1)
-    shark_img, shark_rec = load_pygame_image('../images/rpig.png', -1)    
+    shark_img, shark_rec = load_pygame_image('../images/rpig.png', -1)
 
     # Food sprite images (generated here)
     food_img = pygame.Surface((5,5))
@@ -143,11 +145,11 @@ if __name__ == "__main__":
     for i in range(numfish,numveh):
         fish = entshark.Plus8Shark(i, SHARK_RADIUS, pos[i], Point2d(0,0), (shark_img, shark_rec))
         obj.append(fish)
-        
+
     # Lists of vehicles for later use
     fishlist = obj[:numfish]
     sharklist = obj[numfish:numfish+numshark]
-    vehicles = obj[:] 
+    vehicles = obj[:]
 
     # Static obstacles for pygame (randomly-generated positions)
     yoffset = sc_height//(numobs+1)
@@ -159,7 +161,7 @@ if __name__ == "__main__":
         new_pos = Point2d(offset*sc_width, rany)
         obstacle = SimpleObstacle2d(new_pos, OBS_RADIUS, (obs_img, obs_rec))
         obj.append(obstacle)
-        
+
     # This gives a convenient list of (non-wall) obstacles for later use
     obslist = obj[numveh:]
 
@@ -183,15 +185,15 @@ if __name__ == "__main__":
     for fish in fishlist:
         fish.UPDATE_SPEED = UPDATE_SPEED
         fish.obs = obslist
-        fish.walls = wall_list 
+        fish.walls = wall_list
         fish.feeder = feeder
         fish.steering.set_target(SEPARATE=fishlist[:]+sharklist[:], ALIGN=fishlist[:], COHESION=fishlist[:])
         fish.shark = sharklist[0]  # This assumes a single shark
-    #...and for each shark 
+    #...and for each shark
     for fish in sharklist:
         fish.UPDATE_SPEED = UPDATE_SPEED
         fish.obs = obslist
-        fish.walls = wall_list 
+        fish.walls = wall_list
         fish.prey = fishlist
 
     # Used by pygame for collision detection

@@ -24,10 +24,12 @@ FATIGUE_RECOVER_RATE = 5
 SLEEP_DECEL = 10
 
 EAT_RADIUS_SQ = 35**2
-HUNGER_PER_FISH = 1200
+HUNGER_PER_FISH = 400
 HUNGER_THRESHOLD = 4*HUNGER_PER_FISH
-HUNTING_RANGE_SQ = 250**2
-HUNTING_UPDATE_RATE = 50
+HUNTING_RANGE_SQ = 300**2
+HUNTING_UPDATE_RATE = 200
+
+SHARK_SPEED_BOOST = 0.45
 
 # Higher values will prioritize going home over sleeping
 #GOHOME_URGENCY = 100
@@ -136,6 +138,7 @@ class HuntState(State):
     """Find food and chase after it."""
 
     def enter(self, agent):
+        agent.maxspeed += SHARK_SPEED_BOOST
         # TODO: This assumes shark keeps track of the fish
         # TODO: Have global state manage the prey list??
         # For now, find the location of the nearest prey
@@ -160,8 +163,11 @@ class HuntState(State):
     def execute(self, agent):
         # Update our target every so often...
         # ...cheating on this by re-calling enter
+        # ...so we need to adjust the boost
+ 
         agent.hunting_countdown -= 1
         if agent.hunting_countdown <= 0:
+            agent.maxspeed -= SHARK_SPEED_BOOST
             self.enter(agent)
             
         # TODO: Check current food target
@@ -174,6 +180,7 @@ class HuntState(State):
 
     def leave(self, agent):
         # Stop PURSUE
+        agent.maxspeed -= SHARK_SPEED_BOOST
         agent.steering.stop('PURSUE')
 
     def on_msg(self, agent, msg):

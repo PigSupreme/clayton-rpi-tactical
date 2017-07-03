@@ -22,9 +22,23 @@ FATIGUE_RECOVER_RATE = 5
 SLEEP_DECEL = 10
 FISH_HESITANCE = 5.0
 
-HUNGER_THRESHOLD = 2000
+HUNGER_THRESHOLD = 1200
 EAT_RADIUS_SQ = 20**2
 HUNTING_UPDATE_RATE = 50
+
+# Used to set maxspeed based on hunger/fatigue, see the function below
+FISH_SPEED_MAX = 15
+FISH_SPEED_MIN = 5
+FISH_SPEED_MULT = 150
+FISH_SPEED_HSCALE = 1
+FISH_SPEED_FSCALE = 2
+def compute_maxspeed(h, f):
+    """Current maximum speed based on hunger/fatigue.
+    
+    If m h, f is current maxspeed, hunger, fatigue, then
+    m = MIN + MULT*(MAX-MIN)/(MULT + HSCALE*h + FSCALE*f)
+    """
+    return FISH_SPEED_MIN + FISH_SPEED_MULT*(FISH_SPEED_MAX-FISH_SPEED_MIN)//(FISH_SPEED_MULT + FISH_SPEED_HSCALE*h + FISH_SPEED_FSCALE*f)
 
 # Higher values will prioritize going home over sleeping
 GOHOME_URGENCY = 100
@@ -68,7 +82,7 @@ class Plus8Fish(SimpleVehicle2d):
 ##########################################
 
 class InitialFishState(State):
-    """Dummy initial state for first update cycle."""
+    """Dummy initial state for first update cycle, also used after respawn."""
 
     def execute(self, agent):
         agent.hunger = 0
@@ -91,6 +105,7 @@ class GlobalFishState(State):
     def execute(self, agent):
         # Steering/Physics update
         agent.move(agent.UPDATE_SPEED)
+        agent.maxspeed = compute_maxspeed(agent.hunger, agent.fatigue)
 
         # TODO: Update agent.maxspeed based on hunger/fatigue
 
