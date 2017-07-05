@@ -289,7 +289,7 @@ class DeadState(State):
     
     def enter(self, agent):
         # Pause all steering behaviours
-        for behaviour in agent.steering.targets.keys():
+        for behaviour in list(agent.steering.targets.keys()):
             agent.steering.pause(behaviour)
         agent.pos = Point2d(-9000,-9000)
         agent.vel = Point2d(0,0)
